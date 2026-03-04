@@ -1,0 +1,132 @@
+══════════════════════════════════════════════════════════════
+ PILL-O-CLOCK — INTERNAL TRACK SUBMISSION CHECKLIST
+══════════════════════════════════════════════════════════════
+
+Before running any command, verify each item is ✅.
+
+───────────────────────────────────────────────────────────────
+STEP 0 — ONE-TIME SETUP (only on first submission ever)
+───────────────────────────────────────────────────────────────
+
+[ ] Google Play Developer account created ($25 one-time fee)
+    https://play.google.com/console
+
+[ ] New app created in Play Console
+    → "Create app" → App name: Pill-O-Clock → Free → Not a game
+
+[ ] Service account key generated for EAS Submit:
+    Play Console → Setup → API access → Link to Google Cloud project
+    → Create service account → Role: "Release Manager"
+    → Download JSON key → save as ./google-service-account.json
+
+[ ] Privacy policy hosted:
+    a) Push docs/privacy-policy.html to GitHub main branch
+    b) Enable GitHub Pages: Repo Settings → Pages → Source: main /docs
+    c) Note URL: https://<username>.github.io/pill-o-clock/privacy-policy.html
+    d) Add URL in Play Console → App content → Privacy policy
+
+───────────────────────────────────────────────────────────────
+STEP 1 — ASSETS (required before first build)
+───────────────────────────────────────────────────────────────
+
+[ ] assets/icon.png                 — 1024×1024 px, no transparency
+[ ] assets/splash-icon.png          — 1284×2778 px (or 1024×1024 centered)
+[ ] assets/android-icon-foreground.png   — 1024×1024 (adaptive, safe zone 66%)
+[ ] assets/android-icon-background.png  — 1024×1024 solid color or pattern
+[ ] assets/android-icon-monochrome.png  — 1024×1024 white shape on transparent
+[ ] assets/alarm.wav                — notification sound file
+[ ] assets/favicon.png              — any size PNG
+
+[ ] Feature graphic (Play Console): 1024×500 px JPG/PNG  ← only needed in Console
+[ ] Screenshots (Play Console): min 2, max 8 per device type
+    - 320px to 3840px on longest side, aspect ratio 9:16 to 9:20
+
+───────────────────────────────────────────────────────────────
+STEP 2 — CONFIGURE NOTIFICATIONS PLUGIN (collapsed title i18n)
+───────────────────────────────────────────────────────────────
+
+[ ] In app.json, the "androidCollapsedTitle" is build-time only.
+    Since we support two languages, keep it neutral:
+    "androidCollapsedTitle": "Pill-O-Clock"
+    (the runtime channel name is already translated via i18n.t())
+
+───────────────────────────────────────────────────────────────
+STEP 3 — BUILD (production AAB)
+───────────────────────────────────────────────────────────────
+
+Run from the project root:
+
+    npx eas-cli build --platform android --profile production
+
+This will:
+  • Compile a release AAB (Android App Bundle) via EAS cloud
+  • Auto-increment versionCode (configured in eas.json)
+  • Upload to EAS dashboard (~10–15 min)
+
+When complete:
+  • Download the .aab from https://expo.dev or let EAS Submit upload it
+
+───────────────────────────────────────────────────────────────
+STEP 4 — SUBMIT TO INTERNAL TESTING TRACK
+───────────────────────────────────────────────────────────────
+
+Run from the project root:
+
+    npx eas-cli submit --platform android --profile production
+
+This uses the `google-service-account.json` and `track: "internal"` 
+already configured in eas.json to upload the AAB to Play Console.
+
+Alternatively, you can upload manually:
+  Play Console → Release → Testing → Internal testing → Create new release
+
+───────────────────────────────────────────────────────────────
+STEP 5 — PLAY CONSOLE — COMPLETE BEFORE REVIEW
+───────────────────────────────────────────────────────────────
+
+[ ] Store listing (Main store listing):
+    → Copy content from store/play-store-es.txt (default: Spanish)
+    → Add English translation: store/play-store-en.txt
+    → Upload screenshots (min 2 für phone)
+    → Upload feature graphic (1024×500)
+
+[ ] App content → Privacy policy:
+    https://<username>.github.io/pill-o-clock/privacy-policy.html
+
+[ ] App content → Data safety form:
+    • Data collected / shared: No
+    • User can request data deletion: Yes
+    • Data encrypted in transit: Not applicable
+    • Follows Families policy: No
+
+[ ] App content → Target audience: 18+
+
+[ ] App content → Health questionnaire:
+    "Does your app provide health or medical related content?"  → Yes
+    Add disclaimer (already in-app and in store description)
+
+[ ] App content → App access:
+    "All or most functionality is available without special access" → select that option
+
+[ ] Pricing & distribution:
+    Free → Countries: select as needed
+
+───────────────────────────────────────────────────────────────
+STEP 6 — ADD INTERNAL TESTERS
+───────────────────────────────────────────────────────────────
+
+Play Console → Internal testing → Testers → Manage
+→ Add tester Gmail addresses (or create a Google Group)
+→ Share the opt-in URL with your test devices
+
+Allow 10–30 min for the build to become available after upload.
+
+───────────────────────────────────────────────────────────────
+STEP 7 — PROMOTE TO PRODUCTION (when ready)
+───────────────────────────────────────────────────────────────
+
+Internal testing → Promote release → Production
+Requires: all App content sections filled → "Send for review"
+Review time: typically 3–7 business days for first submission.
+
+══════════════════════════════════════════════════════════════

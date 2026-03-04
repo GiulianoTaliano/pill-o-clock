@@ -1,0 +1,69 @@
+══════════════════════════════════════════════════════
+ PILL-O-CLOCK — PLAY STORE LISTING (ENGLISH)
+ Copy-paste into Google Play Console → Store listing
+══════════════════════════════════════════════════════
+
+── APP TITLE (max 30 characters) ───────────────────────
+Pill-O-Clock
+
+── SHORT DESCRIPTION (max 80 characters) ───────────────
+Smart medication reminders with adherence tracking. Never miss a dose again.
+
+── FULL DESCRIPTION (max 4000 characters) ──────────────
+
+💊 Pill-O-Clock — Never miss a dose again
+
+Pill-O-Clock is your personal medication assistant. It reminds you exactly when to take each medication, rings an alarm with quick-action buttons, and logs your adherence so you always have a clear record for your doctor.
+
+▸ ALARMS THAT ACTUALLY RING
+Reminders with a real alarm sound that repeat every 5 minutes until you respond. Mark the dose as taken, snooze it 15 minutes, or skip it — all without opening the app, directly from the notification.
+
+▸ COMPLETE MEDICATION MANAGEMENT
+Organize all your medications with name, dose (mg, ml, drops, tablets, capsules...), category, instructions, and color. Set daily alarms or only on specific days of the week. Define a treatment period with start and end dates.
+
+▸ ADHERENCE TRACKING
+The History tab shows which doses you took, skipped, or missed over the last 30 days. Your adherence rate gives you a clear picture of how well you are following your treatment.
+
+▸ VISUAL CALENDAR
+Monthly view that groups your doses by day and status — pending, taken, skipped, and missed — so you can quickly spot days with issues.
+
+▸ YOUR DATA BELONGS TO YOU
+Everything is saved on your device. Nothing is sent to external servers. You can export a full backup (medications + history) at any time and restore it if you switch phones.
+
+▸ SPANISH & ENGLISH
+The app automatically detects your device's language and also lets you change it manually from Settings.
+
+⚠️ Disclaimer: Pill-O-Clock is a reminder tool and does not replace the advice of a qualified healthcare professional. Always consult your doctor or pharmacist.
+
+── WHAT'S NEW / RELEASE NOTES (max 500 characters) ─────
+
+v1.0.0 — Initial release
+
+• Medications with dose, category, notes and color
+• Repeated alarms with quick actions (take / snooze / skip)
+• Adherence history with statistics
+• Visual monthly calendar
+• Export and import data (backup)
+• Available in Spanish and English
+
+── CATEGORY ─────────────────────────────────────────────
+Health & Fitness
+
+── CONTENT RATING ───────────────────────────────────────
+Everyone
+
+── TAGS / KEYWORDS ──────────────────────────────────────
+medication, pill, alarm, reminder, dose, adherence, health, medicamento, pastilla, alarma, recordatorio
+
+── CONTACT EMAIL ────────────────────────────────────────
+privacy@pilloclock.app
+
+── PRIVACY POLICY URL ───────────────────────────────────
+https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html
+
+── DATA SAFETY FORM (answers) ───────────────────────────
+Does the app collect data?           → No (all data is local-only)
+Does the app share data?             → No
+Can users request data deletion?     → Yes (Settings → Delete all data)
+Is data encrypted in transit?        → N/A (no data is transmitted)
+Does it follow Families guidelines?  → No
