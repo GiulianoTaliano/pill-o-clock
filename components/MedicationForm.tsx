@@ -4,7 +4,6 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Platform,
 } from "react-native";
 import { useState } from "react";
@@ -18,6 +17,7 @@ import { DayToggle } from "./DayToggle";
 import { format } from "date-fns";
 import { DOSAGE_UNITS, CATEGORY_CONFIG, getCategoryLabel, getDosageLabel } from "../src/utils";
 import { useTranslation } from "../src/i18n";
+import { useToast } from "../src/context/ToastContext";
 
 // ─── Schedule row ──────────────────────────────────────────────────────────
 
@@ -246,35 +246,31 @@ export function MedicationForm({
     isInitiallyOnce ? (initialValues?.startDate ?? todayStr) : todayStr
   );
 
+  const { showToast } = useToast();
+
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert(t('form.errorNameRequired'), t('form.errorNameRequiredMsg'));
+      showToast(t('form.errorNameRequiredMsg'), "error");
       return;
     }
     // Duplicate-name check (case-insensitive)
     const trimmedName = name.trim().toLowerCase();
     if (existingNames.some((n) => n.toLowerCase() === trimmedName)) {
-      Alert.alert(
-        t('form.errorDuplicate'),
-        t('form.errorDuplicateMsg', { name: name.trim() })
-      );
+      showToast(t('form.errorDuplicateMsg', { name: name.trim() }), "error");
       return;
     }
     const parsedAmount = parseFloat(dosageAmountStr.replace(",", "."));
     if (!dosageAmountStr.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert(t('form.errorDoseRequired'), t('form.errorDoseRequiredMsg'));
+      showToast(t('form.errorDoseRequiredMsg'), "error");
       return;
     }
     if (schedules.length === 0) {
-      Alert.alert(t('form.errorNoAlarms'), t('form.errorNoAlarmsMsg'));
+      showToast(t('form.errorNoAlarmsMsg'), "error");
       return;
     }
     // Date-range check (repeat mode only)
     if (repeatMode === "repeat" && startDate && endDate && endDate < startDate) {
-      Alert.alert(
-        t('form.errorInvalidPeriod'),
-        t('form.errorInvalidPeriodMsg')
-      );
+      showToast(t('form.errorInvalidPeriodMsg'), "error");
       return;
     }
 

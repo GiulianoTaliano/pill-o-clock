@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { useToast } from "../../src/context/ToastContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -104,6 +105,7 @@ export default function SettingsScreen() {
 
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const { showToast } = useToast();
 
   // ─── Handlers ──────────────────────────────────────────────────────────
 
@@ -112,7 +114,7 @@ export default function SettingsScreen() {
     try {
       await exportBackup();
     } catch {
-      Alert.alert(t("settings.exportError"), t("settings.exportErrorGeneric"));
+      showToast(t("settings.exportErrorGeneric"), "error");
     } finally {
       setExporting(false);
     }
@@ -142,17 +144,14 @@ export default function SettingsScreen() {
     try {
       const { count } = await importBackup(mode);
       await loadAll();
-      Alert.alert(
-        t("settings.importSuccess"),
-        t("settings.importSuccessMsg", { count })
-      );
+      showToast(t("settings.importSuccessMsg", { count }), "success");
     } catch (e) {
       if (e instanceof BackupCancelledError) return;
       const msg =
         e instanceof BackupFormatError
           ? t("settings.importErrorFormat")
           : t("settings.importErrorGeneric");
-      Alert.alert(t("settings.importError"), msg);
+      showToast(msg, "error");
     } finally {
       setImporting(false);
     }

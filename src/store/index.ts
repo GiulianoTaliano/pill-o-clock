@@ -31,6 +31,7 @@ import {
   cancelAllNotifications,
   snoozeDose,
 } from "../services/notifications";
+import { unregisterBackgroundFetch } from "../services/backgroundTask";
 
 // ─── State ─────────────────────────────────────────────────────────────────
 
@@ -249,6 +250,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   async resetAllData() {
     await cancelAllNotifications();
+    await unregisterBackgroundFetch();
     await clearAllData();
     set({ medications: [], schedules: [], todayLogs: [] });
   },
