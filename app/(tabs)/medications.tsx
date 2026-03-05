@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl } from 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useAppStore } from "../../src/store";
 import { MedicationCard } from "../../components/MedicationCard";
 import { EmptyState } from "../../components/EmptyState";
@@ -67,7 +68,7 @@ export default function MedicationsScreen() {
           <Text className="text-sm text-muted">{t('medications.subtitle', { count: medications.length })}</Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push("/medication/new")}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
           className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
         >
           <Ionicons name="add" size={24} color="#fff" />
@@ -131,7 +132,7 @@ export default function MedicationsScreen() {
             {__DEV__ && (
               <TouchableOpacity
                 onPress={handleReset}
-                className="flex-row items-center justify-center gap-2 border border-red-200 rounded-2xl p-4 mb-8 bg-red-50"
+                className="flex-row items-center justify-center gap-2 border border-red-200 dark:border-red-800 rounded-2xl p-4 mb-8 bg-red-50 dark:bg-red-950/30"
               >
                 <Ionicons name="trash-outline" size={16} color="#ef4444" />
                 <Text className="text-red-500 text-sm font-semibold">{t('medications.resetButtonFull')}</Text>

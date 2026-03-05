@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as BackgroundFetch from "expo-background-fetch";
 import * as TaskManager from "expo-task-manager";
 import { initDatabase } from "../db/database";
@@ -11,7 +12,7 @@ export const BG_TASK_NAME = "PILL_RESCHEDULE_NOTIFICATIONS";
 // IMPORTANT: defineTask must be called at module scope (before any renders).
 // Importing this file from _layout.tsx is sufficient.
 
-TaskManager.defineTask(BG_TASK_NAME, async () => {
+if (Platform.OS !== "web") TaskManager.defineTask(BG_TASK_NAME, async () => {
   try {
     await initDatabase();
     await rescheduleAllNotifications();
@@ -26,6 +27,7 @@ TaskManager.defineTask(BG_TASK_NAME, async () => {
 
 /** Register the background fetch task if it isn't already registered. */
 export async function registerBackgroundFetch(): Promise<void> {
+  if (Platform.OS === "web") return;
   try {
     const status = await BackgroundFetch.getStatusAsync();
     if (
@@ -51,6 +53,7 @@ export async function registerBackgroundFetch(): Promise<void> {
 
 /** Unregister (call when resetting all data so stale tasks don't run). */
 export async function unregisterBackgroundFetch(): Promise<void> {
+  if (Platform.OS === "web") return;
   try {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BG_TASK_NAME);
     if (isRegistered) {

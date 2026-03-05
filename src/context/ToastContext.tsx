@@ -10,6 +10,7 @@ import {
 import { Animated, Text, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
+    // Haptic feedback per type
+    if (type === "success") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    else if (type === "error") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     const id = ++_nextId;
     setToasts((prev) => [...prev.slice(-1), { id, message, type }]); // max 2 visible
   }, []);

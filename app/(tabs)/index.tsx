@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from "react-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import { useAppStore } from "../../src/store";
 import { useTodaySchedule } from "../../src/hooks/useTodaySchedule";
@@ -51,7 +52,7 @@ export default function HomeScreen() {
           <Text className="text-sm text-muted mt-0.5">{todayCap}</Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push("/medication/new")}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
           className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
         >
           <Ionicons name="add" size={24} color="#fff" />
@@ -60,24 +61,24 @@ export default function HomeScreen() {
 
       {/* Summary chips */}
       <View className="px-5 py-3 flex-row gap-2 flex-wrap">
-        <View className="bg-amber-100 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
+        <View className="bg-amber-100 dark:bg-amber-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
           <Ionicons name="time-outline" size={14} color="#d97706" />
-          <Text className="text-amber-700 text-xs font-bold">{t('home.chipPending', { count: pending.length })}</Text>
+          <Text className="text-amber-700 dark:text-amber-400 text-xs font-bold">{t('home.chipPending', { count: pending.length })}</Text>
         </View>
-        <View className="bg-green-100 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
+        <View className="bg-green-100 dark:bg-green-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
           <Ionicons name="checkmark-circle-outline" size={14} color="#16a34a" />
-          <Text className="text-green-700 text-xs font-bold">{t('home.chipTaken', { count: done.filter(d => d.status === 'taken').length })}</Text>
+          <Text className="text-green-700 dark:text-green-400 text-xs font-bold">{t('home.chipTaken', { count: done.filter(d => d.status === 'taken').length })}</Text>
         </View>
         {done.filter(d => d.status === "skipped").length > 0 && (
-          <View className="bg-red-100 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
+          <View className="bg-red-100 dark:bg-red-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
             <Ionicons name="close-circle-outline" size={14} color="#dc2626" />
-            <Text className="text-red-600 text-xs font-bold">{t('home.chipSkipped', { count: done.filter(d => d.status === 'skipped').length })}</Text>
+            <Text className="text-red-600 dark:text-red-400 text-xs font-bold">{t('home.chipSkipped', { count: done.filter(d => d.status === 'skipped').length })}</Text>
           </View>
         )}
         {missed.length > 0 && (
-          <View className="bg-slate-100 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
+          <View className="bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
             <Ionicons name="alert-circle-outline" size={14} color="#64748b" />
-            <Text className="text-slate-600 text-xs font-bold">{t('home.chipMissed', { count: missed.length })}</Text>
+            <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">{t('home.chipMissed', { count: missed.length })}</Text>
           </View>
         )}
       </View>

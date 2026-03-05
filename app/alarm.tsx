@@ -120,7 +120,7 @@ export default function AlarmScreen() {
         {/* Snooze */}
         <TouchableOpacity
           onPress={handleSnooze}
-          className="rounded-2xl py-3 items-center flex-row justify-center gap-2 bg-amber-50 border border-amber-200"
+          className="rounded-2xl py-3 items-center flex-row justify-center gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700"
         >
           <Ionicons name="alarm-outline" size={20} color="#d97706" />
           <Text className="text-amber-700 text-base font-bold">

@@ -1,5 +1,6 @@
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { useToast } from "../../src/context/ToastContext";
+import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -54,7 +55,7 @@ function SettingRow({
   const showChevron = chevron ?? (isInteractive && !value);
 
   const inner = (
-    <View className="flex-row items-center px-5 py-4 bg-white" style={{ minHeight: 60 }}>
+    <View className="flex-row items-center px-5 py-4 bg-card" style={{ minHeight: 60 }}>
       {/* icon pill */}
       <View
         className="w-9 h-9 rounded-xl items-center justify-center mr-4"
@@ -176,6 +177,7 @@ export default function SettingsScreen() {
   }
 
   function handleLanguage(lang: "es" | "en") {
+    Haptics.selectionAsync();
     changeLanguage(lang);
   }
 
@@ -194,7 +196,7 @@ export default function SettingsScreen() {
 
         {/* ─── Your data ─── */}
         <SectionHeader title={t("settings.sectionData")} />
-        <View className="mx-5 rounded-2xl overflow-hidden" style={{ backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
           <SettingRow
             icon="cloud-download-outline"
             iconColor="#4f9cff"
@@ -216,7 +218,7 @@ export default function SettingsScreen() {
 
         {/* ─── Language ─── */}
         <SectionHeader title={t("settings.sectionLanguage")} />
-        <View className="mx-5 rounded-2xl overflow-hidden" style={{ backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
           {(["es", "en"] as const).map((lang, idx) => (
             <View key={lang}>
               {idx > 0 && <Divider />}
@@ -233,7 +235,7 @@ export default function SettingsScreen() {
 
         {/* ─── About ─── */}
         <SectionHeader title={t("settings.sectionAbout")} />
-        <View className="mx-5 rounded-2xl overflow-hidden" style={{ backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
           <SettingRow
             icon="information-circle-outline"
             iconColor="#94a3b8"
@@ -244,7 +246,7 @@ export default function SettingsScreen() {
 
         {/* ─── Danger zone ─── */}
         <SectionHeader title={t("settings.sectionDanger")} danger />
-        <View className="mx-5 rounded-2xl overflow-hidden" style={{ backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
           <SettingRow
             icon="trash-outline"
             iconColor="#dc2626"

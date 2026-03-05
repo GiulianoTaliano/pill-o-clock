@@ -17,6 +17,7 @@ import { DayToggle } from "./DayToggle";
 import { format } from "date-fns";
 import { DOSAGE_UNITS, CATEGORY_CONFIG, getCategoryLabel, getDosageLabel } from "../src/utils";
 import { useTranslation } from "../src/i18n";
+import * as Haptics from "expo-haptics";
 import { useToast } from "../src/context/ToastContext";
 
 // ─── Schedule row ──────────────────────────────────────────────────────────
@@ -54,13 +55,13 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
   };
 
   return (
-    <View className="bg-slate-50 rounded-2xl p-4 mb-3 border border-slate-100">
+    <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 mb-3 border border-slate-100 dark:border-slate-700">
       {/* Time */}
       <View className="flex-row items-center justify-between mb-3">
           <Text className="text-sm font-semibold text-text">{t('form.fieldTime')}</Text>
         <TouchableOpacity
           onPress={() => setShowPicker(true)}
-          className="flex-row items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2"
+          className="flex-row items-center gap-2 bg-card border dark:border-slate-600 rounded-xl px-4 py-2"
         >
           <Ionicons name="alarm-outline" size={16} color="#4f9cff" />
           <Text className="text-base font-bold text-primary">{schedule.time}</Text>
@@ -150,7 +151,7 @@ function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowPr
       </View>
       <TouchableOpacity
         onPress={handleOpen}
-        className="flex-row items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5"
+        className="flex-row items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5"
       >
         <Ionicons name="calendar-outline" size={14} color="#4f9cff" />
         <Text className={`text-sm font-semibold ${value ? "text-text" : "text-muted"}`}>
@@ -308,7 +309,7 @@ export function MedicationForm({
           {t('form.sectionInfo')}
         </Text>
 
-        <View className="bg-white rounded-2xl border border-slate-100 p-4 mb-4 gap-4">
+        <View className="bg-card rounded-2xl border border-border p-4 mb-4 gap-4">
           {/* Name */}
           <View>
             <Text className="text-sm font-semibold text-text mb-1.5">
@@ -319,7 +320,7 @@ export function MedicationForm({
               onChangeText={setName}
               placeholder={t('form.fieldNamePlaceholder')}
               placeholderTextColor="#94a3b8"
-              className="border border-slate-200 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50"
+              className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
               autoCapitalize="words"
             />
           </View>
@@ -337,7 +338,7 @@ export function MedicationForm({
                 placeholder={t('form.fieldDoseAmountPlaceholder')}
                 placeholderTextColor="#94a3b8"
                 keyboardType="decimal-pad"
-                className="border border-slate-200 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 w-28"
+                className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
               />
               <Text className="text-muted text-sm">{t('form.fieldDoseAmountLabel')}</Text>
             </View>
@@ -351,7 +352,7 @@ export function MedicationForm({
                     className={`rounded-xl px-4 py-2 border ${
                       dosageUnit === u.value
                         ? "bg-primary border-primary"
-                        : "bg-slate-50 border-slate-200"
+                        : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-600"
                     }`}
                   >
                     <Text
@@ -378,8 +379,8 @@ export function MedicationForm({
                     onPress={() => setCategory(key)}
                     className={`flex-row items-center gap-1.5 rounded-xl px-3 py-2 border ${
                       category === key
-                        ? "border-primary bg-blue-50"
-                        : "border-slate-200 bg-slate-50"
+                        ? "border-primary bg-blue-50 dark:bg-blue-950/30"
+                        : "border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800"
                     }`}
                   >
                     <Ionicons
@@ -410,7 +411,7 @@ export function MedicationForm({
               onChangeText={setNotes}
               placeholder={t('form.fieldNotesPlaceholder')}
               placeholderTextColor="#94a3b8"
-              className="border border-slate-200 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50"
+              className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
               multiline
               numberOfLines={2}
             />
@@ -435,11 +436,11 @@ export function MedicationForm({
             className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3 border ${
               repeatMode === "once"
                 ? "bg-primary border-primary"
-                : "bg-white border-slate-200"
+                : "bg-card border-border"
             }`}
           >
             <Ionicons
-              name="flash-outline"
+              name="time-outline"
               size={16}
               color={repeatMode === "once" ? "#fff" : "#94a3b8"}
             />
@@ -467,7 +468,7 @@ export function MedicationForm({
             className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3 border ${
               repeatMode === "repeat"
                 ? "bg-primary border-primary"
-                : "bg-white border-slate-200"
+                : "bg-card border-border"
             }`}
           >
             <Ionicons
@@ -500,7 +501,7 @@ export function MedicationForm({
             <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
               {t('form.sectionWhen')}
             </Text>
-            <View className="bg-white rounded-2xl border border-slate-100 px-4 mb-4">
+            <View className="bg-card rounded-2xl border border-border px-4 mb-4">
               <DateRow label={t('form.fieldDate')} value={onceDate} onChange={(v) => v && setOnceDate(v)} />
             </View>
 
@@ -523,7 +524,7 @@ export function MedicationForm({
             <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
               {t('form.sectionPeriod')}
             </Text>
-            <View className="bg-white rounded-2xl border border-slate-100 px-4 mb-4">
+            <View className="bg-card rounded-2xl border border-border px-4 mb-4">
               <DateRow
                 label={t('form.fieldStartDate')}
                 value={startDate}
@@ -534,7 +535,7 @@ export function MedicationForm({
                 }}
                 maximumDate={endDate ? new Date(endDate + "T12:00") : undefined}
               />
-              <View className="border-b border-slate-100" />
+              <View className="border-b border-border" />
               <DateRow
                 label={t('form.fieldEndDate')}
                 value={endDate}
@@ -568,7 +569,7 @@ export function MedicationForm({
 
         {/* Submit */}
         <TouchableOpacity
-          onPress={handleSubmit}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSubmit(); }}
           disabled={isSubmitting}
           className={`rounded-2xl py-4 items-center mt-2 ${
             isSubmitting ? "bg-slate-300" : "bg-primary"

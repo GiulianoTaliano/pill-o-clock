@@ -1,9 +1,11 @@
 import { View, Text, TouchableOpacity, Switch } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Medication, Schedule } from "../src/types";
 import { MEDICATION_COLORS, CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort } from "../src/utils";
 import { format } from "date-fns";
 import { useTranslation, getDateLocale } from "../src/i18n";
+import { useAppTheme } from "../src/hooks/useAppTheme";
 
 interface MedicationCardProps {
   medication: Medication;
@@ -21,6 +23,7 @@ export function MedicationCard({
   onToggleActive,
 }: MedicationCardProps) {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const colors = MEDICATION_COLORS[medication.color];
 
   function scheduleLabel(s: Schedule): string {
@@ -35,8 +38,8 @@ export function MedicationCard({
 
   return (
     <View
-      style={{ borderLeftColor: colors.bg, backgroundColor: medication.isActive ? "#fff" : "#f8fafc" }}
-      className="rounded-2xl border border-slate-100 border-l-4 p-4 mb-3 shadow-sm"
+      style={{ borderLeftColor: colors.bg, backgroundColor: medication.isActive ? theme.card : theme.cardAlt }}
+      className="rounded-2xl border border-border border-l-4 p-4 mb-3 shadow-sm"
     >
       {/* Header */}
       <View className="flex-row items-center justify-between">
@@ -79,7 +82,7 @@ export function MedicationCard({
 
         <Switch
           value={medication.isActive}
-          onValueChange={onToggleActive}
+          onValueChange={(v) => { Haptics.selectionAsync(); onToggleActive(v); }}
           trackColor={{ false: "#e2e8f0", true: colors.light }}
           thumbColor={medication.isActive ? colors.bg : "#94a3b8"}
         />
@@ -127,18 +130,18 @@ export function MedicationCard({
       {/* Actions */}
       <View className="flex-row justify-end gap-3 mt-3">
         <TouchableOpacity
-          onPress={onEdit}
-          className="flex-row items-center gap-1 bg-blue-50 rounded-xl px-3 py-1.5"
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(); }}
+          className="flex-row items-center gap-1 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-1.5"
         >
           <Ionicons name="pencil-outline" size={14} color="#3b82f6" />
-          <Text className="text-blue-500 text-xs font-semibold">Editar</Text>
+          <Text className="text-blue-500 text-xs font-semibold">{t('common.edit')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={onDelete}
-          className="flex-row items-center gap-1 bg-red-50 rounded-xl px-3 py-1.5"
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
+          className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-1.5"
         >
           <Ionicons name="trash-outline" size={14} color="#ef4444" />
-          <Text className="text-red-500 text-xs font-semibold">Eliminar</Text>
+          <Text className="text-red-500 text-xs font-semibold">{t('common.delete')}</Text>
         </TouchableOpacity>
       </View>
     </View>

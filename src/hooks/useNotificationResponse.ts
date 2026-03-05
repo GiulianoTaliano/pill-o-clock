@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { useAppStore } from "../store";
 import {
@@ -28,6 +29,7 @@ export function useNotificationResponseHandler() {
   const listenerRef = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
+    if (Platform.OS === "web") return;
     listenerRef.current = Notifications.addNotificationResponseReceivedListener(
       async (response) => {
         const actionId = response.actionIdentifier;

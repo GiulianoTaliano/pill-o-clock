@@ -38,7 +38,7 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
         <TouchableOpacity
           onPress={toggleAll}
           className={`rounded-full px-3 py-1.5 ${
-            isAllSelected ? "bg-primary" : "bg-slate-100"
+            isAllSelected ? "bg-primary" : "bg-slate-100 dark:bg-slate-700"
           }`}
         >
           <Text
@@ -59,7 +59,7 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
               key={idx}
               onPress={() => toggle(idx)}
               className={`rounded-full px-3 py-1.5 ${
-                active ? "bg-primary/20" : "bg-slate-100"
+                active ? "bg-primary/20" : "bg-slate-100 dark:bg-slate-700"
               }`}
             >
               <Text

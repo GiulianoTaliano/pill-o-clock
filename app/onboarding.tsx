@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTranslation } from "../src/i18n";
 import { setupNotifications } from "../src/services/notifications";
+import * as Haptics from "expo-haptics";
 
 export const ONBOARDING_DONE_KEY = "@pilloclock/onboarding_done";
 
@@ -83,6 +84,7 @@ export default function OnboardingScreen() {
 
   function handleNext() {
     if (currentIndex < LAST) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       scrollTo(currentIndex + 1);
     }
   }
@@ -105,6 +107,7 @@ export default function OnboardingScreen() {
   }
 
   async function handleStart() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Request permissions if not yet asked
     if (permissionGranted === null) {
       await handleRequestPermission();
@@ -185,13 +188,13 @@ export default function OnboardingScreen() {
                     </Text>
                   </TouchableOpacity>
                 ) : permissionGranted ? (
-                  <View className="bg-green-50 border border-green-200 rounded-2xl py-4 items-center">
+                  <View className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-2xl py-4 items-center">
                     <Text className="text-green-700 font-bold text-base">
                       {t("onboarding.notificationsGranted")}
                     </Text>
                   </View>
                 ) : (
-                  <View className="bg-amber-50 border border-amber-200 rounded-2xl py-4 px-4 items-center">
+                  <View className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-2xl py-4 px-4 items-center">
                     <Text className="text-amber-700 text-sm text-center">
                       {t("onboarding.notificationsDenied")}
                     </Text>

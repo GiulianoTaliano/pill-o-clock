@@ -31,18 +31,14 @@ import {
   parseTime,
 } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
+import { useAppTheme } from "../../src/hooks/useAppTheme";
 
 // ─── Status badge ──────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: TodayDoseStatus }) {
   const { t } = useTranslation();
-  const cfg: Record<TodayDoseStatus, { bg: string; color: string }> = {
-    pending: { bg: "#fef3c7", color: "#d97706" },
-    taken:   { bg: "#dcfce7", color: "#16a34a" },
-    skipped: { bg: "#fee2e2", color: "#dc2626" },
-    missed:  { bg: "#f1f5f9", color: "#64748b" },
-  };
-  const { bg, color } = cfg[status];
+  const theme = useAppTheme();
+  const { bg, color } = theme.statusBadge[status];
   return (
     <View style={{ backgroundColor: bg }} className="rounded-lg px-2 py-0.5">
       <Text style={{ color }} className="text-xs font-semibold">
@@ -202,7 +198,7 @@ export default function CalendarScreen() {
       <View className="px-5 py-2 flex-row items-center justify-between">
         <TouchableOpacity
           onPress={() => setCurrentMonth((m) => subMonths(m, 1))}
-          className="p-2 bg-white rounded-xl border border-slate-100"
+          className="p-2 bg-card rounded-xl border border-border"
         >
           <Ionicons name="chevron-back" size={18} color="#4f9cff" />
         </TouchableOpacity>
@@ -213,7 +209,7 @@ export default function CalendarScreen() {
 
         <TouchableOpacity
           onPress={() => setCurrentMonth((m) => addMonths(m, 1))}
-          className="p-2 bg-white rounded-xl border border-slate-100"
+          className="p-2 bg-card rounded-xl border border-border"
         >
           <Ionicons name="chevron-forward" size={18} color="#4f9cff" />
         </TouchableOpacity>
@@ -253,7 +249,7 @@ export default function CalendarScreen() {
                       isSelected
                         ? "bg-primary"
                         : isTodayCell
-                        ? "bg-blue-50 border border-blue-200"
+                        ? "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800"
                         : ""
                     }`}
                   >
@@ -289,7 +285,7 @@ export default function CalendarScreen() {
       </View>
 
       {/* Divider */}
-      <View className="border-t border-slate-100 mx-5 mb-3" />
+      <View className="border-t border-border mx-5 mb-3" />
 
       {/* Selected day label */}
       <View className="px-5 mb-2 flex-row items-center gap-2">
@@ -325,7 +321,7 @@ export default function CalendarScreen() {
               <View
                 key={`${dose.schedule.id}-${dose.scheduledDate}`}
                 style={{ borderLeftColor: colors.bg }}
-                className="bg-white rounded-2xl border border-slate-100 border-l-4 p-4 mb-3"
+                className="bg-card rounded-2xl border border-border border-l-4 p-4 mb-3"
               >
                 {/* Row: icon + name + time/status */}
                 <View className="flex-row items-center justify-between">
@@ -370,7 +366,7 @@ export default function CalendarScreen() {
                   <View className="flex-row gap-2 mt-3">
                     <TouchableOpacity
                       onPress={() => handleMarkDose(dose, "skipped")}
-                      className="flex-row items-center gap-1 bg-slate-100 border border-slate-200 rounded-xl px-3 py-2"
+                      className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
                     >
                       <Ionicons name="close-outline" size={14} color="#64748b" />
                       <Text className="text-slate-500 text-xs font-semibold">

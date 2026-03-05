@@ -8,15 +8,17 @@ import { useAppStore } from "../../src/store";
 import { DoseLog, Medication } from "../../src/types";
 import { MEDICATION_COLORS, toDateString } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
+import { useAppTheme } from "../../src/hooks/useAppTheme";
 
-const STATUS_CONFIG = {
-  taken:   { color: "#16a34a", bg: "#dcfce7", icon: "checkmark-circle" as const },
-  skipped: { color: "#dc2626", bg: "#fee2e2", icon: "close-circle" as const },
-  pending: { color: "#d97706", bg: "#fef3c7", icon: "time" as const },
+const STATUS_ICONS = {
+  taken:   "checkmark-circle" as const,
+  skipped: "close-circle" as const,
+  pending: "time" as const,
 };
 
 export default function HistoryScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const medications = useAppStore((s) => s.medications);
   const getHistoryLogs = useAppStore((s) => s.getHistoryLogs);
   const [logs, setLogs] = useState<DoseLog[]>([]);
@@ -75,7 +77,7 @@ export default function HistoryScreen() {
       <View className="px-5 py-2 flex-row items-center justify-between">
         <TouchableOpacity
           onPress={() => setOffset((o) => o + 1)}
-          className="p-2 bg-white rounded-xl border border-slate-100"
+          className="p-2 bg-card rounded-xl border border-border"
         >
           <Ionicons name="chevron-back" size={18} color="#4f9cff" />
         </TouchableOpacity>
@@ -90,7 +92,7 @@ export default function HistoryScreen() {
         <TouchableOpacity
           onPress={() => setOffset((o) => Math.max(0, o - 1))}
           disabled={offset === 0}
-          className={`p-2 bg-white rounded-xl border border-slate-100 ${offset === 0 ? "opacity-30" : ""}`}
+          className={`p-2 bg-card rounded-xl border border-border ${offset === 0 ? "opacity-30" : ""}`}
         >
           <Ionicons name="chevron-forward" size={18} color="#4f9cff" />
         </TouchableOpacity>
@@ -98,18 +100,18 @@ export default function HistoryScreen() {
 
       {/* Stats row */}
       <View className="flex-row px-5 gap-2 mb-3">
-        <View className="flex-1 bg-green-50 border border-green-100 rounded-2xl p-3 items-center">
-          <Text className="text-2xl font-black text-green-600">{totalTaken}</Text>
-          <Text className="text-xs text-green-700 font-medium">{t('history.taken')}</Text>
+        <View className="flex-1 bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-800/40 rounded-2xl p-3 items-center">
+          <Text className="text-2xl font-black text-green-600 dark:text-green-400">{totalTaken}</Text>
+          <Text className="text-xs text-green-700 dark:text-green-400 font-medium">{t('history.taken')}</Text>
         </View>
-        <View className="flex-1 bg-red-50 border border-red-100 rounded-2xl p-3 items-center">
-          <Text className="text-2xl font-black text-red-500">{totalSkipped}</Text>
-          <Text className="text-xs text-red-600 font-medium">{t('history.skipped')}</Text>
+        <View className="flex-1 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-800/40 rounded-2xl p-3 items-center">
+          <Text className="text-2xl font-black text-red-500 dark:text-red-400">{totalSkipped}</Text>
+          <Text className="text-xs text-red-600 dark:text-red-400 font-medium">{t('history.skipped')}</Text>
         </View>
         {adherence !== null && (
-          <View className="flex-1 bg-blue-50 border border-blue-100 rounded-2xl p-3 items-center">
-            <Text className="text-2xl font-black text-blue-500">{adherence}%</Text>
-            <Text className="text-xs text-blue-600 font-medium">{t('history.adherenceLabel')}</Text>
+          <View className="flex-1 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/40 rounded-2xl p-3 items-center">
+            <Text className="text-2xl font-black text-blue-500 dark:text-blue-400">{adherence}%</Text>
+            <Text className="text-xs text-blue-600 dark:text-blue-400 font-medium">{t('history.adherenceLabel')}</Text>
           </View>
         )}
       </View>
@@ -137,12 +139,12 @@ export default function HistoryScreen() {
                 {dayLogs.map((log) => {
                   const med = medMap.get(log.medicationId);
                   const colors = med ? MEDICATION_COLORS[med.color] : MEDICATION_COLORS.blue;
-                  const statusCfg = STATUS_CONFIG[log.status];
+                  const statusBadge = theme.statusBadge[log.status as keyof typeof theme.statusBadge];
 
                   return (
                     <View
                       key={log.id}
-                      className="flex-row items-center bg-white rounded-2xl border border-slate-100 px-4 py-3 mb-2 shadow-sm"
+                      className="flex-row items-center bg-card rounded-2xl border border-border px-4 py-3 mb-2 shadow-sm"
                     >
                       <View
                         style={{ backgroundColor: colors.light }}
@@ -159,11 +161,11 @@ export default function HistoryScreen() {
                         </Text>
                       </View>
                       <View
-                        style={{ backgroundColor: statusCfg.bg }}
+                        style={{ backgroundColor: statusBadge.bg }}
                         className="rounded-xl px-2 py-1 flex-row items-center gap-1"
                       >
-                        <Ionicons name={statusCfg.icon} size={12} color={statusCfg.color} />
-                        <Text style={{ color: statusCfg.color }} className="text-xs font-semibold">
+                        <Ionicons name={STATUS_ICONS[log.status as keyof typeof STATUS_ICONS]} size={12} color={statusBadge.color} />
+                        <Text style={{ color: statusBadge.color }} className="text-xs font-semibold">
                           {t(`status.${log.status}`)}
                         </Text>
                       </View>

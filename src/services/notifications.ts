@@ -51,6 +51,11 @@ export async function openExactAlarmSettings(): Promise<void> {
 }
 
 export async function setupNotifications(): Promise<NotificationSetupResult> {
+  // Notifications are not supported on web
+  if (Platform.OS === "web") {
+    return { granted: false, needsExactAlarmPermission: false };
+  }
+
   // Configure handler for foreground notifications
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -367,6 +372,7 @@ export async function cancelScheduleNotifications(scheduleId: string): Promise<v
  * function multiple times won't create duplicates for already-tracked doses.
  */
 export async function rescheduleAllNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
   const [medications, schedules, map] = await Promise.all([
     getMedications(),
     getAllActiveSchedules(),
