@@ -98,11 +98,8 @@ export function getDosageLabel(unit: DosageUnit, t: TFunction): string {
   return localized[unit] ?? unit;
 }
 
-/** Color palette for medications */
-export const MEDICATION_COLORS: Record<
-  Medication["color"],
-  { bg: string; light: string; text: string; border: string }
-> = {
+/** Color palette for preset medication colors */
+export const MEDICATION_COLORS: Record<string, { bg: string; light: string; text: string; border: string }> = {
   blue:   { bg: "#3b82f6", light: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },
   green:  { bg: "#22c55e", light: "#dcfce7", text: "#15803d", border: "#86efac" },
   purple: { bg: "#a855f7", light: "#f3e8ff", text: "#7e22ce", border: "#d8b4fe" },
@@ -111,6 +108,28 @@ export const MEDICATION_COLORS: Record<
   teal:   { bg: "#14b8a6", light: "#ccfbf1", text: "#0f766e", border: "#5eead4" },
   pink:   { bg: "#ec4899", light: "#fce7f3", text: "#be185d", border: "#f9a8d4" },
 };
+
+/** Derive a color config from an arbitrary hex string (e.g. custom-picked colors) */
+function hexToColorConfig(hex: string): { bg: string; light: string; text: string; border: string } {
+  const h = hex.replace("#", "").padEnd(6, "0");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const dr = Math.floor(r * 0.55).toString(16).padStart(2, "0");
+  const dg = Math.floor(g * 0.55).toString(16).padStart(2, "0");
+  const db = Math.floor(b * 0.55).toString(16).padStart(2, "0");
+  return {
+    bg:     hex,
+    light:  `${hex}33`,   // 20% alpha – works as 8-digit hex in RN
+    border: `${hex}80`,   // 50% alpha
+    text:   `#${dr}${dg}${db}`,
+  };
+}
+
+/** Get color config for any MedicationColor (preset name or custom hex) */
+export function getColorConfig(color: string): { bg: string; light: string; text: string; border: string } {
+  return MEDICATION_COLORS[color] ?? hexToColorConfig(color);
+}
 
 // ─── Dosage units ──────────────────────────────────────────────────────────
 

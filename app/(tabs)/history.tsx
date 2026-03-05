@@ -6,7 +6,7 @@ import { useFocusEffect } from "expo-router";
 import { format, subDays, startOfDay } from "date-fns";
 import { useAppStore } from "../../src/store";
 import { DoseLog, Medication } from "../../src/types";
-import { MEDICATION_COLORS, toDateString } from "../../src/utils";
+import { MEDICATION_COLORS, getColorConfig, toDateString } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 
@@ -138,7 +138,7 @@ export default function HistoryScreen() {
                 </Text>
                 {dayLogs.map((log) => {
                   const med = medMap.get(log.medicationId);
-                  const colors = med ? MEDICATION_COLORS[med.color] : MEDICATION_COLORS.blue;
+                  const colors = med ? getColorConfig(med.color) : MEDICATION_COLORS.blue;
                   const statusBadge = theme.statusBadge[log.status as keyof typeof theme.statusBadge];
 
                   return (

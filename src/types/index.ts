@@ -7,7 +7,8 @@ export type MedicationColor =
   | "orange"
   | "red"
   | "teal"
-  | "pink";
+  | "pink"
+  | (string & {});  // allows custom hex values e.g. "#FF5733"
 
 export type DosageUnit =
   | "mg"

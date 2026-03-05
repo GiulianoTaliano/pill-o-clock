@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { TodayDose } from "../src/types";
-import { MEDICATION_COLORS, CATEGORY_CONFIG, getCategoryLabel } from "../src/utils";
+import { MEDICATION_COLORS, CATEGORY_CONFIG, getCategoryLabel, getColorConfig } from "../src/utils";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 
@@ -23,7 +23,7 @@ const STATUS_ICONS = {
 export function DoseCard({ dose, onTake, onSkip, onSnooze }: DoseCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
-  const colors = MEDICATION_COLORS[dose.medication.color];
+  const colors = getColorConfig(dose.medication.color);
   const statusTheme = theme.doseStatus[dose.status];
   const isPending = dose.status === "pending";
   const isMissed  = dose.status === "missed";

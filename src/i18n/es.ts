@@ -261,6 +261,12 @@ const es = {
     notificationsGranted: "✅ Notificaciones activadas",
     notificationsDenied: "Pods activarlas luego desde Ajustes del sistema.",
   },
+
+  // ─── Color picker ─────────────────────────────────────────────────────────
+  colorPicker: {
+    title: "Color personalizado",
+    recentLabel: "Usados recientemente",
+  },
 } as const;
 
 export default es;

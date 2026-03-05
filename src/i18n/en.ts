@@ -263,6 +263,12 @@ const en: TranslationShape = {
     notificationsGranted: "✅ Notifications enabled",
     notificationsDenied: "You can enable them later from System Settings.",
   },
+
+  // ─── Color picker ─────────────────────────────────────────────────────────
+  colorPicker: {
+    title: "Custom color",
+    recentLabel: "Recently used",
+  },
 };
 
 export default en;

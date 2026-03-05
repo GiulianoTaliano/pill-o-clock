@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { useAppStore } from "../src/store";
-import { MEDICATION_COLORS } from "../src/utils";
+import { MEDICATION_COLORS, getColorConfig } from "../src/utils";
 import { SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
 
@@ -44,7 +44,7 @@ export default function AlarmScreen() {
     return null;
   }
 
-  const colors = MEDICATION_COLORS[medication.color];
+  const colors = getColorConfig(medication.color);
 
   const dose = {
     medication,

@@ -25,6 +25,7 @@ import { getDoseLogsByDateRange } from "../../src/db/database";
 import {
   isScheduleActiveOnDate,
   MEDICATION_COLORS,
+  getColorConfig,
   CATEGORY_CONFIG,
   getCategoryLabel,
   toDateString,
@@ -120,7 +121,7 @@ export default function CalendarScreen() {
       const med = medMap.get(sched.medicationId);
       if (!med) continue;
       if (!isScheduleActiveOnDate(sched, date, med)) continue;
-      const hex = MEDICATION_COLORS[med.color].bg;
+      const hex = getColorConfig(med.color).bg;
       if (!seen.has(hex)) {
         seen.add(hex);
         colors.push(hex);
@@ -313,7 +314,7 @@ export default function CalendarScreen() {
           </View>
         ) : (
           selectedDoses.map((dose) => {
-            const colors   = MEDICATION_COLORS[dose.medication.color];
+            const colors   = getColorConfig(dose.medication.color);
             const catCfg   = CATEGORY_CONFIG[dose.medication.category];
             const canAct   = isSelectedToday && (dose.status === "pending" || dose.status === "missed");
 
