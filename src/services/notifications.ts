@@ -10,7 +10,9 @@ import { getMedications, getAllActiveSchedules } from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
-export const NOTIFICATION_CHANNEL_ID = "pill-reminders";
+export const NOTIFICATION_CHANNEL_ID = "pill-reminders-v2";
+// v2: correct sound reference (alarm.wav) + bypassDnd. Android channel settings are
+// immutable after creation, so a new ID forces a fresh channel on existing devices.
 export const SNOOZE_MINUTES = 15;
 export const REPEAT_INTERVAL_MINUTES = 5;
 /** How many repeat reminders before giving up (5, 10, 15, 20 min after first) */
@@ -68,21 +70,23 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
   });
 
   // Set action categories
+  // opensAppToForeground: true ensures the response listener always fires,
+  // even if the app was terminated when the user tapped the action.
   await Notifications.setNotificationCategoryAsync("DOSE_REMINDER", [
     {
       identifier: ACTION_TAKEN,
       buttonTitle: i18n.t("notifications.actionTaken"),
-      options: { opensAppToForeground: false },
+      options: { opensAppToForeground: true },
     },
     {
       identifier: ACTION_SNOOZE,
       buttonTitle: i18n.t("notifications.actionSnooze", { minutes: SNOOZE_MINUTES }),
-      options: { opensAppToForeground: false },
+      options: { opensAppToForeground: true },
     },
     {
       identifier: ACTION_SKIP,
       buttonTitle: i18n.t("notifications.actionSkip"),
-      options: { isDestructive: true, opensAppToForeground: false },
+      options: { isDestructive: true, opensAppToForeground: true },
     },
   ]);
 
@@ -93,10 +97,9 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 500, 300, 500, 300, 500],
       lightColor: "#4f9cff",
-      // Use 'alarm' if you add assets/alarm.wav to the project and list it
-      // in app.json > plugins > expo-notifications > sounds. Otherwise falls
-      // back to the system default notification sound.
-      sound: "alarm",
+      // alarm.wav is bundled via app.json > plugins > expo-notifications > sounds.
+      // Using the filename with extension correctly resolves to res/raw/alarm.
+      sound: "alarm.wav",
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
@@ -195,7 +198,7 @@ async function scheduleOneNotification(
           ? i18n.t("notifications.bodyWithNotes", { dose: medication.dosage, notes: medication.notes })
           : i18n.t("notifications.body", { dose: medication.dosage }))
         + i18n.t("notifications.bodyActions"),
-      sound: "alarm",
+      sound: "alarm.wav",
       categoryIdentifier: "DOSE_REMINDER",
       data: {
         scheduleId: schedule.id,
@@ -208,6 +211,7 @@ async function scheduleOneNotification(
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: fireDate,
+      channelId: NOTIFICATION_CHANNEL_ID,
     },
   });
 
@@ -274,7 +278,7 @@ export async function snoozeDose(
           ? i18n.t("notifications.bodyWithNotes", { dose: medication.dosage, notes: medication.notes })
           : i18n.t("notifications.body", { dose: medication.dosage }))
         + i18n.t("notifications.bodyActions"),
-      sound: "alarm",
+      sound: "alarm.wav",
       categoryIdentifier: "DOSE_REMINDER",
       data: {
         scheduleId: schedule.id,
@@ -287,6 +291,7 @@ export async function snoozeDose(
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: snoozeDate,
+      channelId: NOTIFICATION_CHANNEL_ID,
     },
   });
 

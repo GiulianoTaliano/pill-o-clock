@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { format, subDays, startOfDay } from "date-fns";
+import { addDays, format, startOfDay, startOfWeek, subWeeks } from "date-fns";
 import { useAppStore } from "../../src/store";
 import { DoseLog, Medication } from "../../src/types";
 import { getColorConfig, toDateString } from "../../src/utils";
@@ -25,8 +25,13 @@ export default function HistoryScreen() {
   const [offset, setOffset] = useState(0); // days back from today
   const RANGE = 7;
 
-  const toDate = subDays(startOfDay(new Date()), offset * RANGE);
-  const fromDate = subDays(toDate, RANGE - 1);
+  // Align the range to the ISO week (Monday → Sunday) that is `offset` weeks ago.
+  const weekStart = startOfWeek(
+    subWeeks(startOfDay(new Date()), offset),
+    { weekStartsOn: 1 }
+  );
+  const fromDate = weekStart;
+  const toDate = addDays(weekStart, RANGE - 1); // Sunday
   const fromStr = toDateString(fromDate);
   const toStr = toDateString(toDate);
 

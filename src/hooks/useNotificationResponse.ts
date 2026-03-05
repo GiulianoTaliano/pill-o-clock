@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
+import { addMinutes, format } from "date-fns";
 import { useAppStore } from "../store";
 import {
   ACTION_TAKEN,
   ACTION_SNOOZE,
   ACTION_SKIP,
+  SNOOZE_MINUTES,
   getNotifMapEntry,
   cancelDoseNotifications,
   snoozeDose as snoozeDoseService,
@@ -45,6 +47,11 @@ export function useNotificationResponseHandler() {
         const med = medications.find((m) => m.id === medicationId);
         const schedule = schedules.find((s) => s.id === scheduleId);
 
+        // Dismiss the delivered notification from the tray.
+        // cancelScheduledNotificationAsync only cancels future ones; this removes
+        // the notification that the user just interacted with.
+        await Notifications.dismissNotificationAsync(notifId).catch(() => {});
+
         if (
           actionId === ACTION_TAKEN ||
           actionId === Notifications.DEFAULT_ACTION_IDENTIFIER
@@ -66,7 +73,15 @@ export function useNotificationResponseHandler() {
         } else if (actionId === ACTION_SNOOZE) {
           // Snooze needs the full medication/schedule objects.
           if (!med || !schedule) return;
+          const snoozeDate = addMinutes(new Date(), SNOOZE_MINUTES);
           await snoozeDoseService(med, schedule, scheduledDate);
+          // Update the in-memory snoozedTimes so the Home screen shows the new time.
+          const snoozeHHmm = format(snoozeDate, "HH:mm");
+          const doseKey = `${scheduleId}-${scheduledDate}`;
+          useAppStore.setState((s) => ({
+            snoozedTimes: { ...s.snoozedTimes, [doseKey]: snoozeHHmm },
+          }));
+          await loadTodayLogs();
         } else if (actionId === ACTION_SKIP) {
           const now = new Date();
           const log: DoseLog = {

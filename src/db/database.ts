@@ -306,12 +306,15 @@ export async function getDoseLogByScheduleAndDate(
 
 export async function upsertDoseLog(log: DoseLog): Promise<void> {
   const db = await getDb();
+  // DELETE + INSERT ensures exactly one row per (schedule_id, scheduled_date)
+  // without relying on the unique index being present on every device DB.
+  await db.runAsync(
+    `DELETE FROM dose_logs WHERE schedule_id = ? AND scheduled_date = ?`,
+    [log.scheduleId, log.scheduledDate]
+  );
   await db.runAsync(
     `INSERT INTO dose_logs (id, medication_id, schedule_id, scheduled_date, scheduled_time, status, taken_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(schedule_id, scheduled_date) DO UPDATE SET
-       status = excluded.status,
-       taken_at = excluded.taken_at`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       log.id,
       log.medicationId,
