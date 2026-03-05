@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { TodayDose } from "../src/types";
-import { MEDICATION_COLORS, CATEGORY_CONFIG, getCategoryLabel, getColorConfig } from "../src/utils";
+import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig } from "../src/utils";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 
@@ -11,6 +11,8 @@ interface DoseCardProps {
   onTake: () => void;
   onSkip: () => void;
   onSnooze: () => void;
+  /** Optional — when provided, an undo button is shown on taken/skipped cards */
+  onRevert?: () => void;
 }
 
 const STATUS_ICONS = {
@@ -20,7 +22,7 @@ const STATUS_ICONS = {
   missed:  "alert-circle-outline" as const,
 };
 
-export function DoseCard({ dose, onTake, onSkip, onSnooze }: DoseCardProps) {
+export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert }: DoseCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const colors = getColorConfig(dose.medication.color);
@@ -79,25 +81,40 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze }: DoseCardProps) {
         <Text className="text-sm text-muted mb-2 ml-12">{dose.medication.notes}</Text>
       ) : null}
 
-      {/* Status or Actions */}
+      {/* Status or Actions — minHeight keeps the card from collapsing when switching between
+          the tall 'pending' button row and the compact 'taken/skipped' status line. */}
+      <View style={{ minHeight: 40 }}>
       {(!isPending && !isMissed) ? (
-        <View className="flex-row items-center gap-2 ml-12">
-          <Ionicons
-            name={STATUS_ICONS[dose.status]}
-            size={16}
-            color={dose.status === "taken" ? "#22c55e" : "#ef4444"}
-          />
-          <Text
-            style={{ color: dose.status === "taken"
-              ? (theme.isDark ? "#4ade80" : "#15803d")
-              : (theme.isDark ? "#f87171" : "#b91c1c") }}
-            className="text-sm font-semibold"
-          >
-            {t(`status.${dose.status}`)}
-            {dose.takenAt
-              ? t('doseCard.takenAt', { time: new Date(dose.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })
-              : ""}
-          </Text>
+        <View className="flex-row items-center justify-between ml-12 gap-2">
+          <View className="flex-row items-center gap-2 flex-1">
+            <Ionicons
+              name={STATUS_ICONS[dose.status]}
+              size={16}
+              color={dose.status === "taken" ? "#22c55e" : "#ef4444"}
+            />
+            <Text
+              style={{ color: dose.status === "taken"
+                ? (theme.isDark ? "#4ade80" : "#15803d")
+                : (theme.isDark ? "#f87171" : "#b91c1c") }}
+              className="text-sm font-semibold"
+            >
+              {t(`status.${dose.status}`)}
+              {dose.takenAt
+                ? t('doseCard.takenAt', { time: new Date(dose.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })
+                : ""}
+            </Text>
+          </View>
+          {onRevert && (
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
+              className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5"
+            >
+              <Ionicons name="arrow-undo-outline" size={13} color="#64748b" />
+              <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">
+                {t('doseCard.revert')}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : isPending ? (
         <View className="flex-row gap-2 mt-2">
@@ -153,6 +170,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze }: DoseCardProps) {
           </TouchableOpacity>
         </View>
       )}
+      </View>
     </View>
   );
 }

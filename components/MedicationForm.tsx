@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { Medication, Schedule, DosageUnit, MedicationCategory } from "../src/types";
+import { Medication, DosageUnit, MedicationCategory } from "../src/types";
 import { ColorPicker } from "./ColorPicker";
 import { DayToggle } from "./DayToggle";
 import { format } from "date-fns";
@@ -144,7 +144,7 @@ function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowPr
       <View className="flex-row items-center justify-between mb-2">
         <Text className="text-sm font-semibold text-text">{label}</Text>
         {value && (
-          <TouchableOpacity onPress={() => onChange(undefined)} className="p-1">
+          <TouchableOpacity onPress={() => { onChange(undefined); setShow(false); }} className="p-1">
             <Ionicons name="close-circle" size={16} color="#94a3b8" />
           </TouchableOpacity>
         )}
@@ -297,6 +297,10 @@ export function MedicationForm({
   };
 
   const removeSchedule = (idx: number) => {
+    if (schedules.length === 1) {
+      showToast(t('form.errorNoAlarmsMsg'), "error");
+      return;
+    }
     setSchedules((prev) => prev.filter((_, i) => i !== idx));
   };
 

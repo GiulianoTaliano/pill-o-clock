@@ -6,9 +6,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
-import { useAppStore } from "../../src/store";
+import { useAppStore, ThemeMode } from "../../src/store";
 import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
-import { useAppTheme } from "../../src/hooks/useAppTheme";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -52,7 +51,6 @@ function SettingRow({
   danger = false,
   chevron,
 }: RowProps) {
-  const theme = useAppTheme();
   const isInteractive = !!onPress;
   const showChevron = chevron ?? (isInteractive && !value);
 
@@ -105,6 +103,8 @@ export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const resetAllData = useAppStore((s) => s.resetAllData);
   const loadAll = useAppStore((s) => s.loadAll);
+  const themeMode = useAppStore((s) => s.themeMode);
+  const setThemeMode = useAppStore((s) => s.setThemeMode);
 
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -183,6 +183,11 @@ export default function SettingsScreen() {
     changeLanguage(lang);
   }
 
+  function handleTheme(mode: ThemeMode) {
+    Haptics.selectionAsync();
+    setThemeMode(mode);
+  }
+
   const currentLang = i18n.language.startsWith("es") ? "es" : "en";
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
 
@@ -229,6 +234,28 @@ export default function SettingsScreen() {
                 iconColor={currentLang === lang ? "#4f9cff" : "#94a3b8"}
                 title={lang === "es" ? t("settings.languageEs") : t("settings.languageEn")}
                 onPress={() => handleLanguage(lang)}
+                chevron={false}
+              />
+            </View>
+          ))}
+        </View>
+
+        {/* ─── Appearance ─── */}
+        <SectionHeader title={t("settings.sectionAppearance")} />
+        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+          {([
+            { mode: "system" as ThemeMode, label: t("settings.themeSystem"), icon: "phone-portrait-outline" },
+            { mode: "light"  as ThemeMode, label: t("settings.themeLight"),  icon: "sunny-outline" },
+            { mode: "dark"   as ThemeMode, label: t("settings.themeDark"),   icon: "moon-outline" },
+          ] as { mode: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>["name"] }[]).map(({ mode, label, icon }, idx) => (
+            <View key={mode}>
+              {idx > 0 && <Divider />}
+              <SettingRow
+                icon={themeMode === mode ? "radio-button-on" : "radio-button-off-outline"}
+                iconColor={themeMode === mode ? "#4f9cff" : "#94a3b8"}
+                title={label}
+                value={themeMode === mode ? undefined : undefined}
+                onPress={() => handleTheme(mode)}
                 chevron={false}
               />
             </View>

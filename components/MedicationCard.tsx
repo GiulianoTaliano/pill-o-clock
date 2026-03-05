@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, Switch } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Medication, Schedule } from "../src/types";
-import { MEDICATION_COLORS, CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig } from "../src/utils";
+import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig } from "../src/utils";
 import { format } from "date-fns";
 import { useTranslation, getDateLocale } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";

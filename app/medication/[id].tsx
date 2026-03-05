@@ -72,7 +72,7 @@ export default function EditMedicationScreen() {
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );
       router.back();
-    } catch (e) {
+    } catch {
       Alert.alert(t('common.error'), t('form.errorGeneric'));
     } finally {
       setSubmitting(false);

@@ -24,7 +24,6 @@ import { DoseLog, TodayDose, TodayDoseStatus } from "../../src/types";
 import { getDoseLogsByDateRange } from "../../src/db/database";
 import {
   isScheduleActiveOnDate,
-  MEDICATION_COLORS,
   getColorConfig,
   CATEGORY_CONFIG,
   getCategoryLabel,
@@ -188,6 +187,32 @@ export default function CalendarScreen() {
     await loadMonthLogs();
   };
 
+  // ── Month navigation ──────────────────────────────────────────────────
+
+  const handlePrevMonth = () => {
+    const newMonth = subMonths(currentMonth, 1);
+    const newMonthStr = format(newMonth, "yyyy-MM");
+    const todayMonthStr = format(new Date(), "yyyy-MM");
+    setCurrentMonth(newMonth);
+    setSelectedDate(
+      newMonthStr === todayMonthStr
+        ? toDateString(new Date())
+        : toDateString(startOfMonth(newMonth))
+    );
+  };
+
+  const handleNextMonth = () => {
+    const newMonth = addMonths(currentMonth, 1);
+    const newMonthStr = format(newMonth, "yyyy-MM");
+    const todayMonthStr = format(new Date(), "yyyy-MM");
+    setCurrentMonth(newMonth);
+    setSelectedDate(
+      newMonthStr === todayMonthStr
+        ? toDateString(new Date())
+        : toDateString(startOfMonth(newMonth))
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
@@ -198,7 +223,7 @@ export default function CalendarScreen() {
       {/* Month navigator */}
       <View className="px-5 py-2 flex-row items-center justify-between">
         <TouchableOpacity
-          onPress={() => setCurrentMonth((m) => subMonths(m, 1))}
+          onPress={handlePrevMonth}
           className="p-2 bg-card rounded-xl border border-border"
         >
           <Ionicons name="chevron-back" size={18} color="#4f9cff" />
@@ -209,7 +234,7 @@ export default function CalendarScreen() {
         </Text>
 
         <TouchableOpacity
-          onPress={() => setCurrentMonth((m) => addMonths(m, 1))}
+          onPress={handleNextMonth}
           className="p-2 bg-card rounded-xl border border-border"
         >
           <Ionicons name="chevron-forward" size={18} color="#4f9cff" />

@@ -26,6 +26,10 @@ export default function MedicationsScreen() {
     setRefreshing(false);
   };
 
+  const handleToggleActive = (id: string, val: boolean) => {
+    toggleActive(id, val);
+  };
+
   const handleDelete = (id: string, name: string) => {
     Alert.alert(
       t('medications.deleteTitle'),
@@ -35,7 +39,9 @@ export default function MedicationsScreen() {
         {
           text: t('common.delete'),
           style: "destructive",
-          onPress: () => deleteMedication(id),
+          onPress: () => {
+            deleteMedication(id);
+          },
         },
       ]
     );
@@ -50,7 +56,9 @@ export default function MedicationsScreen() {
         {
           text: t('medications.resetButton'),
           style: "destructive",
-          onPress: () => resetAllData(),
+          onPress: () => {
+            resetAllData();
+          },
         },
       ]
     );
@@ -102,15 +110,20 @@ export default function MedicationsScreen() {
                     schedules={schedules.filter((s) => s.medicationId === med.id)}
                     onEdit={() => router.push(`/medication/${med.id}`)}
                     onDelete={() => handleDelete(med.id, med.name)}
-                    onToggleActive={(val) => toggleActive(med.id, val)}
+                    onToggleActive={(val) => handleToggleActive(med.id, val)}
                   />
                 ))}
               </>
             )}
 
+            {/* Separator — only rendered when both sections coexist */}
+            {active.length > 0 && inactive.length > 0 && (
+              <View className="h-px bg-border my-4" />
+            )}
+
             {inactive.length > 0 && (
               <>
-                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2 mt-4">
+                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
                   {t('medications.sectionInactive')}
                 </Text>
                 {inactive.map((med) => (
@@ -120,7 +133,7 @@ export default function MedicationsScreen() {
                     schedules={schedules.filter((s) => s.medicationId === med.id)}
                     onEdit={() => router.push(`/medication/${med.id}`)}
                     onDelete={() => handleDelete(med.id, med.name)}
-                    onToggleActive={(val) => toggleActive(med.id, val)}
+                    onToggleActive={(val) => handleToggleActive(med.id, val)}
                   />
                 ))}
               </>

@@ -2,8 +2,18 @@ import { format, addDays, startOfDay } from "date-fns";
 import type { TFunction } from "i18next";
 import { Medication, Schedule, DosageUnit, MedicationCategory } from "../types";
 
-/** Generate a UUID v4 */
+/**
+ * Generate a UUID v4.
+ * Uses the Web Crypto API (crypto.randomUUID) when available — this is the
+ * case in production / development builds with a modern Hermes engine.
+ * Falls back to a Math.random-based implementation in environments that don't
+ * expose the global `crypto` object (e.g. Expo Go with older Hermes).
+ */
 export function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Fallback: RFC 4122 v4 UUID via Math.random
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === "x" ? r : (r & 0x3) | 0x8;

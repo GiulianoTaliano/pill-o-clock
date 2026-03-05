@@ -166,6 +166,8 @@ const en: TranslationShape = {
     take: "Taken",
     takeLate: "Taken late",
     takenAt: " at {{time}}",
+    revert: "Undo",
+    snoozeConfirm: "Reminder snoozed for 15 min ⏰",
   },
 
   // ─── Medication card ──────────────────────────────────────────────────────
@@ -232,6 +234,11 @@ const en: TranslationShape = {
     sectionLanguage: "Language",
     languageEs: "Español",
     languageEn: "English",
+    // Appearance
+    sectionAppearance: "Appearance",
+    themeSystem: "Automatic (system)",
+    themeLight: "Light",
+    themeDark: "Dark",
     // About
     sectionAbout: "About",
     version: "Version",

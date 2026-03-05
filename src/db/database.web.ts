@@ -224,6 +224,18 @@ export async function updateDoseLogStatus(
   save(KEYS.doseLogs, all);
 }
 
+export async function deleteDoseLog(
+  scheduleId: string,
+  scheduledDate: string
+): Promise<void> {
+  save(
+    KEYS.doseLogs,
+    load<DoseLog>(KEYS.doseLogs).filter(
+      (l) => !(l.scheduleId === scheduleId && l.scheduledDate === scheduledDate)
+    )
+  );
+}
+
 // ─── Dev / Reset ───────────────────────────────────────────────────────────
 
 export async function clearAllData(): Promise<void> {

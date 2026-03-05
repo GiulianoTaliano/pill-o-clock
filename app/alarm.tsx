@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { useAppStore } from "../src/store";
-import { MEDICATION_COLORS, getColorConfig } from "../src/utils";
+import { getColorConfig } from "../src/utils";
 import { SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
 
@@ -28,6 +28,11 @@ export default function AlarmScreen() {
   const schedule = schedules.find((s) => s.id === scheduleId);
   const medication = schedule ? medications.find((m) => m.id === schedule.medicationId) : null;
 
+  // Navigate back if data is unavailable — must be inside useEffect, never during render.
+  useEffect(() => {
+    if (!medication || !schedule) router.back();
+  }, [medication, schedule, router]);
+
   // Pulse animation
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -37,12 +42,9 @@ export default function AlarmScreen() {
         Animated.timing(pulse, { toValue: 1, duration: 600, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [pulse]);
 
-  if (!medication || !schedule) {
-    router.back();
-    return null;
-  }
+  if (!medication || !schedule) return null;
 
   const colors = getColorConfig(medication.color);
 

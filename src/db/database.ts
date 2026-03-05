@@ -339,6 +339,17 @@ export async function updateDoseLogStatus(
   );
 }
 
+export async function deleteDoseLog(
+  scheduleId: string,
+  scheduledDate: string
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "DELETE FROM dose_logs WHERE schedule_id = ? AND scheduled_date = ?",
+    [scheduleId, scheduledDate]
+  );
+}
+
 // ─── Dev / Reset ───────────────────────────────────────────────────────────
 
 /** Deletes all rows from every table. Schema (tables) is preserved. */

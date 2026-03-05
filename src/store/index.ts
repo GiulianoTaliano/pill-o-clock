@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { addDays, startOfDay } from "date-fns";
-import { Medication, Schedule, DoseLog, DoseStatus, TodayDose } from "../types";
+import { Appearance, LayoutAnimation, Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Medication, Schedule, DoseLog, TodayDose } from "../types";
 import {
   getMedications,
   getSchedulesByMedication,
@@ -9,19 +11,18 @@ import {
   updateMedication,
   deleteMedication,
   insertSchedule,
-  updateSchedule,
   deleteSchedule,
-  deleteSchedulesByMedication,
   getDoseLogsByDate,
   getDoseLogsByDateRange,
   upsertDoseLog,
-  updateDoseLogStatus,
+  deleteDoseLog,
   clearAllData,
 } from "../db/database";
 import {
   generateId,
   today,
   toISOString,
+  toDateString,
   isScheduleActiveOnDate,
 } from "../utils";
 import {
@@ -35,14 +36,21 @@ import { unregisterBackgroundFetch } from "../services/backgroundTask";
 
 // ─── State ─────────────────────────────────────────────────────────────────
 
+export type ThemeMode = "system" | "light" | "dark";
+
+const THEME_KEY = "@pilloclock/theme_mode";
+
 interface AppState {
   medications: Medication[];
   schedules: Schedule[];  // all schedules in memory
   todayLogs: DoseLog[];
   isLoading: boolean;
+  themeMode: ThemeMode;
 
   // Actions
   loadAll: () => Promise<void>;
+  loadThemeMode: () => Promise<void>;
+  setThemeMode: (mode: ThemeMode) => Promise<void>;
   loadTodayLogs: () => Promise<void>;
 
   addMedication: (
@@ -66,6 +74,9 @@ interface AppState {
 
   snoozeDose: (dose: TodayDose) => Promise<void>;
 
+  /** Remove a taken/skipped log so the dose can be re-marked. */
+  revertDose: (dose: TodayDose) => Promise<void>;
+
   getHistoryLogs: (from: string, to: string) => Promise<DoseLog[]>;
 
   getSchedulesForMedication: (medicationId: string) => Schedule[];
@@ -81,6 +92,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   schedules: [],
   todayLogs: [],
   isLoading: false,
+  themeMode: "system",
+
+  // ── Theme ─────────────────────────────────────────────────────────────
+
+  async loadThemeMode() {
+    const saved = (await AsyncStorage.getItem(THEME_KEY)) as ThemeMode | null;
+    const mode: ThemeMode = saved ?? "system";
+    Appearance.setColorScheme(mode === "system" ? null : mode);
+    set({ themeMode: mode });
+  },
+
+  async setThemeMode(mode) {
+    Appearance.setColorScheme(mode === "system" ? null : mode);
+    await AsyncStorage.setItem(THEME_KEY, mode);
+    set({ themeMode: mode });
+  },
 
   // ── Load all data ──────────────────────────────────────────────────────
 
@@ -123,11 +150,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       isActive: true,
     }));
 
-    for (const s of schedules) {
-      await insertSchedule(s);
-      // Schedule notifications for the next 7 days
-      await _scheduleNotificationsForSchedule(med, s);
-    }
+    await Promise.all(
+      schedules.map(async (s) => {
+        await insertSchedule(s);
+        await _scheduleNotificationsForSchedule(med, s);
+      })
+    );
 
     const allSchedules = await getAllActiveSchedules();
     const allMeds = await getMedications();
@@ -145,10 +173,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const existing = await getSchedulesByMedication(med.id);
 
     // Cancel all current notifications for this med's schedules
-    for (const s of existing) {
-      await cancelScheduleNotifications(s.id);
-      await deleteSchedule(s.id);
-    }
+    await Promise.all(
+      existing.map((s) =>
+        Promise.all([cancelScheduleNotifications(s.id), deleteSchedule(s.id)])
+      )
+    );
 
     // Insert new schedules
     const newSchedules: Schedule[] = scheduleInputs.map((s) => ({
@@ -158,12 +187,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       isActive: true,
     }));
 
-    for (const s of newSchedules) {
-      await insertSchedule(s);
-      if (med.isActive) {
-        await _scheduleNotificationsForSchedule(med, s);
-      }
-    }
+    await Promise.all(
+      newSchedules.map(async (s) => {
+        await insertSchedule(s);
+        if (med.isActive) await _scheduleNotificationsForSchedule(med, s);
+      })
+    );
 
     const allSchedules = await getAllActiveSchedules();
     const allMeds = await getMedications();
@@ -174,12 +203,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   async deleteMedication(id) {
     const schedules = await getSchedulesByMedication(id);
-    for (const s of schedules) {
-      await cancelScheduleNotifications(s.id);
-    }
+    await Promise.all(schedules.map((s) => cancelScheduleNotifications(s.id)));
     await deleteMedication(id);
     const allSchedules = await getAllActiveSchedules();
     const allMeds = await getMedications();
+    if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     set({ medications: allMeds, schedules: allSchedules });
   },
 
@@ -194,17 +222,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const schedules = await getSchedulesByMedication(id);
     if (!isActive) {
-      for (const s of schedules) {
-        await cancelScheduleNotifications(s.id);
-      }
+      await Promise.all(schedules.map((s) => cancelScheduleNotifications(s.id)));
     } else {
-      for (const s of schedules) {
-        await _scheduleNotificationsForSchedule(updated, s);
-      }
+      await Promise.all(schedules.map((s) => _scheduleNotificationsForSchedule(updated, s)));
     }
 
-    const allMeds = await getMedications();
-    set({ medications: allMeds });
+    const allMeds = await getMedications();    if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);    set({ medications: allMeds });
   },
 
   // ── Mark dose (taken / skipped) ────────────────────────────────────────
@@ -233,7 +256,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Cancel current chain and schedule for +15 min
     await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate);
   },
+  // ── Revert dose (undo taken/skipped) ─────────────────────────────────────────
 
+  async revertDose(dose) {
+    await deleteDoseLog(dose.schedule.id, dose.scheduledDate);
+    // Re-schedule any future notifications for this dose's schedule
+    await _scheduleNotificationsForSchedule(dose.medication, dose.schedule);
+    if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    await get().loadTodayLogs();
+  },
   // ── History ────────────────────────────────────────────────────────────
 
   async getHistoryLogs(from, to) {
@@ -252,13 +283,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     await cancelAllNotifications();
     await unregisterBackgroundFetch();
     await clearAllData();
+    if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     set({ medications: [], schedules: [], todayLogs: [] });
   },
 }));
 
 // ─── Internal helpers ──────────────────────────────────────────────────────
-
-import { toDateString } from "../utils";
 
 async function _scheduleNotificationsForSchedule(
   med: Medication,

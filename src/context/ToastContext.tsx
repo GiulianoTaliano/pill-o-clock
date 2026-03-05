@@ -7,7 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { Animated, Text, View, StyleSheet } from "react-native";
+import { Animated, Text, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -69,6 +69,9 @@ function ToastItem({ entry, onDone }: { entry: ToastEntry; onDone: () => void })
     }, TOAST_DURATION_MS);
 
     return () => clearTimeout(hideTimer);
+  // opacity and translateY are stable Animated.Value refs; onDone is intentionally
+  // not reactive — the animation should only start once on mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

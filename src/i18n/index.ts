@@ -2,8 +2,7 @@ import i18n from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
 import * as Localization from "expo-localization";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { es as esDateLocale } from "date-fns/locale";
-import { enUS } from "date-fns/locale";
+import { es as esDateLocale, enUS } from "date-fns/locale";
 import en from "./en";
 import es from "./es";
 
@@ -34,6 +33,7 @@ export async function initI18n(): Promise<void> {
     lang = getDeviceLanguage();
   }
 
+  // eslint-disable-next-line import/no-named-as-default-member
   await i18n.use(initReactI18next).init({
     resources: {
       en: { translation: en },
@@ -52,6 +52,7 @@ export async function initI18n(): Promise<void> {
 // ─── Runtime language switch (persisted) ──────────────────────────────────
 
 export async function changeLanguage(lang: SupportedLanguage): Promise<void> {
+  // eslint-disable-next-line import/no-named-as-default-member
   await i18n.changeLanguage(lang);
   await AsyncStorage.setItem(LANGUAGE_KEY, lang);
 }

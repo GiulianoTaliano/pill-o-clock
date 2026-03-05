@@ -164,6 +164,8 @@ const es = {
     take: "Tomado",
     takeLate: "Tomé tarde",
     takenAt: " a las {{time}}",
+    revert: "Revertir",
+    snoozeConfirm: "Recordatorio pospuesto 15 min ⏰",
   },
 
   // ─── Medication card ──────────────────────────────────────────────────────
@@ -230,6 +232,11 @@ const es = {
     sectionLanguage: "Idioma",
     languageEs: "Español",
     languageEn: "English",
+    // Appearance
+    sectionAppearance: "Apariencia",
+    themeSystem: "Automático (sistema)",
+    themeLight: "Claro",
+    themeDark: "Oscuro",
     // About
     sectionAbout: "Información",
     version: "Versión",

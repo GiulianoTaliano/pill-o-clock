@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,13 +12,16 @@ import { TodayDose } from "../../src/types";
 import { CATEGORY_CONFIG } from "../../src/utils";
 import { useState } from "react";
 import { useTranslation, getDateLocale } from "../../src/i18n";
+import { useToast } from "../../src/context/ToastContext";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const loadAll = useAppStore((s) => s.loadAll);
   const markDose = useAppStore((s) => s.markDose);
   const snoozeDose = useAppStore((s) => s.snoozeDose);
+  const revertDose = useAppStore((s) => s.revertDose);
   const [refreshing, setRefreshing] = useState(false);
   const doses = useTodaySchedule();
 
@@ -39,8 +42,24 @@ export default function HomeScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     await loadAll();
     setRefreshing(false);
+  };
+
+  const handleMarkDose = (dose: TodayDose, status: "taken" | "skipped") => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    markDose(dose, status);
+  };
+
+  const handleSnooze = (dose: TodayDose) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    snoozeDose(dose);
+    showToast(t('doseCard.snoozeConfirm'), 'info');
+  };
+
+  const handleRevert = (dose: TodayDose) => {
+    revertDose(dose);
   };
 
   return (
@@ -108,45 +127,56 @@ export default function HomeScreen() {
                   <DoseCard
                     key={`${dose.schedule.id}-${dose.scheduledDate}`}
                     dose={dose}
-                    onTake={() => markDose(dose, "taken")}
-                    onSkip={() => markDose(dose, "skipped")}
-                    onSnooze={() => snoozeDose(dose)}
+                    onTake={() => handleMarkDose(dose, "taken")}
+                    onSkip={() => handleMarkDose(dose, "skipped")}
+                    onSnooze={() => handleSnooze(dose)}
                   />
                 ))}
               </>
             )}
 
+            {/* Separator missed */}
+            {pending.length > 0 && missed.length > 0 && (
+              <View className="h-px bg-border my-3" />
+            )}
+
             {/* Missed */}
             {missed.length > 0 && (
               <>
-                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2 mt-4">
+                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
                   {t('home.sectionMissed')}
                 </Text>
                 {missed.map((dose) => (
                   <DoseCard
                     key={`${dose.schedule.id}-${dose.scheduledDate}`}
                     dose={dose}
-                    onTake={() => markDose(dose, "taken")}
-                    onSkip={() => markDose(dose, "skipped")}
-                    onSnooze={() => snoozeDose(dose)}
+                    onTake={() => handleMarkDose(dose, "taken")}
+                    onSkip={() => handleMarkDose(dose, "skipped")}
+                    onSnooze={() => handleSnooze(dose)}
                   />
                 ))}
               </>
             )}
 
+            {/* Separator done */}
+            {(pending.length > 0 || missed.length > 0) && done.length > 0 && (
+              <View className="h-px bg-border my-3" />
+            )}
+
             {/* Done */}
             {done.length > 0 && (
               <>
-                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2 mt-4">
+                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
                   {t('home.sectionDone')}
                 </Text>
                 {done.map((dose) => (
                   <DoseCard
                     key={`${dose.schedule.id}-${dose.scheduledDate}`}
                     dose={dose}
-                    onTake={() => markDose(dose, "taken")}
-                    onSkip={() => markDose(dose, "skipped")}
-                    onSnooze={() => snoozeDose(dose)}
+                    onTake={() => handleMarkDose(dose, "taken")}
+                    onSkip={() => handleMarkDose(dose, "skipped")}
+                    onSnooze={() => handleSnooze(dose)}
+                    onRevert={() => handleRevert(dose)}
                   />
                 ))}
               </>

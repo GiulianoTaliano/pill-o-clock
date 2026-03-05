@@ -1,18 +1,24 @@
 import "../global.css";
-import "../src/services/backgroundTask"; // registers TaskManager.defineTask at module load
 import { useEffect, useState } from "react";
 import { Redirect, SplashScreen, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Alert, AppState, View, Text, LogBox } from "react-native";
+import { Alert, AppState, View, Text, LogBox, Platform, UIManager } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initDatabase } from "../src/db/database";
 import { setupNotifications, openExactAlarmSettings, rescheduleAllNotifications } from "../src/services/notifications";
+// Side-effect import (registers TaskManager.defineTask) + named imports from same module.
 import { registerBackgroundFetch } from "../src/services/backgroundTask";
 import { useAppStore } from "../src/store";
 import { useNotificationResponseHandler } from "../src/hooks/useNotificationResponse";
 import { initI18n, useTranslation } from "../src/i18n";
 import { ToastProvider } from "../src/context/ToastContext";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+
+// Enable LayoutAnimation on Android (must be called before any render).
+if (Platform.OS === "android") {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
 
 const ONBOARDING_DONE_KEY = "@pilloclock/onboarding_done";
 
@@ -34,6 +40,7 @@ export default function RootLayout() {
   const { t } = useTranslation();
   const loadAll = useAppStore((s) => s.loadAll);
   const loadTodayLogs = useAppStore((s) => s.loadTodayLogs);
+  const loadThemeMode = useAppStore((s) => s.loadThemeMode);
 
   useNotificationResponseHandler();
 
@@ -42,6 +49,7 @@ export default function RootLayout() {
       try {
         await initI18n();
         await initDatabase();
+        await loadThemeMode();
 
         const onboardingDone = await AsyncStorage.getItem(ONBOARDING_DONE_KEY);
 
@@ -84,6 +92,9 @@ export default function RootLayout() {
         await SplashScreen.hideAsync();
       }
     })();
+  // loadAll and t are intentionally omitted: re-running the init effect when
+  // the language changes would re-initialize the database and notifications.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Refresh today's logs and reschedule notifications whenever the app
@@ -109,9 +120,10 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <ToastProvider>
-        <StatusBar style="dark" />
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ToastProvider>
+        <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="onboarding" options={{ headerShown: false, animation: "fade" }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -143,8 +155,9 @@ export default function RootLayout() {
             }}
           />
         </Stack>
-        {showOnboarding && <Redirect href="/onboarding" />}
-      </ToastProvider>
-    </SafeAreaProvider>
+          {showOnboarding && <Redirect href="/onboarding" />}
+        </ToastProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

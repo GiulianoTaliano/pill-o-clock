@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import * as IntentLauncher from "expo-intent-launcher";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
-import { addDays, addMinutes, format, startOfDay } from "date-fns";
+import { addDays, addMinutes, startOfDay } from "date-fns";
 import { Schedule, Medication, NotificationMap } from "../types";
 import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString } from "../utils";
 import i18n from "../i18n";
@@ -144,7 +144,7 @@ async function saveNotifMap(map: NotificationMap): Promise<void> {
 }
 
 export async function addNotifMapEntries(
-  entries: Array<{ notifId: string; data: NotificationMap[string] }>
+  entries: { notifId: string; data: NotificationMap[string] }[]
 ): Promise<void> {
   const map = await loadNotifMap();
   for (const { notifId, data } of entries) {
@@ -225,7 +225,7 @@ export async function scheduleDoseChain(
   const [year, month, day] = scheduledDate.split("-").map(Number);
   const baseDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
-  const entries: Array<{ notifId: string; data: NotificationMap[string] }> = [];
+  const entries: { notifId: string; data: NotificationMap[string] }[] = [];
   const baseData: NotificationMap[string] = {
     doseLogId: `${schedule.id}-${scheduledDate}`,
     medicationId: medication.id,
@@ -263,7 +263,6 @@ export async function snoozeDose(
 
   // Schedule single notification in SNOOZE_MINUTES
   const snoozeDate = addMinutes(new Date(), SNOOZE_MINUTES);
-  const { hours, minutes } = parseTime(format(snoozeDate, "HH:mm"));
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
@@ -365,6 +364,29 @@ export async function cancelScheduleNotifications(scheduleId: string): Promise<v
   await saveNotifMap(map);
 }
 
+// ─── Cleanup expired NotificationMap entries ──────────────────────────────
+
+/**
+ * Removes notification map entries whose scheduledDate is before today.
+ * Old entries accumulate over time because they are only deleted when the
+ * user acts on a dose. Call this from the background task and on app resume.
+ */
+export async function cleanupExpiredNotifMapEntries(): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const today = toDateString(new Date());
+    const map = await loadNotifMap();
+    const expired = Object.keys(map).filter((k) => map[k].scheduledDate < today);
+    if (expired.length === 0) return;
+    for (const notifId of expired) {
+      delete map[notifId];
+    }
+    await saveNotifMap(map);
+  } catch {
+    // Non-critical — swallow so callers never fail due to this.
+  }
+}
+
 // ─── Reschedule all active notifications ───────────────────────────────────
 
 /**
@@ -373,6 +395,10 @@ export async function cancelScheduleNotifications(scheduleId: string): Promise<v
  */
 export async function rescheduleAllNotifications(): Promise<void> {
   if (Platform.OS === "web") return;
+
+  // Purge stale entries first so the map doesn't grow indefinitely.
+  await cleanupExpiredNotifMapEntries();
+
   const [medications, schedules, map] = await Promise.all([
     getMedications(),
     getAllActiveSchedules(),
