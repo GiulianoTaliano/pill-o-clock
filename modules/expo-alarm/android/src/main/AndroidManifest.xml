@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Required for playing audio + waking the screen -->
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <!-- API 34+: foreground service type for audio playback -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <!-- Show alarm screen above the lock screen / other apps -->
+  <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+  <application>
+
+    <!--
+      AlarmReceiver: triggered by AlarmManager.setAlarmClock().
+      exported=false: only accessible via explicit PendingIntent from this package.
+    -->
+    <receiver
+      android:name="expo.modules.alarm.AlarmReceiver"
+      android:exported="false" />
+
+    <!--
+      AlarmAudioService: ForegroundService that plays alarm.wav on STREAM_ALARM
+      and displays the fullScreenIntent notification.
+      foregroundServiceType="mediaPlayback" required on API 34+.
+    -->
+    <service
+      android:name="expo.modules.alarm.AlarmAudioService"
+      android:exported="false"
+      android:foregroundServiceType="mediaPlayback" />
+
+  </application>
+
+</manifest>

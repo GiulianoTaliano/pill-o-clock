@@ -1,0 +1,15 @@
+{
+  "name": "expo-alarm",
+  "version": "1.0.0",
+  "description": "Native Android alarm module for Pill-O-Clock. Schedules exact alarms via AlarmManager.setAlarmClock(), plays audio on STREAM_ALARM (sounds in silent mode), and opens the app's alarm screen via fullScreenIntent.",
+  "main": "src/index",
+  "types": "src/index",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react-native": "*"
+  }
+}

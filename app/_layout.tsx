@@ -7,6 +7,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initDatabase } from "../src/db/database";
 import { setupNotifications, openExactAlarmSettings, rescheduleAllNotifications } from "../src/services/notifications";
+import { checkFullScreenIntentPermission } from "expo-alarm";
+import * as IntentLauncher from "expo-intent-launcher";
 // Side-effect import (registers TaskManager.defineTask) + named imports from same module.
 import { registerBackgroundFetch } from "../src/services/backgroundTask";
 import { useAppStore } from "../src/store";
@@ -76,6 +78,35 @@ export default function RootLayout() {
                   },
                 ]
               );
+            }
+          }
+
+          // Android 14+ (API 34): check USE_FULL_SCREEN_INTENT permission.
+          // Without it the alarm screen won’t appear above the lock screen.
+          if (Platform.OS === "android") {
+            const hasFullScreen = await checkFullScreenIntentPermission();
+            if (!hasFullScreen) {
+              const alreadyPrompted = await AsyncStorage.getItem(
+                "@pilloclock/fullscreen_intent_prompted"
+              );
+              if (!alreadyPrompted) {
+                await AsyncStorage.setItem("@pilloclock/fullscreen_intent_prompted", "1");
+                Alert.alert(
+                  t('permissions.fullScreenTitle'),
+                  t('permissions.fullScreenMessage'),
+                  [
+                    { text: t('permissions.exactAlarmLater'), style: "cancel" },
+                    {
+                      text: t('permissions.exactAlarmOpen'),
+                      onPress: () =>
+                        IntentLauncher.startActivityAsync(
+                          "android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT",
+                          { data: "package:com.pilloclock.app" }
+                        ).catch(() => {}),
+                    },
+                  ]
+                );
+              }
             }
           }
         } else {

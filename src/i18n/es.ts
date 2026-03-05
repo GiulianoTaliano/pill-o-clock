@@ -58,17 +58,22 @@ const es = {
     sectionPending: "Pendientes",
     sectionMissed: "No tomados",
     sectionDone: "Completados",
-    chipPending: "{{count}} pendientes",
-    chipTaken: "{{count}} tomados",
-    chipSkipped: "{{count}} omitidos",
-    chipMissed: "{{count}} no tomados",
+    chipPending_one: "{{count}} pendiente",
+    chipPending_other: "{{count}} pendientes",
+    chipTaken_one: "{{count}} tomado",
+    chipTaken_other: "{{count}} tomados",
+    chipSkipped_one: "{{count}} omitido",
+    chipSkipped_other: "{{count}} omitidos",
+    chipMissed_one: "{{count}} no tomado",
+    chipMissed_other: "{{count}} no tomados",
     tipReschedule: "Tip: Tocá el horario de una dosis pendiente para reprogramarla hoy. Tocá para cerrar.",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
   medications: {
     title: "Medicamentos",
-    subtitle: "{{count}} configurados",
+    subtitle_one: "{{count}} configurado",
+    subtitle_other: "{{count}} configurados",
     sectionActive: "Activos",
     sectionInactive: "Pausados",
     noMeds: "Sin medicamentos",
@@ -114,7 +119,8 @@ const es = {
     sectionWhen: "Cuándo",
     sectionAlarm: "Alarma",
     sectionPeriod: "Período de tratamiento (opcional)",
-    sectionAlarms: "Alarmas ({{count}})",
+    sectionAlarms_one: "Alarma ({{count}})",
+    sectionAlarms_other: "Alarmas ({{count}})",
     fieldName: "Nombre",
     fieldNamePlaceholder: "ej: Ibuprofeno",
     fieldDose: "Dosis",
@@ -199,8 +205,9 @@ const es = {
     exactAlarmMessage:
       "Para que las alarmas suenen a tiempo en Android 12, habilitá \"Alarmas y recordatorios\" para Pill-O-Clock en Configuración.",
     exactAlarmLater: "Ahora no",
-    exactAlarmOpen: "Abrir configuración",
-  },
+    exactAlarmOpen: "Abrir configuración",    fullScreenTitle: "Permitir alarmas en pantalla completa",
+    fullScreenMessage:
+      "En Android 14+, necesitás otorgar el permiso \"Mostrar notificaciones en pantalla completa\" para que la pantalla de alarma pueda aparecer sobre la pantalla de bloqueo. Tapá \"Abrir configuración\" y activá la opción para Pill-O-Clock.",  },
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────
   tabs: {
@@ -226,7 +233,8 @@ const es = {
     importModeReplace: "Reemplazar todo",
     importModeMerge: "Fusionar",
     importSuccess: "Importación exitosa",
-    importSuccessMsg: "{{count}} medicamento(s) importado(s) correctamente.",
+    importSuccessMsg_one: "{{count}} medicamento importado correctamente.",
+    importSuccessMsg_other: "{{count}} medicamentos importados correctamente.",
     importError: "Error al importar",
     importErrorFormat: "El archivo no tiene el formato correcto de Pill-O-Clock.",
     importErrorGeneric: "No se pudo importar el archivo. Intentá de nuevo.",

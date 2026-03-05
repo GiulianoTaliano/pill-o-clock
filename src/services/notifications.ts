@@ -1,5 +1,6 @@
 import * as Notifications from "expo-notifications";
 import * as IntentLauncher from "expo-intent-launcher";
+import * as ExpoAlarm from "expo-alarm";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { addDays, addMinutes, startOfDay } from "date-fns";
@@ -160,6 +161,12 @@ export async function removeNotifMapEntriesByDose(
   scheduleId: string,
   scheduledDate: string
 ): Promise<void> {
+  // On Android, alarms are tracked by deterministic request code — cancel via
+  // the native module regardless of what is in the notification map.
+  if (Platform.OS === "android") {
+    await ExpoAlarm.cancelAlarm(scheduleId, scheduledDate);
+  }
+
   const map = await loadNotifMap();
   for (const notifId of Object.keys(map)) {
     const e = map[notifId];
@@ -229,6 +236,24 @@ export async function scheduleDoseChain(
   const [year, month, day] = scheduledDate.split("-").map(Number);
   const baseDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
+  // ── Android: use AlarmManager.setAlarmClock() ────────────────────────────
+  // AlarmManager bypasses Doze mode, plays on STREAM_ALARM (sounds in silent
+  // mode), and shows the full-screen alarm screen via deep link.
+  // A single alarm per dose is sufficient — the alarm rings until dismissed.
+  if (Platform.OS === "android") {
+    await ExpoAlarm.scheduleAlarm({
+      scheduleId:     schedule.id,
+      medicationId:   medication.id,
+      scheduledDate,
+      scheduledTime:  schedule.time,
+      medicationName: medication.name,
+      dose:           medication.dosage,
+      fireTimestamp:  baseDate.getTime(),
+    });
+    return;
+  }
+
+  // ── iOS: expo-notifications chain (initial + repeats every 5 min) ────────
   const entries: { notifId: string; data: NotificationMap[string] }[] = [];
   const baseData: NotificationMap[string] = {
     doseLogId: `${schedule.id}-${scheduledDate}`,
@@ -264,12 +289,27 @@ export async function snoozeDose(
   /** When provided the notification fires at this exact time instead of now+15. */
   fireDate?: Date
 ): Promise<void> {
-  // Cancel existing chain
+  // Cancel existing alarm / notification chain for this dose.
   await removeNotifMapEntriesByDose(schedule.id, scheduledDate);
 
   // Use explicit fire date when supplied (future-dose snooze), otherwise now+15
   const snoozeDate = fireDate ?? addMinutes(new Date(), SNOOZE_MINUTES);
 
+  // ── Android: re-schedule as an AlarmManager alarm ──────────────────────
+  if (Platform.OS === "android") {
+    await ExpoAlarm.scheduleAlarm({
+      scheduleId:     schedule.id,
+      medicationId:   medication.id,
+      scheduledDate,
+      scheduledTime:  schedule.time,
+      medicationName: medication.name,
+      dose:           medication.dosage,
+      fireTimestamp:  snoozeDate.getTime(),
+    });
+    return;
+  }
+
+  // ── iOS: reschedule via expo-notifications ─────────────────────────────
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: i18n.t("notifications.snoozeTitle", { name: medication.name }),

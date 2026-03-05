@@ -7,6 +7,7 @@ import { useAppStore } from "../src/store";
 import { getColorConfig } from "../src/utils";
 import { SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
+import { stopAlarm } from "expo-alarm";
 
 /**
  * Fullscreen alarm screen.
@@ -30,7 +31,10 @@ export default function AlarmScreen() {
 
   // Navigate back if data is unavailable — must be inside useEffect, never during render.
   useEffect(() => {
-    if (!medication || !schedule) router.back();
+    if (!medication || !schedule) {
+      stopAlarm().catch(() => {});
+      router.back();
+    }
   }, [medication, schedule, router]);
 
   // Pulse animation
@@ -57,16 +61,19 @@ export default function AlarmScreen() {
   };
 
   const handleTake = async () => {
+    await stopAlarm();
     await markDose(dose, "taken");
     router.back();
   };
 
   const handleSkip = async () => {
+    await stopAlarm();
     await markDose(dose, "skipped");
     router.back();
   };
 
   const handleSnooze = async () => {
+    await stopAlarm();
     await snoozeDose(dose);
     router.back();
   };

@@ -60,17 +60,22 @@ const en: TranslationShape = {
     sectionPending: "Pending",
     sectionMissed: "Missed",
     sectionDone: "Completed",
-    chipPending: "{{count}} pending",
-    chipTaken: "{{count}} taken",
-    chipSkipped: "{{count}} skipped",
-    chipMissed: "{{count}} missed",
+    chipPending_one: "{{count}} pending",
+    chipPending_other: "{{count}} pending",
+    chipTaken_one: "{{count}} taken",
+    chipTaken_other: "{{count}} taken",
+    chipSkipped_one: "{{count}} skipped",
+    chipSkipped_other: "{{count}} skipped",
+    chipMissed_one: "{{count}} missed",
+    chipMissed_other: "{{count}} missed",
     tipReschedule: "Tip: Tap the time badge on any pending dose to reschedule it today. Tap to dismiss.",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
   medications: {
     title: "Medications",
-    subtitle: "{{count}} configured",
+    subtitle_one: "{{count}} configured",
+    subtitle_other: "{{count}} configured",
     sectionActive: "Active",
     sectionInactive: "Paused",
     noMeds: "No medications",
@@ -116,7 +121,8 @@ const en: TranslationShape = {
     sectionWhen: "When",
     sectionAlarm: "Alarm",
     sectionPeriod: "Treatment period (optional)",
-    sectionAlarms: "Alarms ({{count}})",
+    sectionAlarms_one: "Alarm ({{count}})",
+    sectionAlarms_other: "Alarms ({{count}})",
     fieldName: "Name",
     fieldNamePlaceholder: "e.g. Ibuprofen",
     fieldDose: "Dose",
@@ -201,8 +207,9 @@ const en: TranslationShape = {
     exactAlarmMessage:
       "For alarms to ring on time on Android 12, enable \"Alarms & Reminders\" for Pill-O-Clock in Settings.",
     exactAlarmLater: "Not now",
-    exactAlarmOpen: "Open settings",
-  },
+    exactAlarmOpen: "Open settings",    fullScreenTitle: "Allow full-screen alarms",
+    fullScreenMessage:
+      "On Android 14+, you need to grant \"Display full-screen notifications\" permission so the alarm screen can appear above the lock screen. Tap \"Open settings\" and enable it for Pill-O-Clock.",  },
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────
   tabs: {
@@ -228,7 +235,8 @@ const en: TranslationShape = {
     importModeReplace: "Replace all",
     importModeMerge: "Merge",
     importSuccess: "Import successful",
-    importSuccessMsg: "{{count}} medication(s) imported successfully.",
+    importSuccessMsg_one: "{{count}} medication imported successfully.",
+    importSuccessMsg_other: "{{count}} medications imported successfully.",
     importError: "Import error",
     importErrorFormat: "The file is not a valid Pill-O-Clock backup.",
     importErrorGeneric: "Could not import the file. Please try again.",
