@@ -13,6 +13,8 @@ interface DoseCardProps {
   onSnooze: () => void;
   /** Optional — when provided, an undo button is shown on taken/skipped cards */
   onRevert?: () => void;
+  /** Optional — when provided, the time badge is tappable to pick a custom time */
+  onReschedule?: () => void;
 }
 
 const STATUS_ICONS = {
@@ -22,13 +24,15 @@ const STATUS_ICONS = {
   missed:  "alert-circle-outline" as const,
 };
 
-export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert }: DoseCardProps) {
+export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedule }: DoseCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const colors = getColorConfig(dose.medication.color);
   const statusTheme = theme.doseStatus[dose.status];
   const isPending = dose.status === "pending";
   const isMissed  = dose.status === "missed";
+  const isSnoozed = !!dose.snoozedUntil;
+  const displayTime = dose.snoozedUntil ?? dose.scheduledTime;
 
   return (
     <View
@@ -65,15 +69,47 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert }: DoseCardP
           </View>
         </View>
 
-        {/* Time badge */}
-        <View
-          style={{ backgroundColor: colors.light, borderColor: colors.border }}
-          className="rounded-xl px-3 py-1 border"
+        {/* Time badge — tappable when pending + onReschedule provided */}
+        <TouchableOpacity
+          activeOpacity={isPending && onReschedule ? 0.6 : 1}
+          onPress={() => {
+            if (isPending && onReschedule) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onReschedule();
+            }
+          }}
+          style={{
+            backgroundColor: isSnoozed
+              ? (theme.isDark ? "#451a03" : "#fef3c7")
+              : colors.light,
+            borderColor: isSnoozed
+              ? (theme.isDark ? "#92400e" : "#fcd34d")
+              : colors.border,
+          }}
+          className="rounded-xl px-3 py-1 border flex-row items-center gap-1"
         >
-          <Text style={{ color: colors.text }} className="text-sm font-bold">
-            {dose.scheduledTime}
+          {isSnoozed && (
+            <Ionicons name="alarm-outline" size={11} color="#d97706" />
+          )}
+          <Text
+            style={{ color: isSnoozed
+              ? (theme.isDark ? "#fbbf24" : "#92400e")
+              : colors.text }}
+            className="text-sm font-bold"
+          >
+            {displayTime}
           </Text>
-        </View>
+          {isPending && onReschedule && (
+            <Ionicons
+              name="pencil-outline"
+              size={10}
+              color={isSnoozed
+                ? (theme.isDark ? "#fbbf24" : "#92400e")
+                : colors.text}
+              style={{ opacity: 0.6 }}
+            />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Notes */}

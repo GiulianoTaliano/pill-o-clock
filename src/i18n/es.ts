@@ -62,6 +62,7 @@ const es = {
     chipTaken: "{{count}} tomados",
     chipSkipped: "{{count}} omitidos",
     chipMissed: "{{count}} no tomados",
+    tipReschedule: "Tip: Tocá el horario de una dosis pendiente para reprogramarla hoy. Tocá para cerrar.",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
@@ -166,6 +167,9 @@ const es = {
     takenAt: " a las {{time}}",
     revert: "Revertir",
     snoozeConfirm: "Recordatorio pospuesto 15 min ⏰",
+    rescheduleConfirm: "Toma reprogramada para las {{time}} 🕐",
+    rescheduleTitle: "Reprogramar toma",
+    rescheduleOriginal: "Horario original: {{time}}",
   },
 
   // ─── Medication card ──────────────────────────────────────────────────────

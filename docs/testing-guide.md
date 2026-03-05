@@ -166,13 +166,22 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | 1 | Tocar "❌ Omitir" en una dosis pendiente | ✅ La tarjeta se mueve a **Completadas** con estado "Omitida" |
 | 2 | Verificar en Historial | ✅ El log aparece con estado `skipped` |
 
-### TC-07 · Posponer (snooze) una dosis
+### TC-07 · Posponer (snooze) una dosis **que ya llegó su hora**
 
 | # | Paso | Resultado esperado |
-|---|------|--------------------|
-| 1 | Tocar "⏰ Posponer" en una dosis pendiente | ✅ Aparece un toast "Pospuesto 15 min" |
-| 2 | Verificar que la tarjeta no desaparece | ✅ La dosis sigue visible como pendiente (en su nuevo horario) |
+|---|------|-----------------|
+| 1 | Tocar "+15 min" en una dosis cuya hora ya pasó (estado pendiente / perdida) | ✅ Aparece un toast "Pospuesto 15 min" |
+| 2 | Verificar que la tarjeta no desaparece | ✅ La dosis sigue visible como pendiente |
 | 3 | Esperar 15 minutos | ✅ Llega una nueva notificación de recordatorio |
+
+### TC-07b · Posponer (snooze) una dosis **antes de que llegue su hora**
+
+| # | Paso | Resultado esperado |
+|---|------|-----------------|
+| 1 | Tocar "+15 min" en una dosis cuyo horario aún no llegó (ej: son las 16:00, la dosis es a las 17:00) | ✅ El badge de horario de la tarjeta cambia a **17:15** con tinte ámbar y un ícono de reloj |
+| 2 | Tocar "+15 min" nuevamente | ✅ El badge pasa a **17:30** (acumulativo sobre el horario ya pospuesto) |
+| 3 | Verificar que la notificación llega a las 17:15 (o 17:30) | ✅ La notificación respeta el nuevo horario |
+| 4 | Marcar la dosis y verificar que el badge vuelve al color original | ✅ Al tomar / revertir, el indicador ámbar desaparece |
 
 ### TC-08 · Revertir una dosis completada
 
@@ -187,7 +196,29 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | # | Paso | Resultado esperado |
 |---|------|--------------------|
 | 1 | Hacer pull-to-refresh en la lista | ✅ Aparece el indicador de carga y los datos se recargan desde la base de datos |
+### TC-10-A · Reprogramar dosis una sola vez (reschedule once)
 
+> Prerequisito: al menos una dosis **pendiente** cuya hora no haya llegado aún.
+
+| # | Paso | Resultado esperado |
+|---|------|-----------------|
+| 1 | Verificar que el badge de horario de una dosis pendiente muestra un ícono de lápiz pequeño | ✅ El lápiz está visible junto al horario |
+| 2 🍎 | Tocar el badge de horario en iOS | ✅ Se abre un **modal sheet** desde abajo con: handle, etiqueta "Reprogramar toma", nombre del medicamento, horario original y un spinner de hora |
+| 2 🤖 | Tocar el badge de horario en Android | ✅ Se abre el selector nativo de hora del sistema |
+| 3 | Seleccionar un horario diferente (ej: +30 min) y confirmar 🍎 / seleccionar 🤖 | ✅ El badge se actualiza con el nuevo horario en tinte ámbar; aparece un toast "Toma reprogramada para las HH:mm" |
+| 4 | Verificar que la notificación llega al nuevo horario | ✅ No llega notificación al horario original; sí llega al nuevo |
+| 5 | Tocar el badge nuevamente y cambiar el horario una segunda vez | ✅ El spinner del modal arranca desde el horario ya reprogramado (no el original) |
+| 6 | Cancelar el modal 🍎 / cerrar sin seleccionar 🤖 | ✅ El horario no cambia |
+| 7 | Marcar la dosis como tomada | ✅ El badge ámbar desaparece; la dosis pasa a Completadas |
+| 8 | Revertir la dosis | ✅ El badge ámbar también desaparece (el snooze se limpia al revertir) |
+
+### TC-10-B · Tip de reschedule (primera visita)
+
+| # | Paso | Resultado esperado |
+|---|------|-----------------|
+| 1 | Abrir la app por primera vez con al menos una dosis pendiente | ✅ Aparece un banner azul informativo encima de la sección Pendientes con texto de ayuda sobre el badge |
+| 2 | Tocar el banner | ✅ El banner desaparece y no vuelve a aparecer al relanzar la app |
+| 3 | Cerrar y reabrir la app | ✅ El banner ya no se muestra (persiste en AsyncStorage) |
 ---
 
 ## 6. Módulo 3 — Medicamentos
@@ -569,6 +600,9 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 
 - [ ] TC-01 (Onboarding completo) pasa en dispositivo físico
 - [ ] TC-04 a TC-09 (Home) pasan
+- [ ] TC-07b (Snooze dosis futura — badge ámbar) pasa
+- [ ] TC-10-A (Reschedule once) pasa en ambas plataformas
+- [ ] TC-10-B (Tip de reschedule) se muestra una sola vez
 - [ ] TC-10, TC-12, TC-15, TC-17 (CRUD de medicamentos) pasan
 - [ ] TC-27 a TC-32 (Notificaciones en segundo plano) pasan en dispositivo físico
 - [ ] TC-35 a TC-36 (Pantalla de alarma) pasan

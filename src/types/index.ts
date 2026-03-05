@@ -109,4 +109,7 @@ export interface TodayDose {
   scheduledTime: string;
   status: TodayDoseStatus;
   takenAt?: string;
+  /** HH:mm of the snoozed reminder — only set when the dose has been snoozed
+   *  but the original scheduled time hasn't passed yet. */
+  snoozedUntil?: string;
 }

@@ -1,16 +1,18 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation, Platform, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppStore } from "../../src/store";
 import { useTodaySchedule } from "../../src/hooks/useTodaySchedule";
 import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
 import { TodayDose } from "../../src/types";
 import { CATEGORY_CONFIG } from "../../src/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useToast } from "../../src/context/ToastContext";
 
@@ -21,9 +23,34 @@ export default function HomeScreen() {
   const loadAll = useAppStore((s) => s.loadAll);
   const markDose = useAppStore((s) => s.markDose);
   const snoozeDose = useAppStore((s) => s.snoozeDose);
+  const rescheduleOnce = useAppStore((s) => s.rescheduleOnce);
   const revertDose = useAppStore((s) => s.revertDose);
   const [refreshing, setRefreshing] = useState(false);
+  const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(null);
+  const [pickerDraft, setPickerDraft] = useState<Date>(new Date());
+  // default true avoids a flash on first render; useEffect corrects it after AsyncStorage read
+  const [tipSeen, setTipSeen] = useState(true);
   const doses = useTodaySchedule();
+
+  useEffect(() => {
+    AsyncStorage.getItem("@pilloclock/tip_reschedule_seen").then((val) => {
+      if (!val) setTipSeen(false);
+    });
+  }, []);
+
+  const openReschedule = (dose: TodayDose) => {
+    const base = dose.snoozedUntil ?? dose.scheduledTime;
+    const [h, m] = base.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    setPickerDraft(d);
+    setRescheduleTarget(dose);
+  };
+
+  const dismissTip = async () => {
+    setTipSeen(true);
+    await AsyncStorage.setItem("@pilloclock/tip_reschedule_seen", "1");
+  };
 
   // Sort by category priority (ascending) then time within each group
   const byPriorityThenTime = (a: TodayDose, b: TodayDose) => {
@@ -60,6 +87,28 @@ export default function HomeScreen() {
 
   const handleRevert = (dose: TodayDose) => {
     revertDose(dose);
+  };
+
+  const handleRescheduleChange = (_: DateTimePickerEvent, date?: Date) => {
+    // Android: the picker closes on selection; capture target before clearing it
+    const target = rescheduleTarget;
+    setRescheduleTarget(null);
+    if (!date || !target) return;
+    const newTime = format(date, "HH:mm");
+    rescheduleOnce(target, newTime);
+    showToast(t('doseCard.rescheduleConfirm', { time: newTime }), 'info');
+  };
+
+  const handlePickerDraftChange = (_: DateTimePickerEvent, date?: Date) => {
+    if (date) setPickerDraft(date);
+  };
+
+  const handleConfirmReschedule = () => {
+    if (!rescheduleTarget) return;
+    const newTime = format(pickerDraft, "HH:mm");
+    rescheduleOnce(rescheduleTarget, newTime);
+    showToast(t('doseCard.rescheduleConfirm', { time: newTime }), 'info');
+    setRescheduleTarget(null);
   };
 
   return (
@@ -117,6 +166,21 @@ export default function HomeScreen() {
           />
         ) : (
           <>
+            {/* One-time reschedule tip */}
+            {!tipSeen && pending.length > 0 && (
+              <TouchableOpacity
+                onPress={dismissTip}
+                activeOpacity={0.8}
+                className="flex-row items-center gap-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl px-4 py-3 mb-3 mt-2"
+              >
+                <Ionicons name="information-circle-outline" size={20} color="#3b82f6" />
+                <Text className="text-sm text-blue-700 dark:text-blue-300 flex-1 leading-5">
+                  {t('home.tipReschedule')}
+                </Text>
+                <Ionicons name="close-outline" size={16} color="#93c5fd" />
+              </TouchableOpacity>
+            )}
+
             {/* Pending */}
             {pending.length > 0 && (
               <>
@@ -130,6 +194,7 @@ export default function HomeScreen() {
                     onTake={() => handleMarkDose(dose, "taken")}
                     onSkip={() => handleMarkDose(dose, "skipped")}
                     onSnooze={() => handleSnooze(dose)}
+                    onReschedule={() => openReschedule(dose)}
                   />
                 ))}
               </>
@@ -185,6 +250,61 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Reschedule: modal sheet on iOS for full context; native picker on Android */}
+      {rescheduleTarget && Platform.OS === "ios" && (
+        <Modal transparent animationType="fade" visible>
+          <View className="flex-1 bg-black/50 justify-end">
+            <View className="bg-background rounded-t-3xl px-6 pt-5 pb-10">
+              {/* Handle + context header */}
+              <View className="items-center mb-1">
+                <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full mb-5" />
+                <Text className="text-sm text-muted">{t('doseCard.rescheduleTitle')}</Text>
+                <Text className="text-xl font-bold text-text mt-1">
+                  {rescheduleTarget.medication.name}
+                </Text>
+                <Text className="text-sm text-muted mt-0.5">
+                  {t('doseCard.rescheduleOriginal', { time: rescheduleTarget.scheduledTime })}
+                </Text>
+              </View>
+
+              {/* Spinner */}
+              <DateTimePicker
+                value={pickerDraft}
+                mode="time"
+                is24Hour
+                display="spinner"
+                onChange={handlePickerDraftChange}
+              />
+
+              {/* Actions */}
+              <View className="flex-row gap-3 mt-2">
+                <TouchableOpacity
+                  onPress={() => setRescheduleTarget(null)}
+                  className="flex-1 py-3.5 border border-border rounded-2xl items-center"
+                >
+                  <Text className="font-semibold text-muted">{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleConfirmReschedule}
+                  className="flex-1 py-3.5 bg-primary rounded-2xl items-center"
+                >
+                  <Text className="font-bold text-white">{t('common.confirm')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+      {rescheduleTarget && Platform.OS !== "ios" && (
+        <DateTimePicker
+          value={pickerDraft}
+          mode="time"
+          is24Hour
+          display="default"
+          onChange={handleRescheduleChange}
+        />
+      )}
     </SafeAreaView>
   );
 }

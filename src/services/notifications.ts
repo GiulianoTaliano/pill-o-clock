@@ -256,13 +256,15 @@ export async function scheduleDoseChain(
 export async function snoozeDose(
   medication: Medication,
   schedule: Schedule,
-  scheduledDate: string
+  scheduledDate: string,
+  /** When provided the notification fires at this exact time instead of now+15. */
+  fireDate?: Date
 ): Promise<void> {
   // Cancel existing chain
   await removeNotifMapEntriesByDose(schedule.id, scheduledDate);
 
-  // Schedule single notification in SNOOZE_MINUTES
-  const snoozeDate = addMinutes(new Date(), SNOOZE_MINUTES);
+  // Use explicit fire date when supplied (future-dose snooze), otherwise now+15
+  const snoozeDate = fireDate ?? addMinutes(new Date(), SNOOZE_MINUTES);
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {

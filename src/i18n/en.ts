@@ -64,6 +64,7 @@ const en: TranslationShape = {
     chipTaken: "{{count}} taken",
     chipSkipped: "{{count}} skipped",
     chipMissed: "{{count}} missed",
+    tipReschedule: "Tip: Tap the time badge on any pending dose to reschedule it today. Tap to dismiss.",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
@@ -168,6 +169,9 @@ const en: TranslationShape = {
     takenAt: " at {{time}}",
     revert: "Undo",
     snoozeConfirm: "Reminder snoozed for 15 min ⏰",
+    rescheduleConfirm: "Dose rescheduled to {{time}} 🕐",
+    rescheduleTitle: "Reschedule dose",
+    rescheduleOriginal: "Original time: {{time}}",
   },
 
   // ─── Medication card ──────────────────────────────────────────────────────

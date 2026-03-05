@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { addDays, startOfDay } from "date-fns";
+import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Appearance, LayoutAnimation, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Medication, Schedule, DoseLog, TodayDose } from "../types";
@@ -31,6 +31,7 @@ import {
   cancelScheduleNotifications,
   cancelAllNotifications,
   snoozeDose,
+  SNOOZE_MINUTES,
 } from "../services/notifications";
 import { unregisterBackgroundFetch } from "../services/backgroundTask";
 
@@ -44,6 +45,8 @@ interface AppState {
   medications: Medication[];
   schedules: Schedule[];  // all schedules in memory
   todayLogs: DoseLog[];
+  /** In-memory map of "scheduleId-date" → "HH:mm" for snoozed-but-not-yet-due doses. */
+  snoozedTimes: Record<string, string>;
   isLoading: boolean;
   themeMode: ThemeMode;
 
@@ -74,6 +77,9 @@ interface AppState {
 
   snoozeDose: (dose: TodayDose) => Promise<void>;
 
+  /** Reschedule a single dose to a specific time today (one-off, does not affect other days). */
+  rescheduleOnce: (dose: TodayDose, newTime: string) => Promise<void>;
+
   /** Remove a taken/skipped log so the dose can be re-marked. */
   revertDose: (dose: TodayDose) => Promise<void>;
 
@@ -91,6 +97,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   medications: [],
   schedules: [],
   todayLogs: [],
+  snoozedTimes: {},
   isLoading: false,
   themeMode: "system",
 
@@ -247,21 +254,77 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     await upsertDoseLog(log);
     await cancelDoseNotifications(dose.schedule.id, dose.scheduledDate);
+    // Clear any pending snooze display entry
+    const doseKey = `${dose.schedule.id}-${dose.scheduledDate}`;
+    set((s) => {
+      const { [doseKey]: _removed, ...rest } = s.snoozedTimes;
+      return { snoozedTimes: rest };
+    });
     await get().loadTodayLogs();
   },
 
   // ── Snooze ─────────────────────────────────────────────────────────────
 
   async snoozeDose(dose) {
-    // Cancel current chain and schedule for +15 min
-    await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate);
+    const now = new Date();
+    const [sh, sm] = dose.schedule.time.split(':').map(Number);
+    const originalDateTime = new Date(
+      now.getFullYear(), now.getMonth(), now.getDate(), sh, sm
+    );
+    const key = `${dose.schedule.id}-${dose.scheduledDate}`;
+
+    if (originalDateTime > now) {
+      // The scheduled time hasn't arrived yet — snooze in +15 min increments
+      // relative to the current snoozed time (or the original time, if first snooze).
+      const currentSnoozedHHmm = get().snoozedTimes[key];
+      const baseDate = currentSnoozedHHmm
+        ? (() => {
+            const [bh, bm] = currentSnoozedHHmm.split(':').map(Number);
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate(), bh, bm);
+          })()
+        : originalDateTime;
+      const fireDate = addMinutes(baseDate, SNOOZE_MINUTES);
+      const snoozeHHmm = format(fireDate, 'HH:mm');
+
+      await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate, fireDate);
+      set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: snoozeHHmm } }));
+    } else {
+      // Original time already passed — fire in now+15 (existing behaviour)
+      await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate);
+      // Clear any stale display entry; the notification handles firing
+      set((s) => {
+        const { [key]: _removed, ...rest } = s.snoozedTimes;
+        return { snoozedTimes: rest };
+      });
+    }
   },
+  // ── Reschedule once (user picks a specific time for today only) ──────────────
+
+  async rescheduleOnce(dose, newTime) {
+    const key = `${dose.schedule.id}-${dose.scheduledDate}`;
+    const [h, m] = newTime.split(':').map(Number);
+    const now = new Date();
+    const fireDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+
+    // Cancel existing notifications chain for this dose
+    await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate, fireDate);
+
+    // Store the new display time
+    set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: newTime } }));
+  },
+
   // ── Revert dose (undo taken/skipped) ─────────────────────────────────────────
 
   async revertDose(dose) {
     await deleteDoseLog(dose.schedule.id, dose.scheduledDate);
     // Re-schedule any future notifications for this dose's schedule
     await _scheduleNotificationsForSchedule(dose.medication, dose.schedule);
+    // Also clear any snooze display entry
+    const revertKey = `${dose.schedule.id}-${dose.scheduledDate}`;
+    set((s) => {
+      const { [revertKey]: _removed, ...rest } = s.snoozedTimes;
+      return { snoozedTimes: rest };
+    });
     if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     await get().loadTodayLogs();
   },
@@ -284,7 +347,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await unregisterBackgroundFetch();
     await clearAllData();
     if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    set({ medications: [], schedules: [], todayLogs: [] });
+    set({ medications: [], schedules: [], todayLogs: [], snoozedTimes: {} });
   },
 }));
 

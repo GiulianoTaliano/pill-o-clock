@@ -12,6 +12,7 @@ export function useTodaySchedule(dateStr?: string): TodayDose[] {
   const medications = useAppStore((s) => s.medications);
   const schedules = useAppStore((s) => s.schedules);
   const todayLogs = useAppStore((s) => s.todayLogs);
+  const snoozedTimes = useAppStore((s) => s.snoozedTimes);
 
   const targetDate = dateStr ?? format(new Date(), "yyyy-MM-dd");
 
@@ -58,11 +59,12 @@ export function useTodaySchedule(dateStr?: string): TodayDose[] {
         scheduledTime: schedule.time,
         status,
         takenAt: log?.takenAt,
+        snoozedUntil: isToday ? snoozedTimes[`${schedule.id}-${targetDate}`] : undefined,
       });
     }
 
     // Sort by time
     doses.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
     return doses;
-  }, [medications, schedules, todayLogs, targetDate]);
+  }, [medications, schedules, todayLogs, snoozedTimes, targetDate]);
 }
