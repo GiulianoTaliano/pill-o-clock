@@ -8,6 +8,7 @@ import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore } from "../../src/store";
 import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
+import { useAppTheme } from "../../src/hooks/useAppTheme";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -15,8 +16,8 @@ function SectionHeader({ title, danger = false }: { title: string; danger?: bool
   return (
     <View className="px-5 pt-6 pb-1">
       <Text
-        className="text-xs font-semibold uppercase tracking-widest"
-        style={{ color: danger ? "#dc2626" : "#94a3b8" }}
+        className="text-xs font-semibold uppercase tracking-widest text-muted"
+        style={danger ? { color: "#dc2626" } : undefined}
       >
         {title}
       </Text>
@@ -51,6 +52,7 @@ function SettingRow({
   danger = false,
   chevron,
 }: RowProps) {
+  const theme = useAppTheme();
   const isInteractive = !!onPress;
   const showChevron = chevron ?? (isInteractive && !value);
 
@@ -67,8 +69,8 @@ function SettingRow({
       {/* text */}
       <View className="flex-1">
         <Text
-          className="text-sm font-semibold"
-          style={{ color: danger ? "#dc2626" : "#1e293b" }}
+          className="text-sm font-semibold text-text"
+          style={danger ? { color: "#dc2626" } : undefined}
         >
           {title}
         </Text>
