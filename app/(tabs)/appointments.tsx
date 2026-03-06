@@ -15,6 +15,51 @@ import { Appointment } from "../../src/types";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { EmptyState } from "../../components/EmptyState";
 import { today } from "../../src/utils";
+import { useAppTheme } from "../../src/hooks/useAppTheme";
+
+// ─── Sub-tab button ──────────────────────────────────────────────────────
+
+// Extracted as a standalone component so react-native-css-interop's upgrade-
+// warning serializer cannot crawl the parent closure and accidentally access
+// React Navigation's context getter (which throws outside its own
+// NavigationContainer scope). Conditional appearance is expressed via `style`
+// instead of NativeWind className to keep it out of the CSS interop path.
+function AppointmentSubTabButton({
+  active,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  const theme = useAppTheme();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="flex-1 py-2 rounded-xl items-center"
+      style={
+        active
+          ? {
+              backgroundColor: theme.card,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.06,
+              shadowRadius: 2,
+              elevation: 1,
+            }
+          : undefined
+      }
+    >
+      <Text
+        className="text-sm font-bold"
+        style={{ color: active ? (theme.isDark ? "#f8fafc" : "#1e293b") : "#94a3b8" }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 // ─── Reminder options ─────────────────────────────────────────────────────
 
@@ -285,15 +330,12 @@ export default function AppointmentsScreen() {
       {/* Tabs */}
       <View className="flex-row mx-5 mb-3 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1">
         {(["upcoming", "past"] as const).map((tabKey) => (
-          <TouchableOpacity
+          <AppointmentSubTabButton
             key={tabKey}
+            active={tab === tabKey}
+            label={t(`appointments.${tabKey}`)}
             onPress={() => setTab(tabKey)}
-            className={`flex-1 py-2 rounded-xl items-center ${tab === tabKey ? "bg-card shadow-sm" : ""}`}
-          >
-            <Text className={`text-sm font-bold ${tab === tabKey ? "text-text" : "text-muted"}`}>
-              {t(`appointments.${tabKey}`)}
-            </Text>
-          </TouchableOpacity>
+          />
         ))}
       </View>
 

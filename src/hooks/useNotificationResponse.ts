@@ -9,15 +9,9 @@ import {
   ACTION_SKIP,
   SNOOZE_MINUTES,
   getNotifMapEntry,
-  cancelDoseNotifications,
   snoozeDose as snoozeDoseService,
 } from "../services/notifications";
-import {
-  generateId,
-  toISOString,
-} from "../utils";
-import { upsertDoseLog } from "../db/database";
-import { DoseLog } from "../types";
+import { TodayDose } from "../types";
 
 /**
  * Registers a notification response listener.
@@ -43,7 +37,7 @@ export function useNotificationResponseHandler() {
         const { scheduleId, medicationId, scheduledDate, scheduledTime } = entry;
 
         // Always read fresh state — never rely on closure-captured values.
-        const { medications, schedules, loadTodayLogs } = useAppStore.getState();
+        const { medications, schedules, markDose, loadTodayLogs } = useAppStore.getState();
         const med = medications.find((m) => m.id === medicationId);
         const schedule = schedules.find((s) => s.id === scheduleId);
 
@@ -52,24 +46,19 @@ export function useNotificationResponseHandler() {
         // the notification that the user just interacted with.
         await Notifications.dismissNotificationAsync(notifId).catch(() => {});
 
-        if (
-          actionId === ACTION_TAKEN ||
-          actionId === Notifications.DEFAULT_ACTION_IDENTIFIER
-        ) {
-          const now = new Date();
-          const log: DoseLog = {
-            id: generateId(),
-            medicationId,
-            scheduleId,
+        if (actionId === ACTION_TAKEN) {
+          // Route through the store action so stock is decremented correctly.
+          if (!med || !schedule) return;
+          const dose: TodayDose = {
+            medication: med,
+            schedule,
             scheduledDate,
+            // scheduledTime here comes from the notif-map entry, which reflects
+            // the actual snooze time after the snoozeDose service fix.
             scheduledTime,
-            status: "taken",
-            takenAt: toISOString(now),
-            createdAt: toISOString(now),
+            status: "pending",
           };
-          await upsertDoseLog(log);
-          await cancelDoseNotifications(scheduleId, scheduledDate);
-          await loadTodayLogs();
+          await markDose(dose, "taken");
         } else if (actionId === ACTION_SNOOZE) {
           // Snooze needs the full medication/schedule objects.
           if (!med || !schedule) return;
@@ -83,20 +72,19 @@ export function useNotificationResponseHandler() {
           }));
           await loadTodayLogs();
         } else if (actionId === ACTION_SKIP) {
-          const now = new Date();
-          const log: DoseLog = {
-            id: generateId(),
-            medicationId,
-            scheduleId,
+          // Route through the store action for consistency.
+          if (!med || !schedule) return;
+          const dose: TodayDose = {
+            medication: med,
+            schedule,
             scheduledDate,
             scheduledTime,
-            status: "skipped",
-            createdAt: toISOString(now),
+            status: "pending",
           };
-          await upsertDoseLog(log);
-          await cancelDoseNotifications(scheduleId, scheduledDate);
-          await loadTodayLogs();
+          await markDose(dose, "skipped");
         }
+        // DEFAULT_ACTION_IDENTIFIER (tap on banner without choosing an action):
+        // simply open the app without modifying any dose log.
       }
     );
 

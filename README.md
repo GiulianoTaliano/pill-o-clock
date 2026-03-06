@@ -1,8 +1,8 @@
 # 💊 Pill-O-Clock
 
-> Never miss a dose again. Smart medication reminders with adherence tracking.
+> Never miss a dose again. Smart medication reminders, health tracking, and personal insights.
 
-Pill-O-Clock is a personal medication assistant built with React Native and Expo. It reminds you exactly when to take each medication, rings a persistent alarm with quick-action buttons, and logs your adherence — all stored locally on your device with no data ever sent to external servers.
+Pill-O-Clock is a personal medication assistant built with React Native and Expo. It reminds you exactly when to take each medication, rings a persistent alarm with quick-action buttons, logs your adherence, tracks health measurements with trends, and records your daily wellbeing — all stored locally on your device with no data ever sent to external servers.
 
 ---
 
@@ -15,8 +15,11 @@ Pill-O-Clock is a personal medication assistant built with React Native and Expo
 - **Adherence streak** — Flame streak chip on the home screen showing consecutive days of full adherence.
 - **Stock tracking** — Optional current-stock and alert-threshold fields per medication. The stock decrements automatically on each taken dose and a notification fires when it reaches the threshold.
 - **Notes per dose** — Add a free-text note when taking or skipping a dose from the alarm screen or from the home screen. Notes are displayed inline on the History tab and are editable via the dose card.
-- **Appointments** — Dedicated tab to track upcoming and past medical appointments. Each appointment supports title, doctor, location, date/time, notes, and a configurable reminder (none / 1 h / 2 h / 1 day before).
-- **Adherence tracking** — History tab showing taken, skipped, and missed doses over the last 30 days with an adherence rate.
+- **Appointments** — Accessible via the Agenda tab. Track upcoming and past medical appointments. Each appointment supports title, doctor, location, date/time, notes, and a configurable reminder (none / 1 h / 2 h / 1 day before).
+- **Health measurements** — Track blood pressure (systolic/diastolic), blood glucose, weight, SpO₂, and heart rate. Each metric shows the latest value, a sparkline preview, and a full trend chart in the detail view. Optional daily reminder to record measurements.
+- **Daily wellbeing diary** — Log your mood (5 levels) and symptoms (headache, nausea, fatigue, dizziness, stomach pain, anxiety, insomnia…) every day. Past entries are listed with emoji indicators and are editable at any time.
+- **PDF health report** — Generate and share a comprehensive report (medications, dose history, health measurements, diary) as a PDF — ready to bring to your doctor.
+- **Adherence history** — Reach from the chart button in the Today header. Shows taken, skipped, and missed doses over weekly windows with an adherence rate.
 - **Visual calendar** — Monthly view grouped by status: pending, taken, skipped, and missed.
 - **Backup & restore** — Export and import a full backup (medications + history) at any time.
 - **Dark mode** — Follows the system theme automatically.
@@ -37,6 +40,8 @@ Pill-O-Clock is a personal medication assistant built with React Native and Expo
 | Notifications | [expo-notifications](https://docs.expo.dev/versions/latest/sdk/notifications/) |
 | Background tasks | expo-background-fetch + expo-task-manager |
 | Internationalization | i18next + react-i18next |
+| Charts | react-native-svg (custom `SimpleLineChart`) |
+| PDF generation | expo-print + expo-sharing |
 | Animations | react-native-reanimated v4 |
 
 ---
@@ -49,21 +54,25 @@ pill-o-clock/
 │   ├── _layout.tsx             # Root layout (providers, splash)
 │   ├── alarm.tsx               # Fullscreen alarm screen
 │   ├── onboarding.tsx          # First-launch onboarding
-│   ├── (tabs)/                 # Bottom tab navigator
-│   │   ├── index.tsx           # Today's schedule (+ streak chip)
-│   │   ├── calendar.tsx        # Monthly calendar
-│   │   ├── history.tsx         # Adherence history (+ dose notes)
+│   ├── (tabs)/                 # Bottom tab navigator (5 tabs)
+│   │   ├── index.tsx           # Today's schedule (+ streak + check-in prompt + history shortcut)
+│   │   ├── calendar.tsx        # Agenda: monthly calendar + upcoming appointments section
+│   │   ├── history.tsx         # Adherence history — navigated to from Today header (not in tab bar)
 │   │   ├── medications.tsx     # Medication list
-│   │   ├── appointments.tsx    # Appointments manager
-│   │   └── settings.tsx        # App settings
+│   │   ├── health.tsx          # Health measurements + daily diary
+│   │   ├── appointments.tsx    # Appointments manager — navigated to from Agenda (not in tab bar)
+│   │   └── settings.tsx        # App settings (+ PDF report)
 │   └── medication/
 │       ├── new.tsx             # Add medication
 │       └── [id].tsx            # Edit medication
 ├── components/                 # Reusable UI components
+│   ├── CheckinModal.tsx        # Daily mood + symptom check-in modal
+│   ├── SimpleLineChart.tsx     # SVG sparkline & trend chart
+│   └── …                      # DoseCard, MedicationCard, EmptyState, etc.
 ├── src/
 │   ├── db/                     # SQLite database & migrations
 │   ├── store/                  # Zustand store
-│   ├── services/               # Notifications, backup, background tasks
+│   ├── services/               # Notifications, backup, PDF report, background tasks
 │   ├── hooks/                  # Custom hooks (useAdherenceStreak, …)
 │   ├── i18n/                   # English & Spanish translations
 │   ├── types/                  # TypeScript interfaces
@@ -108,6 +117,37 @@ npx expo run:android
 # iOS development build (macOS only)
 npx expo run:ios
 ```
+
+---
+
+## Validating the Native Android Module Locally
+
+Before triggering an EAS Cloud build (which can queue up to 90 minutes on the Free tier), you can compile the custom `expo-alarm` Kotlin module locally to catch type errors early.
+
+### Prerequisites
+
+- **Android SDK** — set `ANDROID_HOME` / `ANDROID_SDK_ROOT` to your SDK path.
+- **JDK 17** — React Native 0.81+ requires Java 17. If you don't have it, install it without admin rights:
+
+```powershell
+$url = "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.14%2B7/OpenJDK17U-jdk_x64_windows_hotspot_17.0.14_7.zip"
+$zip = "$env:TEMP\jdk17.zip"
+Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+Expand-Archive -Path $zip -DestinationPath "$env:LOCALAPPDATA\Programs\" -Force
+Rename-Item "$env:LOCALAPPDATA\Programs\jdk-17.0.14+7" "jdk-17"
+Remove-Item $zip
+[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "$env:LOCALAPPDATA\Programs\jdk-17", "User")
+```
+
+### Running the validation
+
+Open a new terminal (so `JAVA_HOME` is picked up from the user environment) and run:
+
+```powershell
+npm run validate:android
+```
+
+This script runs `expo prebuild --platform android --clean` to generate the native project, then runs `gradlew :expo-alarm:compileReleaseKotlin` to compile only the custom module. A clean exit means the Kotlin code is correct and an EAS build will pass that step.
 
 ---
 

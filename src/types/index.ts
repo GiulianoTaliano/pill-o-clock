@@ -110,6 +110,42 @@ export interface Appointment {
   createdAt: string;
 }
 
+// ─── Health measurements ─────────────────────────────────────────────────────
+
+export type MeasurementType =
+  | 'blood_pressure'
+  | 'glucose'
+  | 'weight'
+  | 'spo2'
+  | 'heart_rate';
+
+export interface HealthMeasurement {
+  id: string;
+  type: MeasurementType;
+  /** Primary value (systolic for BP, glucose level, kg, SpO2 %, BPM) */
+  value1: number;
+  /** Secondary value — only used for blood_pressure (diastolic) */
+  value2?: number;
+  /** ISO datetime of when the measurement was taken */
+  measuredAt: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// ─── Daily check-in ────────────────────────────────────────────────────────
+
+export interface DailyCheckin {
+  id: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** 1 = very bad · 5 = excellent */
+  mood: 1 | 2 | 3 | 4 | 5;
+  /** Array of symptom keys e.g. ["headache", "nausea"] */
+  symptoms: string[];
+  notes?: string;
+  createdAt: string;
+}
+
 // ─── Notification mapping ──────────────────────────────────────────────────
 
 /** Stored in AsyncStorage: maps notificationId → doseLogId */

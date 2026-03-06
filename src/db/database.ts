@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import { Medication, Schedule, DoseLog, DoseStatus, DosageUnit, MedicationCategory, Appointment } from "../types";
+import { Medication, Schedule, DoseLog, DoseStatus, DosageUnit, MedicationCategory, Appointment, HealthMeasurement, MeasurementType, DailyCheckin } from "../types";
 
 // ─── Open DB ───────────────────────────────────────────────────────────────
 
@@ -66,6 +66,25 @@ export async function initDatabase(): Promise<void> {
       reminder_minutes  INTEGER,
       notification_id   TEXT,
       created_at        TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS health_measurements (
+      id           TEXT PRIMARY KEY,
+      type         TEXT NOT NULL,
+      value1       REAL NOT NULL,
+      value2       REAL,
+      measured_at  TEXT NOT NULL,
+      notes        TEXT,
+      created_at   TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS daily_checkins (
+      id          TEXT PRIMARY KEY,
+      date        TEXT NOT NULL UNIQUE,
+      mood        INTEGER NOT NULL,
+      symptoms    TEXT NOT NULL DEFAULT '[]',
+      notes       TEXT,
+      created_at  TEXT NOT NULL
     );
   `);
 
@@ -400,6 +419,8 @@ export async function clearAllData(): Promise<void> {
     DELETE FROM schedules;
     DELETE FROM medications;
     DELETE FROM appointments;
+    DELETE FROM health_measurements;
+    DELETE FROM daily_checkins;
   `);
 }
 
@@ -488,5 +509,110 @@ export async function updateDoseLogNotes(
   await db.runAsync(
     "UPDATE dose_logs SET notes = ? WHERE schedule_id = ? AND scheduled_date = ?",
     [notes, scheduleId, scheduledDate]
+  );
+}
+
+// ─── Health measurements ─────────────────────────────────────────────────────
+
+function rowToHealthMeasurement(row: Record<string, unknown>): HealthMeasurement {
+  return {
+    id: row.id as string,
+    type: row.type as MeasurementType,
+    value1: row.value1 as number,
+    value2: row.value2 != null ? (row.value2 as number) : undefined,
+    measuredAt: row.measured_at as string,
+    notes: row.notes as string | undefined,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getHealthMeasurements(
+  type?: MeasurementType,
+  limit = 60
+): Promise<HealthMeasurement[]> {
+  const db = await getDb();
+  const rows = type
+    ? await db.getAllAsync<Record<string, unknown>>(
+        "SELECT * FROM health_measurements WHERE type = ? ORDER BY measured_at DESC LIMIT ?",
+        [type, limit]
+      )
+    : await db.getAllAsync<Record<string, unknown>>(
+        "SELECT * FROM health_measurements ORDER BY measured_at DESC LIMIT ?",
+        [limit]
+      );
+  return rows.map(rowToHealthMeasurement);
+}
+
+export async function insertHealthMeasurement(m: HealthMeasurement): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO health_measurements (id, type, value1, value2, measured_at, notes, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [m.id, m.type, m.value1, m.value2 ?? null, m.measuredAt, m.notes ?? null, m.createdAt]
+  );
+}
+
+export async function deleteHealthMeasurement(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync("DELETE FROM health_measurements WHERE id = ?", [id]);
+}
+
+// ─── Daily check-ins ─────────────────────────────────────────────────────────
+
+function rowToDailyCheckin(row: Record<string, unknown>): DailyCheckin {
+  return {
+    id: row.id as string,
+    date: row.date as string,
+    mood: row.mood as 1 | 2 | 3 | 4 | 5,
+    symptoms: JSON.parse((row.symptoms as string | undefined) ?? '[]') as string[],
+    notes: row.notes as string | undefined,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getDailyCheckins(
+  fromDate?: string,
+  toDate?: string
+): Promise<DailyCheckin[]> {
+  const db = await getDb();
+  if (fromDate && toDate) {
+    const rows = await db.getAllAsync<Record<string, unknown>>(
+      "SELECT * FROM daily_checkins WHERE date >= ? AND date <= ? ORDER BY date DESC",
+      [fromDate, toDate]
+    );
+    return rows.map(rowToDailyCheckin);
+  }
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM daily_checkins ORDER BY date DESC LIMIT 90"
+  );
+  return rows.map(rowToDailyCheckin);
+}
+
+export async function getDailyCheckinByDate(date: string): Promise<DailyCheckin | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<Record<string, unknown>>(
+    "SELECT * FROM daily_checkins WHERE date = ?",
+    [date]
+  );
+  return row ? rowToDailyCheckin(row) : null;
+}
+
+export async function upsertDailyCheckin(checkin: DailyCheckin): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO daily_checkins (id, date, mood, symptoms, notes, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(date) DO UPDATE SET
+       mood = excluded.mood,
+       symptoms = excluded.symptoms,
+       notes = excluded.notes`,
+    [
+      checkin.id,
+      checkin.date,
+      checkin.mood,
+      JSON.stringify(checkin.symptoms),
+      checkin.notes ?? null,
+      checkin.createdAt,
+    ]
   );
 }

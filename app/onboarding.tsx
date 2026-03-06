@@ -7,13 +7,16 @@ import {
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as IntentLauncher from "expo-intent-launcher";
 import { useTranslation } from "../src/i18n";
-import { setupNotifications } from "../src/services/notifications";
+import { setupNotifications, openExactAlarmSettings } from "../src/services/notifications";
+import { checkFullScreenIntentPermission } from "expo-alarm";
 import * as Haptics from "expo-haptics";
 
 export const ONBOARDING_DONE_KEY = "@pilloclock/onboarding_done";
@@ -74,6 +77,8 @@ export default function OnboardingScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [requestingPermission, setRequestingPermission] = useState(false);
+  const [needsExactAlarm, setNeedsExactAlarm] = useState(false);
+  const [needsFullScreen, setNeedsFullScreen] = useState(false);
 
   // ── Navigation ──────────────────────────────────────────────────────────
 
@@ -99,10 +104,29 @@ export default function OnboardingScreen() {
     try {
       const result = await setupNotifications();
       setPermissionGranted(result.granted);
+      if (result.granted && Platform.OS === "android") {
+        setNeedsExactAlarm(result.needsExactAlarmPermission);
+        const hasFS = await checkFullScreenIntentPermission();
+        setNeedsFullScreen(!hasFS);
+      }
     } catch {
       setPermissionGranted(false);
     } finally {
       setRequestingPermission(false);
+    }
+  }
+
+  async function handleOpenFullScreen() {
+    try {
+      await IntentLauncher.startActivityAsync(
+        "android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT",
+        { data: "package:com.pilloclock.app" }
+      );
+    } catch {
+      await IntentLauncher.startActivityAsync(
+        IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS,
+        { data: "package:com.pilloclock.app" }
+      );
     }
   }
 
@@ -175,7 +199,8 @@ export default function OnboardingScreen() {
 
             {/* Permission button on last slide */}
             {i === LAST && (
-              <View className="mt-8 w-full">
+              <View className="mt-8 w-full gap-3">
+                {/* Notifications */}
                 {permissionGranted === null ? (
                   <TouchableOpacity
                     className="bg-primary rounded-2xl py-4 items-center"
@@ -189,16 +214,56 @@ export default function OnboardingScreen() {
                   </TouchableOpacity>
                 ) : permissionGranted ? (
                   <View className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-2xl py-4 items-center">
-                    <Text className="text-green-700 font-bold text-base">
+                    <Text className="text-green-700 dark:text-green-400 font-bold text-base">
                       {t("onboarding.notificationsGranted")}
                     </Text>
                   </View>
                 ) : (
                   <View className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-2xl py-4 px-4 items-center">
-                    <Text className="text-amber-700 text-sm text-center">
+                    <Text className="text-amber-700 dark:text-amber-400 text-sm text-center">
                       {t("onboarding.notificationsDenied")}
                     </Text>
                   </View>
+                )}
+
+                {/* Exact alarm permission — Android 12/12L only */}
+                {needsExactAlarm && (
+                  <TouchableOpacity
+                    className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-2xl py-3 px-4 flex-row items-center"
+                    onPress={openExactAlarmSettings}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="alarm-outline" size={22} color="#f59e0b" />
+                    <View className="flex-1 mx-3">
+                      <Text className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                        {t("onboarding.exactAlarmBtn")}
+                      </Text>
+                      <Text className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                        {t("onboarding.exactAlarmHint")}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#f59e0b" />
+                  </TouchableOpacity>
+                )}
+
+                {/* Full-screen intent permission — Android 14+ */}
+                {needsFullScreen && (
+                  <TouchableOpacity
+                    className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-2xl py-3 px-4 flex-row items-center"
+                    onPress={handleOpenFullScreen}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="phone-portrait-outline" size={22} color="#f59e0b" />
+                    <View className="flex-1 mx-3">
+                      <Text className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                        {t("onboarding.fullScreenBtn")}
+                      </Text>
+                      <Text className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                        {t("onboarding.fullScreenHint")}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#f59e0b" />
+                  </TouchableOpacity>
                 )}
               </View>
             )}

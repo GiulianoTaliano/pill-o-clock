@@ -1,6 +1,6 @@
 # Pill-O-Clock — Guía de Testing
 
-> **Versión de referencia:** 1.1.0  
+> **Versión de referencia:** 1.2.0  
 > **Última actualización:** Marzo 2026  
 > **Plataformas:** Android (API 26+) · iOS (15+)
 
@@ -14,7 +14,7 @@
 4. [Módulo 1 — Onboarding y permisos](#4-módulo-1--onboarding-y-permisos)
 5. [Módulo 2 — Pantalla de Hoy (Home)](#5-módulo-2--pantalla-de-hoy-home)
 6. [Módulo 3 — Medicamentos](#6-módulo-3--medicamentos)
-7. [Módulo 4 — Calendario](#7-módulo-4--calendario)
+7. [Módulo 4 — Agenda](#7-módulo-4--agenda)
 8. [Módulo 5 — Historial](#8-módulo-5--historial)
 9. [Módulo 6 — Ajustes](#9-módulo-6--ajustes)
 10. [Módulo 7 — Notificaciones y alarmas](#10-módulo-7--notificaciones-y-alarmas)
@@ -24,8 +24,11 @@
 14. [Módulo 11 — Stock de medicamentos](#14-módulo-11--stock-de-medicamentos)
 15. [Módulo 12 — Notas por dosis](#15-módulo-12--notas-por-dosis)
 16. [Módulo 13 — Citas médicas](#16-módulo-13--citas-médicas)
-17. [Casos de borde y regresiones](#17-casos-de-borde-y-regresiones)
-18. [Checklist de release](#18-checklist-de-release)
+17. [Módulo 14 — Mediciones de salud](#17-módulo-14--mediciones-de-salud)
+18. [Módulo 15 — Diario de síntomas y estado](#18-módulo-15--diario-de-síntomas-y-estado)
+19. [Módulo 16 — Reporte PDF](#19-módulo-16--reporte-pdf)
+20. [Casos de borde y regresiones](#20-casos-de-borde-y-regresiones)
+21. [Checklist de release](#21-checklist-de-release)
 
 ---
 
@@ -198,7 +201,15 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | # | Paso | Resultado esperado |
 |---|------|--------------------|
 | 1 | Hacer pull-to-refresh en la lista | ✅ Aparece el indicador de carga y los datos se recargan desde la base de datos |
-### TC-10-A · Reprogramar dosis una sola vez (reschedule once)
+### TC-10 · Prompt de check-in diario en Home
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Abrir la pestaña "Hoy" en un día sin check-in registrado | ✅ Aparece una tarjeta teal con 🌡 y el título "¿Cómo va tu día?"; botón "Registrar" y botón `✕` de descarte |
+| 2 | Tocar "Registrar" | ✅ Se abre el `CheckinModal`; al guardar, la tarjeta desaparece y no vuelve a mostrarse en el día actual |
+| 3 | Tocar `✕` sin registrar el check-in | ✅ La tarjeta desaparece por el resto del día (se persiste la fecha de descarte en AsyncStorage) |
+| 4 | Cerrar y reabrir la app el mismo día tras descartar | ✅ La tarjeta sigue oculta hasta el día siguiente |
+| 5 | Al día siguiente, sin check-in de ese nuevo día | ✅ La tarjeta vuelve a aparecer |### TC-10-A · Reprogramar dosis una sola vez (reschedule once)
 
 > Prerequisito: al menos una dosis **pendiente** cuya hora no haya llegado aún.
 
@@ -308,7 +319,9 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | 6 | Dejar el campo de stock vacío al crear otro medicamento | ✅ No aparece badge de stock en la tarjeta |
 ---
 
-## 7. Módulo 4 — Calendario
+## 7. Módulo 4 — Agenda
+
+> La pestaña **Agenda** unifica el calendario mensual de dosis y la sección de próximas citas médicas. La pantalla completa de gestión de citas se accede desde esta pestaña mediante el botón `+` o tocando una tarjeta de cita.
 
 **Prerrequisitos:** Al menos un medicamento activo con historial de varios días.
 
@@ -316,7 +329,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------|
-| 1 | Ir a pestaña "Calendario" | ✅ Se muestra el mes actual; el día de hoy está resaltado |
+| 1 | Ir a pestaña "Agenda" | ✅ Se muestra el mes actual; el día de hoy está resaltado |
 | 2 | Tocar "◀" para ir al mes anterior | ✅ El calendario muestra el mes previo y carga los logs correspondientes |
 | 3 | Tocar "▶" para volver al mes actual | ✅ Regresa al mes corriente |
 
@@ -327,16 +340,30 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | 1 | Observar días con dosis en el mes | ✅ Los días muestran puntos de color según el estado dominante (tomada, omitida, perdida, pendiente) |
 | 2 | Tocar un día con dosis | ✅ El panel inferior lista las dosis del día con íconos de estado, nombre del medicamento y hora |
 
-### TC-20 · Marcar dosis desde el Calendario
+### TC-20 · Marcar dosis desde la Agenda
 
 | # | Paso | Resultado esperado |
-|---|------|--------------------|
-| 1 | Seleccionar el día de hoy en el Calendario | ✅ Se listan las dosis del día |
+|---|------|--------------------||
+| 1 | Seleccionar el día de hoy en la Agenda | ✅ Se listan las dosis del día |
 | 2 | Tocar "Tomar" en una dosis pendiente | ✅ El estado cambia a "Tomada" y el punto del día en el calendario se actualiza |
+
+### TC-20a · Sección "Próximas citas" en Agenda
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Desplazarse hasta el pie de la pantalla Agenda | ✅ Aparece la sección "Próximas citas" con su botón `+` alineado a la derecha |
+| 2 | Sin citas próximas | ✅ Se muestra el ícono de calendario y el texto "Sin citas" |
+| 3 | Con citas próximas | ✅ Se muestran hasta 3 tarjetas con título, fecha y médico; las más cercanas primero |
+| 4 | Con más de 3 citas próximas | ✅ Aparece el enlace "Ver todas (N)" debajo de las 3 primeras |
+| 5 | Tocar el botón `+` | ✅ Navega a la pantalla completa de Citas con el modal de nueva cita listo para usarse |
+| 6 | Tocar una tarjeta de cita | ✅ Navega a la pantalla completa de Citas |
+| 7 | Tocar "Ver todas (N)" | ✅ Navega a la pantalla completa de Citas |
 
 ---
 
 ## 8. Módulo 5 — Historial
+
+> El Historial ya no es una pestaña del menú inferior. Se accede mediante el botón de gráfico (📊) situado en el header derecho de la pantalla **Hoy**.
 
 **Prerrequisitos:** Al menos 7 días de logs.
 
@@ -344,7 +371,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------|
-| 1 | Ir a pestaña "Historial" | ✅ Se muestra la ventana de los últimos 7 días con etiqueta de rango (ej: "27 Feb – 5 Mar 2026") |
+| 1 | Desde la pestaña "Hoy", tocar el botón de gráfico (📊) en el header derecho | ✅ Se muestra la ventana de los últimos 7 días con etiqueta de rango (ej: "27 Feb – 5 Mar 2026") |
 | 2 | Tocar "◀" (semana anterior) | ✅ La ventana retrocede 7 días y los logs se actualizan |
 | 3 | Tocar "▶" (semana siguiente) | ✅ La ventana avanza 7 días |
 
@@ -613,27 +640,29 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 ## 16. Módulo 13 — Citas médicas
 
-**Prerrequisitos:** Ninguno (la pestaña está disponible sin datos).
+> Las citas ya no tienen pestaña propia. La pantalla completa de Citas se abre desde la sección **"Próximas citas"** al pie de la pestaña **Agenda** (botón `+`, tarjeta de cita, o enlace "Ver todas").
+
+**Prerrequisitos:** Ninguno.
 
 ### TC-56 · Crear una cita
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------||
-| 1 | Ir a la pestaña "Citas" | ✅ Se muestra la pantalla de citas con pestañas "Próximas" y "Pasadas" |
+| 1 | Ir a pestaña "Agenda" → tocar el botón `+` de la sección "Próximas citas" | ✅ Se navega a la pantalla de Citas con las pestañas "Próximas" y "Pasadas" |
 | 2 | Tocar el botón FAB `+` | ✅ Se abre el modal de formulario desde abajo |
 | 3 | Dejar el título vacío y tocar "Guardar cita" | ✅ Error: Título requerido |
 | 4 | Ingresar título `[Cardiolólogo]`, doctor `[Dr. Pérez]`, ubicación `[Hospital Central]` | — |
 | 5 | Tocar el campo de fecha y seleccionar una fecha futura | ✅ El selector nativo se abre; al confirmar la fecha se muestra formateada |
 | 6 | Habilitar el checkbox de hora y seleccionar `[09:00]` | ✅ Se muestra el chip de hora con el valor seleccionado |
 | 7 | Seleccionar recordatorio "1 hora antes" | ✅ El chip de la opción queda seleccionado (fondo primario) |
-| 8 | Ingresar una nota opcional y tocar "Guardar cita" | ✅ El modal se cierra; la cita aparece en la pestaña "Próximas" |
+| 8 | Ingresar una nota opcional y tocar "Guardar cita" | ✅ El modal se cierra; la cita aparece en la pestaña "Próximas"; la sección en Agenda se actualiza al volver |
 | 9 | Verificar la tarjeta creada | ✅ Muestra título, fecha/hora, doctor, ubicación, chip de recordatorio |
 
 ### TC-57 · Editar y eliminar una cita
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------||
-| 1 | Tocar el botón ✏ (editar) en una cita existente | ✅ El modal se abre con todos los campos pre-cargados |
+| 1 | Desde Agenda → "Próximas citas", tocar el botón `+` para abrir Citas; luego tocar ✏ (editar) en una cita existente | ✅ El modal se abre con todos los campos pre-cargados |
 | 2 | Cambiar el título y guardar | ✅ La tarjeta se actualiza con el nuevo título |
 | 3 | Tocar el botón 🗑️ (eliminar) | ✅ Aparece un diálogo de confirmación |
 | 4 | Confirmar la eliminación | ✅ La cita desaparece de la lista; si tenía recordatorio programado, la notificación se cancela |
@@ -654,13 +683,140 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------||
-| 1 | Crear una cita con fecha = ayer | ✅ Aparece en la pestaña "Pasadas" con opacidad reducida |
-| 2 | Crear una cita con fecha = mañana | ✅ Aparece en la pestaña "Próximas" |
-| 3 | Sin citas en la pestaña activa | ✅ Se muestra el `EmptyState` |
+| 1 | Crear una cita con fecha = ayer; volver a Agenda | ✅ La cita no aparece en la sección de Agenda (solo citas futuras); en la pantalla de Citas aparece en "Pasadas" con opacidad reducida |
+| 2 | Crear una cita con fecha = mañana; volver a Agenda | ✅ La cita aparece en la sección "Próximas citas" de Agenda |
+| 3 | Sin citas en la pestaña activa (dentro de la pantalla de Citas) | ✅ Se muestra el `EmptyState` |
 
 ---
 
-## 17. Casos de borde y regresiones
+## 17. Módulo 14 — Mediciones de salud
+
+**Prerrequisitos:** Ninguno (la pestaña está disponible sin datos).
+
+### TC-60 · Vista general de métricas
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Ir a la pestaña "Salud" | ✅ Se muestra la pantalla con dos sub-pestañas: "Mediciones" y "Diario" |
+| 2 | Verificar la sub-pestaña "Mediciones" | ✅ Aparecen 5 tarjetas: Presión arterial, Glucosa, Peso, SpO₂, Frecuencia cardíaca |
+| 3 | Sin datos registrados | ✅ Cada tarjeta muestra el nombre de la métrica y el texto "Sin registros" |
+| 4 | Con datos registrados | ✅ La tarjeta muestra el último valor, la unidad y una mini sparkline si hay ≥ 2 lecturas |
+
+### TC-61 · Registrar presión arterial
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Tocar la tarjeta "Presión arterial" | ✅ Se navega a la vista de detalle; aparece un botón `+` en el header |
+| 2 | Tocar `+` | ✅ Se abre el modal de registro con dos campos numéricos: "Sistólica" y "Diastólica" |
+| 3 | Dejar "Sistólica" vacío y tocar "Guardar" | ✅ Error: dato requerido |
+| 4 | Ingresar `[120]` en Sistólica y `[80]` en Diastólica; ajustar fecha y hora | — |
+| 5 | Tocar "Guardar" | ✅ El modal se cierra; aparece la lectura `120/80 mmHg` en la lista |
+| 6 | Volver a la vista general | ✅ La tarjeta de presión arterial muestra `120/80` y la sparkline |
+
+### TC-62 · Registrar otras métricas
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Tocar la tarjeta "Glucosa" → `+` → ingresar `[5.4]` → Guardar | ✅ Aparece "5.4 mmol/L" |
+| 2 | Tocar "Peso" → ingresar `[72.5]` → Guardar | ✅ Aparece "72.5 kg" |
+| 3 | Tocar "SpO₂" → ingresar `[98]` → Guardar | ✅ Aparece "98 %" |
+| 4 | Tocar "Frecuencia cardíaca" → ingresar `[72]` → Guardar | ✅ Aparece "72 bpm" |
+| 5 | Agregar una nota opcional en cualquier registro | ✅ La nota aparece en itálica debajo de la lectura |
+
+### TC-63 · Gráfico de tendencia
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Registrar ≥ 3 lecturas de la misma métrica | — |
+| 2 | Abrir la vista de detalle | ✅ Aparece la tarjeta "Gráfico" con una línea de tendencia sobre fondo con gradiente |
+| 3 | Para presión arterial con al menos 2 lecturas | ✅ El gráfico muestra dos líneas (sistólica sólida, diastólica discontinua) y una leyenda |
+| 4 | Con ≤ 1 lectura | ✅ La tarjeta de gráfico no se muestra |
+
+### TC-64 · Eliminar una medición
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | En la vista de detalle, tocar el ícono 🗑️ junto a una lectura | ✅ Aparece un diálogo de confirmación |
+| 2 | Confirmar | ✅ La lectura desaparece de la lista; la sparkline y el último valor de la tarjeta general se actualizan |
+| 3 | Cancelar | ✅ La lectura permanece |
+
+### TC-65 · Recordatorio de medición
+
+> Ejecutar en dispositivo físico.
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | En la vista general de Mediciones, al final de la pantalla, tocar la sección "Recordatorio" | ✅ Se abre un `TimePicker` nativo |
+| 2 | Seleccionar una hora 1 minuto en el futuro | ✅ Se muestra el chip verde "Activo · HH:mm"; se programa una notificación diaria repetida |
+| 3 | Esperar a que llegue la hora | ✅ Llega una notificación del canal `health-reminders` con título "⏱ Hora de registrar" |
+| 4 | Tocar `✕` junto al chip de recordatorio | ✅ El chip desaparece y la notificación se cancela |
+
+---
+
+## 18. Módulo 15 — Diario de síntomas y estado
+
+**Prerrequisitos:** Ninguno.
+
+### TC-66 · Check-in de hoy
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Ir a "Salud" → sub-pestaña "Diario" | ✅ Aparece una tarjeta de hoy con 🌡 y botón "Registrar" |
+| 2 | Tocar "Registrar" | ✅ Se abre el `CheckinModal` |
+| 3 | Sin seleccionar estado de ánimo, tocar "Guardar" | ✅ No se guarda; se requiere seleccionar al menos el humor |
+| 4 | Seleccionar humor 😄 (5), marcar síntomas "Dolor de cabeza" y "Náuseas", escribir una nota | — |
+| 5 | Tocar "Guardar" | ✅ El modal se cierra; la tarjeta de hoy muestra el emoji 😄 y los síntomas |
+
+### TC-67 · Editar check-in existente
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Con un check-in guardado de hoy, tocar el botón "Editar" en la tarjeta | ✅ El `CheckinModal` se abre con los datos pre-cargados |
+| 2 | Cambiar el humor a 😕 (2) y quitar todos los síntomas | — |
+| 3 | Guardar | ✅ La tarjeta de hoy refleja el emoji 😕 y sin síntomas |
+
+### TC-68 · Historial de check-ins
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Con check-ins registrados en días anteriores | ✅ Aparecen listados debajo de la tarjeta de hoy, con emoji, fecha y síntomas |
+| 2 | Tocar un check-in pasado | ✅ Se abre el modal con los datos de ese día para edición |
+| 3 | Sin check-ins registrados aún | ✅ Se muestra el `EmptyState` correspondiente |
+
+### TC-69 · Prompt en home screen
+
+> Ver TC-10 en Módulo 2.
+
+---
+
+## 19. Módulo 16 — Reporte PDF
+
+**Prerrequisitos:** Al menos un medicamento, algunos logs de dosis y al menos una medición de salud o check-in.
+
+### TC-70 · Generar reporte PDF
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Ajustes → "Generar reporte" | ✅ El botón muestra un spinner mientras se genera |
+| 2 | Esperar la generación (~2–5 s) | ✅ Se abre el sheet de compartir del sistema operativo |
+| 3 | Verificar el nombre del archivo | ✅ `pilloclock-report-YYYY-MM-DD.pdf` |
+| 4 | Compartir vía email o guardar | ✅ El archivo es un PDF válido y se abre correctamente en un visor |
+
+### TC-71 · Contenido del reporte
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------|
+| 1 | Abrir el PDF generado | ✅ Contiene secciones: **Medicamentos activos**, **Historial de dosis**, **Mediciones de salud**, **Diario** |
+| 2 | Sección medicamentos | ✅ Tabla con nombre, dosis, categoría, instrucciones |
+| 3 | Sección historial | ✅ Filas agrupadas por fecha; cada dosis muestra nombre, hora, estado y nota (si tiene) |
+| 4 | Sección mediciones | ✅ Una sub-sección por tipo de métrica; muestra hasta 20 lecturas con fecha y valor |
+| 5 | Sección diario | ✅ Hasta 30 check-ins con emoji de humor, síntomas y notas |
+| 6 | Footer | ✅ Incluye nota de privacidad: "Datos 100% locales — Pill-O-Clock" |
+| 7 | Sin datos en alguna sección | ✅ Se muestra el texto "Sin datos registrados" en esa sección |
+
+---
+
+## 20. Casos de borde y regresiones
 
 ### TC-44 · Sin conexión a internet
 
@@ -696,7 +852,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------|
-| 1 | Crear medicamento con alarma solo los viernes. Probar un martes | ✅ No aparece en Hoy ni en el Calendario del martes |
+| 1 | Crear medicamento con alarma solo los viernes. Probar un martes | ✅ No aparece en Hoy ni en la Agenda del martes |
 
 ### TC-49 · Nombre duplicado al crear medicamento
 
@@ -716,7 +872,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 ---
 
-## 18. Checklist de release
+## 21. Checklist de release
 
 Ejecutar la siguiente lista antes de publicar cada build en las stores.
 
@@ -725,6 +881,8 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 - [ ] TC-01 (Onboarding completo) pasa en dispositivo físico
 - [ ] TC-04 (Home — estructura + chip de racha) pasa
 - [ ] TC-04 a TC-09 (Home) pasan
+- [ ] TC-10 (Prompt de check-in en Home) pasa
+- [ ] TC-10 (botón Historial en header de Home navega correctamente) pasa
 - [ ] TC-07b (Snooze dosis futura — badge ámbar) pasa
 - [ ] TC-10-A (Reschedule once) pasa en ambas plataformas
 - [ ] TC-10-B (Tip de reschedule) se muestra una sola vez
@@ -738,7 +896,12 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 - [ ] TC-50 (Reset de datos) pasa
 - [ ] TC-51 a TC-53 (Stock: badge, notificación, backup) pasan
 - [ ] TC-54 a TC-55 (Notas por dosis: alarma + Home) pasan
+- [ ] TC-20a (Sección "Próximas citas" en Agenda) pasa
 - [ ] TC-56 a TC-59 (Citas: CRUD + notificación + sección pasadas/próximas) pasan
+- [ ] TC-60 a TC-64 (Mediciones de salud: CRUD + gráfico) pasan
+- [ ] TC-65 (Recordatorio de medición) pasa en dispositivo físico
+- [ ] TC-66 a TC-68 (Diario: check-in, edición, historial) pasan
+- [ ] TC-70 a TC-71 (Reporte PDF: generación + contenido) pasan
 
 ### Pre-release — Android únicamente
 
@@ -746,6 +909,7 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 - [ ] TC-33 (Bypass DnD) verificado
 - [ ] TC-45a (Reprogramación post-reinicio) verificado
 - [ ] El canal `pill-reminders` aparece en Ajustes → Notificaciones → Pill-O-Clock
+- [ ] El canal `health-reminders` aparece en Ajustes → Notificaciones → Pill-O-Clock
 - [ ] El sonido `alarm.wav` suena correctamente (no el sonido de sistema default)
 - [ ] La app no cierra con el gesto de retroceso predictivo (predictiveBackGestureEnabled: false)
 
@@ -759,4 +923,4 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 
 ---
 
-> **Nota:** Esta guía cubre los flujos funcionales de la versión 1.1.0. Actualizar los módulos afectados ante cada nueva feature o cambio en el comportamiento de notificaciones.
+> **Nota:** Esta guía cubre los flujos funcionales de la versión 1.3.0. Actualizar los módulos afectados ante cada nueva feature o cambio en el comportamiento de notificaciones.

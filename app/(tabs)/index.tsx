@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation, Platform, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
@@ -11,9 +11,10 @@ import { useTodaySchedule } from "../../src/hooks/useTodaySchedule";
 import { useAdherenceStreak } from "../../src/hooks/useAdherenceStreak";
 import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
+import { CheckinModal } from "../../components/CheckinModal";
 import { TodayDose } from "../../src/types";
 import { CATEGORY_CONFIG } from "../../src/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useToast } from "../../src/context/ToastContext";
 
@@ -26,10 +27,15 @@ export default function HomeScreen() {
   const snoozeDose = useAppStore((s) => s.snoozeDose);
   const rescheduleOnce = useAppStore((s) => s.rescheduleOnce);
   const revertDose = useAppStore((s) => s.revertDose);
+  const revertSnooze = useAppStore((s) => s.revertSnooze);
   const updateDoseNote = useAppStore((s) => s.updateDoseNote);
+  const dailyCheckins = useAppStore((s) => s.dailyCheckins);
+  const loadDailyCheckins = useAppStore((s) => s.loadDailyCheckins);
   const [refreshing, setRefreshing] = useState(false);
   const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(null);
   const [pickerDraft, setPickerDraft] = useState<Date>(new Date());
+  const [checkinVisible, setCheckinVisible] = useState(false);
+  const [checkinDismissed, setCheckinDismissed] = useState(false);
   // default true avoids a flash on first render; useEffect corrects it after AsyncStorage read
   const [tipSeen, setTipSeen] = useState(true);
   const doses = useTodaySchedule();
@@ -40,6 +46,16 @@ export default function HomeScreen() {
       if (!val) setTipSeen(false);
     });
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDailyCheckins();
+      const todayKey = format(new Date(), "yyyy-MM-dd");
+      AsyncStorage.getItem("@pilloclock/checkin_dismissed_date").then((val) => {
+        setCheckinDismissed(val === todayKey);
+      });
+    }, [loadDailyCheckins])
+  );
 
   const openReschedule = (dose: TodayDose) => {
     const base = dose.snoozedUntil ?? dose.scheduledTime;
@@ -69,6 +85,9 @@ export default function HomeScreen() {
 
   const today = format(new Date(), "PPP", { locale: getDateLocale() });
   const todayCap = today.charAt(0).toUpperCase() + today.slice(1);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayCheckin = dailyCheckins.find((c) => c.date === todayStr);
+  const showCheckinPrompt = !todayCheckin && !checkinDismissed;
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -90,6 +109,11 @@ export default function HomeScreen() {
 
   const handleRevert = (dose: TodayDose) => {
     revertDose(dose);
+  };
+
+  const handleRevertSnooze = (dose: TodayDose) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    revertSnooze(dose);
   };
 
   const handleUpdateNote = (dose: TodayDose, note: string) => {
@@ -126,12 +150,20 @@ export default function HomeScreen() {
           <Text className="text-2xl font-black text-text">{t('home.title')}</Text>
           <Text className="text-sm text-muted mt-0.5">{todayCap}</Text>
         </View>
-        <TouchableOpacity
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
-          className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View className="flex-row gap-2 items-center">
+          <TouchableOpacity
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/history"); }}
+            className="bg-card border border-border w-10 h-10 rounded-full items-center justify-center shadow-sm"
+          >
+            <Ionicons name="bar-chart-outline" size={20} color="#4f9cff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
+            className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
+          >
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Summary chips */}
@@ -172,6 +204,34 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Check-in prompt */}
+        {showCheckinPrompt && (
+          <View className="flex-row items-center gap-3 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-2xl px-4 py-3 mt-1 mb-2">
+            <Text className="text-2xl">🌡</Text>
+            <View className="flex-1">
+              <Text className="text-sm font-bold text-teal-800 dark:text-teal-300">{t("checkin.homePromptTitle")}</Text>
+              <Text className="text-xs text-teal-600 dark:text-teal-400">{t("checkin.homePromptSubtitle")}</Text>
+            </View>
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCheckinVisible(true); }}
+                className="bg-teal-500 rounded-xl px-3 py-1.5"
+              >
+                <Text className="text-white text-xs font-bold">{t("checkin.saveButton")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  const todayKey = format(new Date(), "yyyy-MM-dd");
+                  await AsyncStorage.setItem("@pilloclock/checkin_dismissed_date", todayKey);
+                  setCheckinDismissed(true);
+                }}
+                className="p-1"
+              >
+                <Ionicons name="close" size={14} color="#5eead4" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
         {doses.length === 0 ? (
           <EmptyState
             icon="medical-outline"
@@ -209,6 +269,7 @@ export default function HomeScreen() {
                     onSkip={() => handleMarkDose(dose, "skipped")}
                     onSnooze={() => handleSnooze(dose)}
                     onReschedule={() => openReschedule(dose)}
+                    onRevert={dose.snoozedUntil ? () => handleRevertSnooze(dose) : undefined}
                   />
                 ))}
               </>
@@ -320,6 +381,11 @@ export default function HomeScreen() {
           onChange={handleRescheduleChange}
         />
       )}
+
+      <CheckinModal
+        visible={checkinVisible}
+        onClose={() => setCheckinVisible(false)}
+      />
     </SafeAreaView>
   );
 }

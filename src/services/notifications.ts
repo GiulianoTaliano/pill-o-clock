@@ -3,7 +3,7 @@ import * as IntentLauncher from "expo-intent-launcher";
 import * as ExpoAlarm from "expo-alarm";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
-import { addDays, addMinutes, startOfDay } from "date-fns";
+import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Schedule, Medication, NotificationMap, Appointment } from "../types";
 import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString } from "../utils";
 import i18n from "../i18n";
@@ -106,6 +106,7 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
     });
     await setupStockAlertChannel();
     await setupAppointmentChannel();
+    await setupHealthReminderChannel();
   }
 
   // Request permissions
@@ -343,7 +344,10 @@ export async function snoozeDose(
         medicationId: medication.id,
         scheduleId: schedule.id,
         scheduledDate,
-        scheduledTime: schedule.time,
+        // Store the actual snooze fire-time so that when the user marks it
+        // "taken" from the notification, the log records the snoozed time
+        // rather than the original schedule time.
+        scheduledTime: format(snoozeDate, "HH:mm"),
       },
     },
   ]);
@@ -447,40 +451,125 @@ export async function setupAppointmentChannel(): Promise<void> {
 }
 
 /**
- * Schedules a reminder for the given appointment.
- * Returns the notification identifier (to store for later cancellation),
- * or undefined if reminders are disabled or the time is in the past.
+ * Schedules reminders for the given appointment.
+ * - A configurable reminder N minutes before (when reminderMinutes > 0).
+ * - A "heads-up" at the exact appointment time (when appt.time is set).
+ *
+ * Returns a pipe-separated string of notification IDs to store for
+ * later cancellation, or undefined if nothing could be scheduled.
  */
 export async function scheduleAppointmentNotification(
   appt: Appointment
 ): Promise<string | undefined> {
   if (Platform.OS === "web") return undefined;
-  if (!appt.reminderMinutes || appt.reminderMinutes === 0) return undefined;
 
   const [year, month, day] = appt.date.split("-").map(Number);
   const [hour, minute] = appt.time ? appt.time.split(":").map(Number) : [9, 0];
   const apptDate = new Date(year, month - 1, day, hour, minute, 0, 0);
-  const fireDate = new Date(apptDate.getTime() - appt.reminderMinutes * 60_000);
+  const now = new Date();
 
-  if (fireDate <= new Date()) return undefined;
+  const ids: string[] = [];
 
-  const notifId = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: i18n.t("appointments.notifTitle"),
-      body: i18n.t("appointments.notifBody", { title: appt.title }),
-      data: { type: "appointment", appointmentId: appt.id },
-      ...(Platform.OS === "android" ? { channelId: APPOINTMENTS_CHANNEL_ID } : {}),
-    },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
-  });
-  return notifId;
+  // ── Configurable reminder (N minutes before) ──────────────────────────────
+  if (appt.reminderMinutes && appt.reminderMinutes > 0) {
+    const fireDate = new Date(apptDate.getTime() - appt.reminderMinutes * 60_000);
+    if (fireDate > now) {
+      const reminderId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: i18n.t("appointments.notifTitle"),
+          body: i18n.t("appointments.notifBody", { title: appt.title }),
+          data: { type: "appointment", appointmentId: appt.id },
+          ...(Platform.OS === "android" ? { channelId: APPOINTMENTS_CHANNEL_ID } : {}),
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
+      });
+      ids.push(reminderId);
+    }
+  }
+
+  // ── Heads-up at appointment time (only when a specific time is set) ────────
+  if (appt.time && apptDate > now) {
+    const headsUpBody =
+      [appt.doctor, appt.location].filter(Boolean).join(" · ") ||
+      i18n.t("appointments.notifHeadsUpBody");
+    const headsUpId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: i18n.t("appointments.notifHeadsUpTitle", { title: appt.title }),
+        body: headsUpBody,
+        data: { type: "appointment_headsup", appointmentId: appt.id },
+        ...(Platform.OS === "android" ? { channelId: APPOINTMENTS_CHANNEL_ID } : {}),
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: apptDate },
+    });
+    ids.push(headsUpId);
+  }
+
+  return ids.length > 0 ? ids.join("|") : undefined;
 }
 
 export async function cancelAppointmentNotification(notificationId: string): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
+  // notificationId may be pipe-separated when both a reminder and a heads-up
+  // were scheduled (e.g. "id1|id2").
+  const ids = notificationId.split("|");
+  await Promise.all(
+    ids.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {}))
+  );
 }
 
-// ─── Cancel notifications for a specific schedule ─────────────────────────
+// ─── Health measurement reminder ───────────────────────────────────────────────────
+
+export const HEALTH_CHANNEL_ID = "health-reminders";
+const HEALTH_NOTIF_ID_KEY = "@pilloclock/health_reminder_notif_id";
+const HEALTH_REMINDER_TIME_KEY = "@pilloclock/health_reminder_time";
+
+export async function setupHealthReminderChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(HEALTH_CHANNEL_ID, {
+    name: "Health reminders",
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: [0, 250],
+    lightColor: "#22c55e",
+  });
+}
+
+export async function getHealthReminderTime(): Promise<string | null> {
+  return AsyncStorage.getItem(HEALTH_REMINDER_TIME_KEY);
+}
+
+export async function scheduleHealthReminder(time: string): Promise<void> {
+  if (Platform.OS === "web") return;
+  // Cancel the previous one first.
+  try {
+    const existingId = await AsyncStorage.getItem(HEALTH_NOTIF_ID_KEY);
+    if (existingId) await Notifications.cancelScheduledNotificationAsync(existingId).catch(() => {});
+  } catch {}
+  const [hour, minute] = time.split(":").map(Number);
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: i18n.t("health.notifTitle"),
+      body: i18n.t("health.notifBody"),
+      data: { type: "health_reminder" },
+      ...(Platform.OS === "android" ? { channelId: HEALTH_CHANNEL_ID } : {}),
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+    },
+  });
+  await AsyncStorage.setItem(HEALTH_NOTIF_ID_KEY, id);
+  await AsyncStorage.setItem(HEALTH_REMINDER_TIME_KEY, time);
+}
+
+export async function cancelHealthReminder(): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const existingId = await AsyncStorage.getItem(HEALTH_NOTIF_ID_KEY);
+    if (existingId) await Notifications.cancelScheduledNotificationAsync(existingId).catch(() => {});
+    await AsyncStorage.removeItem(HEALTH_NOTIF_ID_KEY);
+    await AsyncStorage.removeItem(HEALTH_REMINDER_TIME_KEY);
+  } catch {}
+}
 
 export async function cancelScheduleNotifications(scheduleId: string): Promise<void> {
   const map = await loadNotifMap();

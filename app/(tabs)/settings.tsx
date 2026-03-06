@@ -8,6 +8,7 @@ import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore, ThemeMode } from "../../src/store";
 import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
+import { generateAndShareReport } from "../../src/services/pdfReport";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -108,6 +109,7 @@ export default function SettingsScreen() {
 
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const { showToast } = useToast();
 
   // ─── Handlers ──────────────────────────────────────────────────────────
@@ -157,6 +159,18 @@ export default function SettingsScreen() {
       showToast(msg, "error");
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function handleGeneratePdf() {
+    setGeneratingPdf(true);
+    try {
+      await generateAndShareReport();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
+    } finally {
+      setGeneratingPdf(false);
     }
   }
 
@@ -220,6 +234,15 @@ export default function SettingsScreen() {
             subtitle={t("settings.importSubtitle")}
             onPress={handleImport}
             loading={importing}
+          />
+          <Divider />
+          <SettingRow
+            icon="document-text-outline"
+            iconColor="#8b5cf6"
+            title={t("report.generate")}
+            subtitle={t("report.generateSubtitle")}
+            onPress={handleGeneratePdf}
+            loading={generatingPdf}
           />
         </View>
 

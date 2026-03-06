@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Appearance, LayoutAnimation, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Medication, Schedule, DoseLog, TodayDose, Appointment } from "../types";
+import { Medication, Schedule, DoseLog, TodayDose, Appointment, HealthMeasurement, MeasurementType, DailyCheckin } from "../types";
 import {
   getMedications,
   getSchedulesByMedication,
@@ -23,6 +23,11 @@ import {
   deleteAppointment as deleteAppointmentDb,
   updateMedicationStock,
   updateDoseLogNotes,
+  getHealthMeasurements,
+  insertHealthMeasurement,
+  deleteHealthMeasurement as deleteHealthMeasurementDb,
+  getDailyCheckins,
+  upsertDailyCheckin,
 } from "../db/database";
 import {
   generateId,
@@ -97,6 +102,9 @@ interface AppState {
   /** Remove a taken/skipped log so the dose can be re-marked. */
   revertDose: (dose: TodayDose) => Promise<void>;
 
+  /** Undo a pending snooze, restoring the original notification schedule. */
+  revertSnooze: (dose: TodayDose) => Promise<void>;
+
   getHistoryLogs: (from: string, to: string) => Promise<DoseLog[]>;
 
   getSchedulesForMedication: (medicationId: string) => Schedule[];
@@ -109,7 +117,16 @@ interface AppState {
   addAppointment: (data: Omit<Appointment, "id" | "createdAt" | "notificationId">) => Promise<void>;
   updateAppointment: (appt: Omit<Appointment, "notificationId">) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
-}
+  // ── Health measurements ───────────────────────────────────────────
+  healthMeasurements: HealthMeasurement[];
+  loadHealthMeasurements: (type?: MeasurementType) => Promise<void>;
+  addHealthMeasurement: (data: Omit<HealthMeasurement, 'id' | 'createdAt'>) => Promise<void>;
+  deleteHealthMeasurement: (id: string) => Promise<void>;
+
+  // ── Daily check-ins ──────────────────────────────────────────────────
+  dailyCheckins: DailyCheckin[];
+  loadDailyCheckins: () => Promise<void>;
+  saveDailyCheckin: (data: Omit<DailyCheckin, 'id' | 'createdAt'>) => Promise<void>;}
 
 // ─── Store ─────────────────────────────────────────────────────────────────
 
@@ -118,6 +135,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   schedules: [],
   todayLogs: [],
   appointments: [],
+  healthMeasurements: [],
+  dailyCheckins: [],
   snoozedTimes: {},
   isLoading: false,
   themeMode: "system",
@@ -127,12 +146,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   async loadThemeMode() {
     const saved = (await AsyncStorage.getItem(THEME_KEY)) as ThemeMode | null;
     const mode: ThemeMode = saved ?? "system";
-    Appearance.setColorScheme(mode === "system" ? null : mode);
+    if (Platform.OS !== "web") {
+      Appearance.setColorScheme(mode === "system" ? null : mode);
+    }
     set({ themeMode: mode });
   },
 
   async setThemeMode(mode) {
-    Appearance.setColorScheme(mode === "system" ? null : mode);
+    if (Platform.OS !== "web") {
+      Appearance.setColorScheme(mode === "system" ? null : mode);
+    }
     await AsyncStorage.setItem(THEME_KEY, mode);
     set({ themeMode: mode });
   },
@@ -268,7 +291,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       medicationId: dose.medication.id,
       scheduleId: dose.schedule.id,
       scheduledDate: dose.scheduledDate,
-      scheduledTime: dose.scheduledTime,
+      // Persist the snoozed time when relevant so calendar/history reflect it.
+      scheduledTime: dose.snoozedUntil ?? dose.scheduledTime,
       status,
       takenAt: status === "taken" ? toISOString(now) : undefined,
       createdAt: toISOString(now),
@@ -282,6 +306,35 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { [doseKey]: _removed, ...rest } = s.snoozedTimes;
       return { snoozedTimes: rest };
     });
+
+    // Decrement stock and fire a low-stock alert when a dose is marked taken.
+    if (status === "taken") {
+      // Always read the latest in-memory stock to handle rapid consecutive marks.
+      const latestMed =
+        get().medications.find((m) => m.id === dose.medication.id) ??
+        dose.medication;
+      if (latestMed.stockQuantity != null && latestMed.stockQuantity > 0) {
+        const newQty = latestMed.stockQuantity - 1;
+        await updateMedicationStock(latestMed.id, newQty);
+        if (
+          latestMed.stockAlertThreshold != null &&
+          newQty < latestMed.stockAlertThreshold
+        ) {
+          await scheduleStockAlert({ ...latestMed, stockQuantity: newQty });
+        }
+        // Sync the in-memory medications list so the stock badge updates.
+        const allMeds = await getMedications();
+        set({ medications: allMeds });
+      }
+    }
+
+    await get().loadTodayLogs();
+  },
+
+  // ── Update dose note ──────────────────────────────────────────────────────
+
+  async updateDoseNote(scheduleId, scheduledDate, notes) {
+    await updateDoseLogNotes(scheduleId, scheduledDate, notes);
     await get().loadTodayLogs();
   },
 
@@ -334,6 +387,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: newTime } }));
   },
 
+  // ── Revert snooze (undo pending snooze) ───────────────────────────────────────
+
+  async revertSnooze(dose) {
+    const key = `${dose.schedule.id}-${dose.scheduledDate}`;
+    // Cancel the currently active snoozed notification chain.
+    await cancelDoseNotifications(dose.schedule.id, dose.scheduledDate);
+    // Re-schedule the original notification chain if the original time is still in the future.
+    const [h, m] = dose.schedule.time.split(":").map(Number);
+    const [y, mo, d] = dose.scheduledDate.split("-").map(Number);
+    const originalFireDate = new Date(y, mo - 1, d, h, m);
+    if (originalFireDate > new Date()) {
+      await scheduleDoseChain(dose.medication, dose.schedule, dose.scheduledDate);
+    }
+    // Remove the in-memory snoozed-time entry so the UI reverts to original time.
+    set((s) => {
+      const { [key]: _removed, ...rest } = s.snoozedTimes;
+      return { snoozedTimes: rest };
+    });
+    if (Platform.OS !== "web")
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  },
+
   // ── Revert dose (undo taken/skipped) ─────────────────────────────────────────
 
   async revertDose(dose) {
@@ -369,7 +444,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await unregisterBackgroundFetch();
     const [meds, schedules] = await Promise.all([getMedications(), getAllActiveSchedules()]);
     const logs = await getDoseLogsByDate(today());
-    set({ medications: meds, schedules, todayLogs: logs, appointments: [], snoozedTimes: {} });
+    set({ medications: meds, schedules, todayLogs: logs, appointments: [], healthMeasurements: [], dailyCheckins: [], snoozedTimes: {} });
   },
 
   // ── Appointments ─────────────────────────────────────────────────
@@ -415,6 +490,50 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     await deleteAppointmentDb(id);
     set((s) => ({ appointments: s.appointments.filter((a) => a.id !== id) }));
+  },
+
+  // ── Health measurements ──────────────────────────────────────────
+
+  async loadHealthMeasurements(type) {
+    const items = await getHealthMeasurements(type);
+    set({ healthMeasurements: items });
+  },
+
+  async addHealthMeasurement(data) {
+    const m: HealthMeasurement = {
+      ...data,
+      id: generateId(),
+      createdAt: toISOString(new Date()),
+    };
+    await insertHealthMeasurement(m);
+    set((s) => ({ healthMeasurements: [m, ...s.healthMeasurements] }));
+  },
+
+  async deleteHealthMeasurement(id) {
+    await deleteHealthMeasurementDb(id);
+    set((s) => ({ healthMeasurements: s.healthMeasurements.filter((m) => m.id !== id) }));
+  },
+
+  // ── Daily check-ins ──────────────────────────────────────────────────
+
+  async loadDailyCheckins() {
+    const items = await getDailyCheckins();
+    set({ dailyCheckins: items });
+  },
+
+  async saveDailyCheckin(data) {
+    const checkin: DailyCheckin = {
+      ...data,
+      id: generateId(),
+      createdAt: toISOString(new Date()),
+    };
+    await upsertDailyCheckin(checkin);
+    set((s) => ({
+      dailyCheckins: [
+        checkin,
+        ...s.dailyCheckins.filter((c) => c.date !== checkin.date),
+      ].sort((a, b) => b.date.localeCompare(a.date)),
+    }));
   },
 }));
 

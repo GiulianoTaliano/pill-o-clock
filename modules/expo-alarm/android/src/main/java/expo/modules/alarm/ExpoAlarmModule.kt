@@ -97,7 +97,7 @@ class ExpoAlarmModule : Module() {
     // and to wake/turn on the display as soon as the activity is foregrounded.
     // Must be called from the JS alarm screen on mount.
     AsyncFunction("setAlarmWindowFlags") {
-      val activity = appContext.currentActivity ?: return@AsyncFunction
+      val activity = appContext.currentActivity ?: return@AsyncFunction null
       activity.runOnUiThread {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
           activity.setShowWhenLocked(true)
@@ -117,7 +117,7 @@ class ExpoAlarmModule : Module() {
     // Removes the lock-screen / wake-up flags once the alarm screen is
     // dismissed so they don't bleed into other app screens.
     AsyncFunction("clearAlarmWindowFlags") {
-      val activity = appContext.currentActivity ?: return@AsyncFunction
+      val activity = appContext.currentActivity ?: return@AsyncFunction null
       activity.runOnUiThread {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
           activity.setShowWhenLocked(false)

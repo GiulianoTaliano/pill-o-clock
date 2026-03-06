@@ -1,5 +1,6 @@
 ══════════════════════════════════════════════════════════════
  PILL-O-CLOCK — INTERNAL TRACK SUBMISSION CHECKLIST
+ VERSION 1.2.0
 ══════════════════════════════════════════════════════════════
 
 Before running any command, verify each item is ✅.
@@ -40,6 +41,15 @@ STEP 1 — ASSETS (required before first build)
 [ ] Feature graphic (Play Console): 1024×500 px JPG/PNG  ← only needed in Console
 [ ] Screenshots (Play Console): min 2, max 8 per device type
     - 320px to 3840px on longest side, aspect ratio 9:16 to 9:20
+    - Suggested screens to capture:
+      1. Today tab (doses + streak chip)
+      2. Health tab — Measurements overview (metric cards + sparklines)
+      3. Health tab — Detail view (trend chart + readings list)
+      4. Health tab — Diary (check-in + past entries)
+      5. Medications tab (medication cards)
+      6. History tab (adherence stats)
+      7. Appointments tab
+      8. PDF report preview (shared via system sheet)
 
 ───────────────────────────────────────────────────────────────
 STEP 2 — CONFIGURE NOTIFICATIONS PLUGIN (collapsed title i18n)
@@ -103,7 +113,10 @@ STEP 5 — PLAY CONSOLE — COMPLETE BEFORE REVIEW
 
 [ ] App content → Health questionnaire:
     "Does your app provide health or medical related content?"  → Yes
+    "Does your app allow users to track health measurements?"   → Yes
     Add disclaimer (already in-app and in store description)
+    Note: v1.2.0 adds health measurements and diary; ensure the questionnaire
+    is re-submitted / reviewed if previously approved for v1.1.0.
 
 [ ] App content → App access:
     "All or most functionality is available without special access" → select that option

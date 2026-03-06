@@ -32,7 +32,7 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: "#ffffff",
           borderTopColor: "#e2e8f0",
-          height: 60,
+          height: 65,
           paddingBottom: 8,
         },
         tabBarLabelStyle: {
@@ -53,7 +53,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="calendar"
         options={{
-          title: t('tabs.calendar'),
+          title: t('tabs.agenda'),
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name={focused ? "calendar" : "calendar-outline"} focused={focused} color={color} />
           ),
@@ -70,11 +70,15 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="history"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="health"
         options={{
-          title: t('tabs.history'),
+          title: t('tabs.health'),
           tabBarIcon: ({ focused, color }) => (
             <TabIcon
-              name={focused ? "bar-chart" : "bar-chart-outline"}
+              name={focused ? "heart" : "heart-outline"}
               focused={focused}
               color={color}
             />
@@ -83,16 +87,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="appointments"
-        options={{
-          title: t('tabs.appointments'),
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon
-              name={focused ? "calendar-number" : "calendar-number-outline"}
-              focused={focused}
-              color={color}
-            />
-          ),
-        }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="settings"
