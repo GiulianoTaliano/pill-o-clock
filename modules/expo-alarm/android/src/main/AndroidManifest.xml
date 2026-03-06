@@ -29,6 +29,15 @@
       android:exported="false"
       android:foregroundServiceType="mediaPlayback" />
 
+    <!--
+      AlarmActionReceiver: handles Take / Snooze / Skip quick-action button
+      taps from the alarm notification.
+      exported=false: only reachable via explicit PendingIntent from this package.
+    -->
+    <receiver
+      android:name="expo.modules.alarm.AlarmActionReceiver"
+      android:exported="false" />
+
   </application>
 
 </manifest>

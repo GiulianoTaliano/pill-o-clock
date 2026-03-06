@@ -55,3 +55,22 @@ export async function checkFullScreenIntentPermission(): Promise<boolean> {
   if (!isAvailable) return false;
   return ExpoAlarmNativeModule!.checkFullScreenIntentPermission();
 }
+
+/**
+ * Sets window flags so the activity shows on the lock screen and wakes the
+ * display.
+ * Call on mount of the alarm screen so it appears above the lock screen.
+ */
+export async function setAlarmWindowFlags(): Promise<void> {
+  if (!isAvailable) return;
+  return ExpoAlarmNativeModule!.setAlarmWindowFlags();
+}
+
+/**
+ * Clears the lock-screen / wake-up window flags.
+ * Call when the alarm screen unmounts so the flags don’t bleed into other screens.
+ */
+export async function clearAlarmWindowFlags(): Promise<void> {
+  if (!isAvailable) return;
+  return ExpoAlarmNativeModule!.clearAlarmWindowFlags();
+}

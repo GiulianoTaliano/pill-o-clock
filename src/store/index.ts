@@ -290,12 +290,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: snoozeHHmm } }));
     } else {
       // Original time already passed — fire in now+15 (existing behaviour)
+      const snoozeDate = addMinutes(new Date(), SNOOZE_MINUTES);
+      const snoozeHHmm = format(snoozeDate, 'HH:mm');
       await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate);
-      // Clear any stale display entry; the notification handles firing
-      set((s) => {
-        const { [key]: _removed, ...rest } = s.snoozedTimes;
-        return { snoozedTimes: rest };
-      });
+      // Store the new display time so the Today screen shows the updated time.
+      set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: snoozeHHmm } }));
     }
   },
   // ── Reschedule once (user picks a specific time for today only) ──────────────

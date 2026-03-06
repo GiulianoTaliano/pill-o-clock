@@ -7,18 +7,24 @@ import { useAppStore } from "../src/store";
 import { getColorConfig } from "../src/utils";
 import { SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
-import { stopAlarm } from "expo-alarm";
+import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
 
 /**
  * Fullscreen alarm screen.
  * Opened via deep link: pilloclock://alarm?scheduleId=...&date=...
+ *
+ * When an `action` query param is present (sent by notification quick-action
+ * buttons), the screen silently executes the action and navigates back
+ * without rendering any UI.
  */
 export default function AlarmScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { scheduleId, date } = useLocalSearchParams<{
+  const { scheduleId, date, action } = useLocalSearchParams<{
     scheduleId: string;
     date: string;
+    /** Set by AlarmActionReceiver: "taken" | "snooze" | "skipped" */
+    action?: string;
   }>();
 
   const medications = useAppStore((s) => s.medications);
@@ -29,6 +35,16 @@ export default function AlarmScreen() {
   const schedule = schedules.find((s) => s.id === scheduleId);
   const medication = schedule ? medications.find((m) => m.id === schedule.medicationId) : null;
 
+  // Set lock-screen / wake-up window flags so the activity shows above the
+  // lock screen exactly like a regular alarm clock.  Clear them on unmount
+  // so they don't bleed into other app screens.
+  useEffect(() => {
+    setAlarmWindowFlags().catch(() => {});
+    return () => {
+      clearAlarmWindowFlags().catch(() => {});
+    };
+  }, []);
+
   // Navigate back if data is unavailable — must be inside useEffect, never during render.
   useEffect(() => {
     if (!medication || !schedule) {
@@ -36,6 +52,32 @@ export default function AlarmScreen() {
       router.back();
     }
   }, [medication, schedule, router]);
+
+  const pendingDose = schedule && medication ? {
+    medication,
+    schedule,
+    scheduledDate: date,
+    scheduledTime: schedule.time,
+    status: "pending" as const,
+  } : null;
+
+  // Auto-execute action when screen is opened via a notification quick-action button.
+  // This runs silently (no alarm UI shown) and immediately pops back.
+  useEffect(() => {
+    if (!action || !pendingDose) return;
+    const run = async () => {
+      if (action === "taken") {
+        await markDose(pendingDose, "taken");
+      } else if (action === "skipped") {
+        await markDose(pendingDose, "skipped");
+      } else if (action === "snooze") {
+        await snoozeDose(pendingDose);
+      }
+      router.back();
+    };
+    run().catch(() => router.back());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [action]);
 
   // Pulse animation
   const pulse = useRef(new Animated.Value(1)).current;
@@ -48,7 +90,8 @@ export default function AlarmScreen() {
     ).start();
   }, [pulse]);
 
-  if (!medication || !schedule) return null;
+  // If an action was provided the screen acts as an invisible handler — render nothing.
+  if (!medication || !schedule || action) return null;
 
   const colors = getColorConfig(medication.color);
 

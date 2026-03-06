@@ -26,20 +26,25 @@ import androidx.core.app.NotificationCompat
  *  2. Plays alarm.wav on AudioManager.STREAM_ALARM — sounds even in silent /
  *     Do Not Disturb mode, because Android always honours the alarm stream.
  *  3. Posts a MAX-priority, CATEGORY_ALARM notification with fullScreenIntent
- *     so the alarm screen appears above the lock screen.
+ *     so the alarm screen appears above the lock screen without any tap.
  *  4. Launches the React Native alarm screen via deep link so the JS UI is
  *     visible while the user is already in the app (foreground case).
+ *  5. Exposes Take / Snooze / Skip quick-action buttons on the notification.
+ *  6. If the user swipes the notification away (Android 14+), silences the
+ *     alarm and posts a quiet reminder so the dose is not forgotten.
  *
  * Stopped by broadcasting ACTION_STOP (sent from ExpoAlarmModule.stopAlarm()
- * and from the notification's dismiss action).
+ * or from AlarmActionReceiver when a button is tapped).
  */
 class AlarmAudioService : Service() {
 
   // ── Constants ──────────────────────────────────────────────────────────────
 
   companion object {
-    const val ACTION_START = "expo.modules.alarm.ACTION_START"
-    const val ACTION_STOP  = "expo.modules.alarm.ACTION_STOP"
+    const val ACTION_START   = "expo.modules.alarm.ACTION_START"
+    const val ACTION_STOP    = "expo.modules.alarm.ACTION_STOP"
+    /** Broadcast sent by the notification's deleteIntent when the user swipes it away. */
+    const val ACTION_DISMISS = "expo.modules.alarm.ACTION_DISMISS"
 
     // Intent extras — mirrored in AlarmIntentHelper
     const val EXTRA_SCHEDULE_ID     = "scheduleId"
@@ -48,11 +53,20 @@ class AlarmAudioService : Service() {
     const val EXTRA_SCHEDULED_TIME  = "scheduledTime"
     const val EXTRA_MEDICATION_NAME = "medicationName"
     const val EXTRA_DOSE            = "dose"
+    /** Value passed in the notification action extras — "taken" | "snooze" | "skipped". */
+    const val EXTRA_ACTION          = "alarmAction"
 
-    private const val NOTIFICATION_ID  = 8471        // must not clash with expo-notifications
-    private const val ALARM_CHANNEL_ID = "pill-alarms-v1"
-    private const val TAG              = "AlarmAudioService"
-    private const val WAKE_LOCK_TAG    = "PillOClock:AlarmWakeLock"
+    // Action-value constants shared with AlarmActionReceiver and alarm.tsx
+    const val ACTION_VALUE_TAKEN  = "taken"
+    const val ACTION_VALUE_SNOOZE = "snooze"
+    const val ACTION_VALUE_SKIP   = "skipped"
+
+    private const val ALARM_NOTIF_ID    = 8471   // must not clash with expo-notifications
+    private const val SILENT_NOTIF_ID   = 8472   // silent reminder after dismiss
+    private const val ALARM_CHANNEL_ID  = "pill-alarms-v1"
+    private const val SILENT_CHANNEL_ID = "pill-reminders-silent-v1"
+    private const val TAG               = "AlarmAudioService"
+    private const val WAKE_LOCK_TAG     = "PillOClock:AlarmWakeLock"
   }
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -60,12 +74,32 @@ class AlarmAudioService : Service() {
   private var mediaPlayer: MediaPlayer? = null
   private var wakeLock: PowerManager.WakeLock? = null
 
+  // Cached payload so the dismiss handler can post a silent reminder
+  // without needing access to the original Intent extras.
+  private var cachedScheduleId    = ""
+  private var cachedScheduledDate = ""
+  private var cachedScheduledTime = ""
+  private var cachedMedName       = ""
+  private var cachedDose          = ""
+
   /**
-   * Inner BroadcastReceiver that listens for ACTION_STOP.
-   * Registered dynamically so it it only active while the service is alive.
+   * Listens for ACTION_STOP — sent by ExpoAlarmModule.stopAlarm() and by
+   * AlarmActionReceiver when the user taps a quick-action button.
    */
   private val stopReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+      stopSelf()
+    }
+  }
+
+  /**
+   * Listens for ACTION_DISMISS — sent by the notification deleteIntent when the
+   * user swipes the alarm notification away on Android 14+.
+   * Silences the alarm and posts a quiet tap-to-open reminder.
+   */
+  private val dismissReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+      postSilentReminder()
       stopSelf()
     }
   }
@@ -74,12 +108,21 @@ class AlarmAudioService : Service() {
 
   override fun onCreate() {
     super.onCreate()
-    val filter = IntentFilter(ACTION_STOP)
+
+    val stopFilter = IntentFilter(ACTION_STOP)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      registerReceiver(stopReceiver, filter, RECEIVER_NOT_EXPORTED)
+      registerReceiver(stopReceiver, stopFilter, RECEIVER_NOT_EXPORTED)
     } else {
       @Suppress("UnspecifiedRegisterReceiverFlag")
-      registerReceiver(stopReceiver, filter)
+      registerReceiver(stopReceiver, stopFilter)
+    }
+
+    val dismissFilter = IntentFilter(ACTION_DISMISS)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      registerReceiver(dismissReceiver, dismissFilter, RECEIVER_NOT_EXPORTED)
+    } else {
+      @Suppress("UnspecifiedRegisterReceiverFlag")
+      registerReceiver(dismissReceiver, dismissFilter)
     }
   }
 
@@ -97,9 +140,14 @@ class AlarmAudioService : Service() {
     val medName       = intent.getStringExtra(EXTRA_MEDICATION_NAME) ?: ""
     val dose          = intent.getStringExtra(EXTRA_DOSE)            ?: ""
 
+    // Cache for dismiss handler
+    cachedScheduleId    = scheduleId
+    cachedScheduledDate = scheduledDate
+    cachedScheduledTime = scheduledTime
+    cachedMedName       = medName
+    cachedDose          = dose
+
     // ── Wake the display ─────────────────────────────────────────────────────
-    // SCREEN_BRIGHT_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP wakes a sleeping device.
-    // Capped at 10 minutes so we never permanently drain the battery.
     val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
     @Suppress("DEPRECATION")
     wakeLock = pm.newWakeLock(
@@ -108,20 +156,19 @@ class AlarmAudioService : Service() {
     ).also { it.acquire(10 * 60 * 1000L) }
 
     // ── Start as foreground ASAP (must happen within 5 s of startForegroundService) ─
-    ensureNotificationChannel()
-    val notification = buildNotification(scheduleId, medicationId, scheduledDate, scheduledTime, medName, dose)
+    ensureNotificationChannels()
+    val notification = buildAlarmNotification(scheduleId, medicationId, scheduledDate, scheduledTime, medName, dose)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-      // API 34+: foreground service type must be declared.
-      // Using MEDIA_PLAYBACK since the service plays audio on STREAM_ALARM.
-      startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+      startForeground(ALARM_NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
     } else {
-      startForeground(NOTIFICATION_ID, notification)
+      startForeground(ALARM_NOTIF_ID, notification)
     }
 
     // ── Open the React Native alarm screen ───────────────────────────────────
     // Works both when the app is in the foreground (single-top navigation) and
     // when it needs to be launched cold (new task).
+    // fullScreenIntent on the notification handles the lock-screen case.
     launchAlarmScreen(scheduleId, scheduledDate)
 
     // ── Play alarm audio ─────────────────────────────────────────────────────
@@ -134,6 +181,7 @@ class AlarmAudioService : Service() {
     super.onDestroy()
 
     unregisterReceiver(stopReceiver)
+    unregisterReceiver(dismissReceiver)
 
     mediaPlayer?.runCatching { if (isPlaying) stop(); release() }
     mediaPlayer = null
@@ -141,23 +189,68 @@ class AlarmAudioService : Service() {
     wakeLock?.runCatching { if (isHeld) release() }
     wakeLock = null
 
-    // Dismiss the ongoing notification from the shade.
+    // Dismiss the ongoing alarm notification from the shade.
+    // Note: this does NOT fire the deleteIntent (that only fires on user swipe).
     (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-      .cancel(NOTIFICATION_ID)
+      .cancel(ALARM_NOTIF_ID)
   }
 
   override fun onBind(intent: Intent?): IBinder? = null
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
-  private fun launchAlarmScreen(scheduleId: String, scheduledDate: String) {
-    val uri = Uri.parse(
+  private fun buildAlarmUri(scheduleId: String, scheduledDate: String): Uri =
+    Uri.parse(
       "pilloclock://alarm?scheduleId=${Uri.encode(scheduleId)}&date=${Uri.encode(scheduledDate)}"
     )
-    val launchIntent = Intent(Intent.ACTION_VIEW, uri).apply {
-      // FLAG_ACTIVITY_NEW_TASK    : required when starting from a Service.
-      // FLAG_ACTIVITY_SINGLE_TOP  : reuses an existing instance instead of stacking.
-      flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+
+  private fun buildAlarmPendingIntent(
+    scheduleId: String,
+    scheduledDate: String,
+    pendingFlags: Int,
+    requestCode: Int = scheduleId.hashCode(),
+  ): PendingIntent {
+    val intent = Intent(Intent.ACTION_VIEW, buildAlarmUri(scheduleId, scheduledDate)).apply {
+      flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+              Intent.FLAG_ACTIVITY_SINGLE_TOP or
+              Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+      setPackage(packageName)
+    }
+    return PendingIntent.getActivity(this, requestCode, intent, pendingFlags)
+  }
+
+  private fun buildActionPendingIntent(
+    scheduleId: String,
+    medicationId: String,
+    scheduledDate: String,
+    scheduledTime: String,
+    medName: String,
+    dose: String,
+    actionValue: String,
+    requestCode: Int,
+    pendingFlags: Int,
+  ): PendingIntent {
+    val intent = Intent(AlarmActionReceiver.ACTION_ALARM_BUTTON).apply {
+      setPackage(packageName)
+      putExtra(EXTRA_SCHEDULE_ID,     scheduleId)
+      putExtra(EXTRA_MEDICATION_ID,   medicationId)
+      putExtra(EXTRA_SCHEDULED_DATE,  scheduledDate)
+      putExtra(EXTRA_SCHEDULED_TIME,  scheduledTime)
+      putExtra(EXTRA_MEDICATION_NAME, medName)
+      putExtra(EXTRA_DOSE,            dose)
+      putExtra(EXTRA_ACTION,          actionValue)
+    }
+    return PendingIntent.getBroadcast(this, requestCode, intent, pendingFlags)
+  }
+
+  private fun launchAlarmScreen(scheduleId: String, scheduledDate: String) {
+    val launchIntent = Intent(Intent.ACTION_VIEW, buildAlarmUri(scheduleId, scheduledDate)).apply {
+      // FLAG_ACTIVITY_NEW_TASK       : required when starting from a Service.
+      // FLAG_ACTIVITY_SINGLE_TOP     : reuses an existing instance instead of stacking.
+      // FLAG_ACTIVITY_REORDER_TO_FRONT: brings an existing task to the front.
+      flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+              Intent.FLAG_ACTIVITY_SINGLE_TOP or
+              Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
       setPackage(packageName)
     }
     try {
@@ -196,7 +289,7 @@ class AlarmAudioService : Service() {
     }
   }
 
-  private fun buildNotification(
+  private fun buildAlarmNotification(
     scheduleId: String,
     medicationId: String,
     scheduledDate: String,
@@ -204,18 +297,22 @@ class AlarmAudioService : Service() {
     medName: String,
     dose: String,
   ): Notification {
-    // The content intent and the fullScreenIntent both point to the alarm screen.
-    val uri = Uri.parse(
-      "pilloclock://alarm?scheduleId=${Uri.encode(scheduleId)}&date=${Uri.encode(scheduledDate)}"
-    )
-    val contentIntent = Intent(Intent.ACTION_VIEW, uri).apply {
-      flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-      setPackage(packageName)
-    }
     val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    val contentPendingIntent = PendingIntent.getActivity(
-      this, scheduleId.hashCode(), contentIntent, pendingFlags
+    val baseCode = scheduleId.hashCode()
+
+    // Content / fullScreenIntent
+    val contentPendingIntent = buildAlarmPendingIntent(scheduleId, scheduledDate, pendingFlags, baseCode)
+
+    // Delete intent — fires ONLY when the user swipes the notification away (not on programmatic cancel).
+    val dismissBroadcast = Intent(ACTION_DISMISS).apply { setPackage(packageName) }
+    val deletePendingIntent = PendingIntent.getBroadcast(
+      this, baseCode + 10, dismissBroadcast, pendingFlags
     )
+
+    // Quick-action buttons
+    val takenPI  = buildActionPendingIntent(scheduleId, medicationId, scheduledDate, scheduledTime, medName, dose, ACTION_VALUE_TAKEN,  baseCode + 1, pendingFlags)
+    val snoozePI = buildActionPendingIntent(scheduleId, medicationId, scheduledDate, scheduledTime, medName, dose, ACTION_VALUE_SNOOZE, baseCode + 2, pendingFlags)
+    val skipPI   = buildActionPendingIntent(scheduleId, medicationId, scheduledDate, scheduledTime, medName, dose, ACTION_VALUE_SKIP,   baseCode + 3, pendingFlags)
 
     // Check fullScreenIntent permission on API 34+ (requires user grant in Settings).
     val canFullScreen = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -235,9 +332,14 @@ class AlarmAudioService : Service() {
       // without requiring the user to unlock first.
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .setContentIntent(contentPendingIntent)
+      .setDeleteIntent(deletePendingIntent)
       .apply {
         if (canFullScreen) setFullScreenIntent(contentPendingIntent, /* highPriority= */ true)
       }
+      // Quick-action buttons
+      .addAction(android.R.drawable.ic_menu_send,               "✅ Tomé el medicamento", takenPI)
+      .addAction(android.R.drawable.ic_popup_reminder,          "⏰ Posponer 15 min",     snoozePI)
+      .addAction(android.R.drawable.ic_menu_close_clear_cancel, "❌ Omitir",              skipPI)
       // Sound is handled by MediaPlayer on STREAM_ALARM — setting it on the
       // notification would play it twice and through the wrong audio channel.
       .setSound(null)
@@ -247,26 +349,66 @@ class AlarmAudioService : Service() {
       .build()
   }
 
-  private fun ensureNotificationChannel() {
+  /**
+   * Posts a silent, tap-to-open reminder notification after the user swipes
+   * the alarm notification away.  This keeps the dose visible in the shade
+   * without continuing to play audio.
+   */
+  private fun postSilentReminder() {
+    if (cachedScheduleId.isEmpty()) return
+    ensureNotificationChannels()
+    val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    val contentPendingIntent = buildAlarmPendingIntent(cachedScheduleId, cachedScheduledDate, pendingFlags)
+
+    val notification = NotificationCompat.Builder(this, SILENT_CHANNEL_ID)
+      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+      .setContentTitle(cachedMedName)
+      .setContentText("$cachedDose · $cachedScheduledTime")
+      .setPriority(NotificationCompat.PRIORITY_HIGH)
+      .setCategory(NotificationCompat.CATEGORY_REMINDER)
+      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      .setContentIntent(contentPendingIntent)
+      .setAutoCancel(true)
+      .setOngoing(false)
+      .setSound(null)
+      .build()
+
+    (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+      .notify(SILENT_NOTIF_ID, notification)
+  }
+
+  private fun ensureNotificationChannels() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-
     val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    if (nm.getNotificationChannel(ALARM_CHANNEL_ID) != null) return   // already created
 
-    val channel = NotificationChannel(
-      ALARM_CHANNEL_ID,
-      "Alarmas de medicamentos",
-      NotificationManager.IMPORTANCE_HIGH
-    ).apply {
-      description = "Canal para alarmas de toma de medicamentos"
-      // Silence the channel — audio is handled by MediaPlayer on STREAM_ALARM.
-      setSound(null, null)
-      enableLights(true)
-      lightColor = 0xFF4f9cff.toInt()
-      enableVibration(false)
-      lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-      setBypassDnd(true)
+    if (nm.getNotificationChannel(ALARM_CHANNEL_ID) == null) {
+      nm.createNotificationChannel(NotificationChannel(
+        ALARM_CHANNEL_ID,
+        "Alarmas de medicamentos",
+        NotificationManager.IMPORTANCE_HIGH
+      ).apply {
+        description = "Canal para alarmas de toma de medicamentos"
+        // Silence the channel — audio is handled by MediaPlayer on STREAM_ALARM.
+        setSound(null, null)
+        enableLights(true)
+        lightColor = 0xFF4f9cff.toInt()
+        enableVibration(false)
+        lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        setBypassDnd(true)
+      })
     }
-    nm.createNotificationChannel(channel)
+
+    if (nm.getNotificationChannel(SILENT_CHANNEL_ID) == null) {
+      nm.createNotificationChannel(NotificationChannel(
+        SILENT_CHANNEL_ID,
+        "Recordatorios silenciosos",
+        NotificationManager.IMPORTANCE_DEFAULT
+      ).apply {
+        description = "Recordatorio silencioso luego de descartar la alarma"
+        setSound(null, null)
+        enableVibration(false)
+        lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+      })
+    }
   }
 }

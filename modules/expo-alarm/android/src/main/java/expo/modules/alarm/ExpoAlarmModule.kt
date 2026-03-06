@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -88,6 +89,47 @@ class ExpoAlarmModule : Module() {
         nm.canUseFullScreenIntent()
       } else {
         true
+      }
+    }
+
+    // ── setAlarmWindowFlags ────────────────────────────────────────────────
+    // Tells Android to keep the alarm screen visible over the lock screen
+    // and to wake/turn on the display as soon as the activity is foregrounded.
+    // Must be called from the JS alarm screen on mount.
+    AsyncFunction("setAlarmWindowFlags") {
+      val activity = appContext.currentActivity ?: return@AsyncFunction
+      activity.runOnUiThread {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+          activity.setShowWhenLocked(true)
+          activity.setTurnScreenOn(true)
+        } else {
+          @Suppress("DEPRECATION")
+          activity.window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+          )
+        }
+      }
+    }
+
+    // ── clearAlarmWindowFlags ──────────────────────────────────────────────
+    // Removes the lock-screen / wake-up flags once the alarm screen is
+    // dismissed so they don't bleed into other app screens.
+    AsyncFunction("clearAlarmWindowFlags") {
+      val activity = appContext.currentActivity ?: return@AsyncFunction
+      activity.runOnUiThread {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+          activity.setShowWhenLocked(false)
+          activity.setTurnScreenOn(false)
+        } else {
+          @Suppress("DEPRECATION")
+          activity.window.clearFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+          )
+        }
       }
     }
   }
