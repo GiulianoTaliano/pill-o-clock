@@ -159,19 +159,6 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Note chip (taken/skipped only) */}
-        {!isPending && !isMissed && onUpdateNote && (
-          <TouchableOpacity
-            onPress={() => { setNoteDraft(dose.notes ?? ""); setNoteModalVisible(true); }}
-            className="flex-row items-center gap-1.5 mt-2 ml-12"
-          >
-            <Ionicons name={dose.notes ? "chatbubble-outline" : "add-circle-outline"} size={13} color="#94a3b8" />
-            <Text className="text-xs text-muted">
-              {dose.notes ? dose.notes : t('doseCard.addNote')}
-            </Text>
-          </TouchableOpacity>
-        )}
       ) : isPending ? (
         <View className="flex-row gap-2 mt-2">
           {/* Snooze */}
@@ -227,6 +214,19 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
         </View>
       )}
       </View>
+
+      {/* Note chip (taken/skipped only) */}
+      {!isPending && !isMissed && onUpdateNote && (
+        <TouchableOpacity
+          onPress={() => { setNoteDraft(dose.notes ?? ""); setNoteModalVisible(true); }}
+          className="flex-row items-center gap-1.5 mt-2 ml-12"
+        >
+          <Ionicons name={dose.notes ? "chatbubble-outline" : "add-circle-outline"} size={13} color="#94a3b8" />
+          <Text className="text-xs text-muted">
+            {dose.notes ? dose.notes : t('doseCard.addNote')}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
 
     {/* Note editing modal */}
