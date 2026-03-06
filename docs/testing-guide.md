@@ -1,6 +1,6 @@
 # Pill-O-Clock — Guía de Testing
 
-> **Versión de referencia:** 1.0.0  
+> **Versión de referencia:** 1.1.0  
 > **Última actualización:** Marzo 2026  
 > **Plataformas:** Android (API 26+) · iOS (15+)
 
@@ -21,8 +21,11 @@
 11. [Módulo 8 — Pantalla de alarma a pantalla completa](#11-módulo-8--pantalla-de-alarma-a-pantalla-completa)
 12. [Módulo 9 — Backup: exportar e importar](#12-módulo-9--backup-exportar-e-importar)
 13. [Módulo 10 — Apariencia e idioma](#13-módulo-10--apariencia-e-idioma)
-14. [Casos de borde y regresiones](#14-casos-de-borde-y-regresiones)
-15. [Checklist de release](#15-checklist-de-release)
+14. [Módulo 11 — Stock de medicamentos](#14-módulo-11--stock-de-medicamentos)
+15. [Módulo 12 — Notas por dosis](#15-módulo-12--notas-por-dosis)
+16. [Módulo 13 — Citas médicas](#16-módulo-13--citas-médicas)
+17. [Casos de borde y regresiones](#17-casos-de-borde-y-regresiones)
+18. [Checklist de release](#18-checklist-de-release)
 
 ---
 
@@ -149,8 +152,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | 1 | Ir a la pestaña "Hoy" | ✅ Se muestra la fecha actual localizada (ej: "Jueves, 5 de marzo de 2026") |
 | 2 | Verificar secciones | ✅ Aparecen secciones separadas: **Pendientes**, **Perdidas**, **Completadas** (solo si hay dosis en cada estado) |
 | 3 | Verificar orden | ✅ Dentro de cada sección, las dosis se ordenan por prioridad de categoría y luego por hora |
-| 4 | Sin medicamentos configurados | ✅ Se muestra el `EmptyState` con mensaje e ícono |
-
+| 4 | Sin medicamentos configurados | ✅ Se muestra el `EmptyState` con mensaje e ícono || 5 | Verificar chip de racha | ✅ Si hay ≥ 1 día de adherencia consecutiva aparece un chip naranja con 🔥 y el conteo de días (ej: "🔥 3 días seguidos"); si la racha es 0 el chip no se muestra |
 ### TC-05 · Marcar dosis como tomada
 
 | # | Paso | Resultado esperado |
@@ -294,7 +296,16 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | 1 | Tocar "Eliminar" en un medicamento | ✅ Aparece un diálogo de confirmación con el nombre del medicamento |
 | 2 | Confirmar | ✅ El medicamento y todas sus notificaciones son eliminados; la lista se actualiza con animación |
 | 3 | Cancelar | ✅ El medicamento sigue en la lista |
+### TC-17b · Formulario — campos de stock
 
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Abrir el formulario de nuevo medicamento | ✅ Se muestra la sección **Stock (opcional)** antes del botón Guardar |
+| 2 | Ingresar `[30]` en "Stock actual" | ✅ Aparece un segundo campo "Notificarme cuando queden" |
+| 3 | Ingresar `[5]` en el campo de umbral | — |
+| 4 | Guardar el medicamento | ✅ La tarjeta en la lista muestra un badge verde con el ícono de caja y el valor `30` |
+| 5 | Marcar una dosis como tomada | ✅ El badge pasa a `29`; si el stock cae al umbral el badge cambia a rojo y llega una notificación "Stock bajo" |
+| 6 | Dejar el campo de stock vacío al crear otro medicamento | ✅ No aparece badge de stock en la tarjeta |
 ---
 
 ## 7. Módulo 4 — Calendario
@@ -344,13 +355,15 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | 1 | Verificar el bloque de estadísticas | ✅ Muestra: cantidad tomadas, omitidas, y porcentaje de adherencia |
 | 2 | Si no hay logs en el rango | ✅ El porcentaje de adherencia no se muestra (o aparece "—") |
 
-### TC-23 · Listado de logs por fecha
+### TC-23 · Listado de logs por fecha — y notas
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------|
 | 1 | Verificar que los logs se agrupan por fecha | ✅ Cada fecha aparece como encabezado con sus dosis abajo |
 | 2 | Verificar ícono por estado | ✅ ✅ = tomada · ✗ = omitida · ⏱ = pendiente |
 | 3 | Cambiar de pestaña y volver a Historial | ✅ Los datos se recargan automáticamente (`useFocusEffect`) |
+| 4 | Verificar nota en un log que la tenga | ✅ Debajo del nombre/hora aparece un ícono de bocadillo y el texto de la nota en cursiva |
+| 5 | Verificar log sin nota | ✅ No se muestra ningún elemento adicional (sin espacio vacío) |
 
 ---
 
@@ -466,9 +479,12 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------|
-| 1 | Tocar "Tomé el medicamento" | ✅ Se registra la dosis como "Tomada" y regresa al Home |
-| 2 | Tocar "Posponer 15 min" | ✅ Se programa una nueva notificación en 15 min; regresa al Home |
-| 3 | Tocar "Omitir" | ✅ Se registra como "Omitida" y regresa al Home |
+| 1 | Verificar campo de nota | ✅ Aparece un `TextInput` multilínea con placeholder para agregar una nota opcional a la dosis |
+| 2 | Escribir `[Tomé con el desayuno]` en el campo de nota | — |
+| 3 | Tocar "Tomé el medicamento" | ✅ La dosis se registra como "Tomada" con la nota guardada; regresa al Home |
+| 4 | Verificar en Historial | ✅ La nota aparece debajo del nombre de la dosis |
+| 5 | Tocar "Omitir" (en otra dosis, con una nota) | ✅ La nota también se guarda para dosis omitidas |
+| 6 | Tocar "Posponer 15 min" | ✅ Se programa una nueva notificación en 15 min; la nota no se guarda (la dosis sigue pendiente) |
 
 ### TC-37 · Pantalla de alarma con datos inválidos
 
@@ -536,7 +552,115 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 ---
 
-## 14. Casos de borde y regresiones
+## 14. Módulo 11 — Stock de medicamentos
+
+**Prerrequisitos:** Un medicamento con `stockQuantity = 5` y `stockAlertThreshold = 3`.
+
+### TC-51 · Badge de stock en la tarjeta de medicamento
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Abrir la pestaña "Medicamentos" | ✅ La tarjeta del medicamento muestra un badge con ícono de caja y el número `5` en verde |
+| 2 | Bajar el stock a `4` (tomando una dosis) | ✅ El badge muestra `4`; color naranja si está dentro de 3 unidades del umbral |
+| 3 | Tomar dos dosis más (stock llega a `2`, por debajo del umbral `3`) | ✅ El badge cambia a **rojo** con etiqueta "Stock bajo" |
+| 4 | Editar el medicamento y cambiar `stockQuantity` a `20` | ✅ El badge vuelve a verde con valor `20` |
+| 5 | Editar el medicamento y eliminar el campo de stock (dejarlo en blanco) | ✅ El badge desaparece de la tarjeta |
+
+### TC-52 · Notificación de stock bajo
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Configurar un medicamento con `stockQuantity = 4` y `stockAlertThreshold = 3` | — |
+| 2 | Marcar la dosis del día como tomada | ✅ El stock baja a `3` (igual al umbral) y se dispara inmediatamente una notificación del canal `stock-alerts` con título "Stock bajo" |
+| 3 | Verificar el cuerpo de la notificación | ✅ Menciona el nombre del medicamento y la cantidad restante |
+| 4 | Marcar otra dosis al día siguiente con stock `3 → 2` | ✅ Vuelve a dispararse la notificación (no se acumula; cada toma por debajo del umbral genera un aviso) |
+
+### TC-53 · Stock en backup
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Exportar backup con un medicamento que tenga stock configurado | ✅ El JSON exportado incluye `stockQuantity` y `stockAlertThreshold` en el objeto del medicamento |
+| 2 | Importar el backup en un dispositivo limpio | ✅ El medicamento se restaura con los valores de stock correctos; el badge reaparece en la tarjeta |
+
+---
+
+## 15. Módulo 12 — Notas por dosis
+
+**Prerrequisitos:** Al menos un medicamento con dosis de hoy.
+
+### TC-54 · Agregar nota desde la pantalla de alarma
+
+> Ver también TC-36 actualizado (Módulo 8).
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Abrir la pantalla de alarma para una dosis pendiente | ✅ Se muestra el campo de nota opcional |
+| 2 | Escribir una nota y tocar "Tomé el medicamento" | ✅ La nota se guarda junto con el log de la dosis |
+| 3 | Ir a Historial | ✅ La nota aparece en el log con ícono de bocadillo e italiça |
+
+### TC-55 · Agregar o editar nota desde la tarjeta de dosis (Home)
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | En la sección "Completadas" de Hoy, observar una dosis tomada | ✅ Si no tiene nota, se muestra un chip "Agregar nota" con ícono `+` |
+| 2 | Tocar el chip "Agregar nota" | ✅ Se abre un modal de edición de nota con un `TextInput` |
+| 3 | Escribir una nota y tocar "Guardar" | ✅ El modal se cierra; el chip ahora muestra el texto de la nota |
+| 4 | Tocar el chip con la nota existente | ✅ El modal se abre con el texto pre-cargado para edición |
+| 5 | Borrar todo el texto y guardar | ✅ La nota se elimina; el chip vuelve a mostrar "Agregar nota" |
+| 6 | Tocar "Cancelar" en el modal sin guardar | ✅ No se guarda ningún cambio |
+
+---
+
+## 16. Módulo 13 — Citas médicas
+
+**Prerrequisitos:** Ninguno (la pestaña está disponible sin datos).
+
+### TC-56 · Crear una cita
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Ir a la pestaña "Citas" | ✅ Se muestra la pantalla de citas con pestañas "Próximas" y "Pasadas" |
+| 2 | Tocar el botón FAB `+` | ✅ Se abre el modal de formulario desde abajo |
+| 3 | Dejar el título vacío y tocar "Guardar cita" | ✅ Error: Título requerido |
+| 4 | Ingresar título `[Cardiolólogo]`, doctor `[Dr. Pérez]`, ubicación `[Hospital Central]` | — |
+| 5 | Tocar el campo de fecha y seleccionar una fecha futura | ✅ El selector nativo se abre; al confirmar la fecha se muestra formateada |
+| 6 | Habilitar el checkbox de hora y seleccionar `[09:00]` | ✅ Se muestra el chip de hora con el valor seleccionado |
+| 7 | Seleccionar recordatorio "1 hora antes" | ✅ El chip de la opción queda seleccionado (fondo primario) |
+| 8 | Ingresar una nota opcional y tocar "Guardar cita" | ✅ El modal se cierra; la cita aparece en la pestaña "Próximas" |
+| 9 | Verificar la tarjeta creada | ✅ Muestra título, fecha/hora, doctor, ubicación, chip de recordatorio |
+
+### TC-57 · Editar y eliminar una cita
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Tocar el botón ✏ (editar) en una cita existente | ✅ El modal se abre con todos los campos pre-cargados |
+| 2 | Cambiar el título y guardar | ✅ La tarjeta se actualiza con el nuevo título |
+| 3 | Tocar el botón 🗑️ (eliminar) | ✅ Aparece un diálogo de confirmación |
+| 4 | Confirmar la eliminación | ✅ La cita desaparece de la lista; si tenía recordatorio programado, la notificación se cancela |
+| 5 | Cancelar la eliminación | ✅ La cita permanece en la lista |
+
+### TC-58 · Notificación de recordatorio de cita
+
+> Ejecutar en dispositivo físico.
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Crear una cita con hora = ahora + 2 minutos y recordatorio = "Sin recordatorio" | ✅ No se programa ninguna notificación |
+| 2 | Crear otra cita con hora = ahora + 5 minutos y recordatorio = "1 hora antes" | ✅ La notificación se dispara inmediatamente (faltan menos de 1h) |
+| 3 | Verificar el título de la notificación | ✅ "\ud83d\udcc5 Recordatorio de cita" con el título de la cita en el cuerpo |
+| 4 | Eliminar la cita; verificar que la notificación no llega de nuevo | ✅ La notificación fue cancelada al eliminar la cita |
+
+### TC-59 · Separación próximas / pasadas
+
+| # | Paso | Resultado esperado |
+|---|------|--------------------||
+| 1 | Crear una cita con fecha = ayer | ✅ Aparece en la pestaña "Pasadas" con opacidad reducida |
+| 2 | Crear una cita con fecha = mañana | ✅ Aparece en la pestaña "Próximas" |
+| 3 | Sin citas en la pestaña activa | ✅ Se muestra el `EmptyState` |
+
+---
+
+## 17. Casos de borde y regresiones
 
 ### TC-44 · Sin conexión a internet
 
@@ -592,24 +716,29 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 ---
 
-## 15. Checklist de release
+## 18. Checklist de release
 
 Ejecutar la siguiente lista antes de publicar cada build en las stores.
 
 ### Pre-release — Ambas plataformas
 
 - [ ] TC-01 (Onboarding completo) pasa en dispositivo físico
+- [ ] TC-04 (Home — estructura + chip de racha) pasa
 - [ ] TC-04 a TC-09 (Home) pasan
 - [ ] TC-07b (Snooze dosis futura — badge ámbar) pasa
 - [ ] TC-10-A (Reschedule once) pasa en ambas plataformas
 - [ ] TC-10-B (Tip de reschedule) se muestra una sola vez
 - [ ] TC-10, TC-12, TC-15, TC-17 (CRUD de medicamentos) pasan
+- [ ] TC-17b (Stock en formulario y badge) pasa
 - [ ] TC-27 a TC-32 (Notificaciones en segundo plano) pasan en dispositivo físico
-- [ ] TC-35 a TC-36 (Pantalla de alarma) pasan
+- [ ] TC-35 a TC-36 (Pantalla de alarma + nota) pasan
 - [ ] TC-38, TC-39, TC-40 (Backup) pasan
 - [ ] TC-42 (Persistencia de preferencias) pasa
 - [ ] TC-44 (Sin conexión) pasa
 - [ ] TC-50 (Reset de datos) pasa
+- [ ] TC-51 a TC-53 (Stock: badge, notificación, backup) pasan
+- [ ] TC-54 a TC-55 (Notas por dosis: alarma + Home) pasan
+- [ ] TC-56 a TC-59 (Citas: CRUD + notificación + sección pasadas/próximas) pasan
 
 ### Pre-release — Android únicamente
 
@@ -630,4 +759,4 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 
 ---
 
-> **Nota:** Esta guía cubre los flujos funcionales de la versión 1.0.0. Actualizar los módulos afectados ante cada nueva feature o cambio en el comportamiento de notificaciones.
+> **Nota:** Esta guía cubre los flujos funcionales de la versión 1.1.0. Actualizar los módulos afectados ante cada nueva feature o cambio en el comportamiento de notificaciones.

@@ -1,8 +1,8 @@
-import { View, Text, TouchableOpacity, Animated } from "react-native";
+import { View, Text, TouchableOpacity, Animated, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../src/store";
 import { getColorConfig } from "../src/utils";
 import { SNOOZE_MINUTES } from "../src/services/notifications";
@@ -31,6 +31,7 @@ export default function AlarmScreen() {
   const schedules = useAppStore((s) => s.schedules);
   const markDose = useAppStore((s) => s.markDose);
   const snoozeDose = useAppStore((s) => s.snoozeDose);
+  const [noteText, setNoteText] = useState("");
 
   const schedule = schedules.find((s) => s.id === scheduleId);
   const medication = schedule ? medications.find((m) => m.id === schedule.medicationId) : null;
@@ -105,13 +106,13 @@ export default function AlarmScreen() {
 
   const handleTake = async () => {
     await stopAlarm();
-    await markDose(dose, "taken");
+    await markDose(dose, "taken", noteText.trim() || undefined);
     router.back();
   };
 
   const handleSkip = async () => {
     await stopAlarm();
-    await markDose(dose, "skipped");
+    await markDose(dose, "skipped", noteText.trim() || undefined);
     router.back();
   };
 
@@ -155,6 +156,18 @@ export default function AlarmScreen() {
         {medication.notes ? (
           <Text className="text-sm text-muted mt-1 text-center">{medication.notes}</Text>
         ) : null}
+
+        {/* Optional note input */}
+        <TextInput
+          value={noteText}
+          onChangeText={setNoteText}
+          placeholder={t('doseCard.noteModalPlaceholder')}
+          placeholderTextColor="rgba(100,116,139,0.7)"
+          className="mt-4 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 px-4 py-3 text-text text-sm"
+          multiline
+          numberOfLines={2}
+          maxLength={200}
+        />
       </View>
 
       {/* Actions */}

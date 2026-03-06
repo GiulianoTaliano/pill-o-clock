@@ -109,6 +109,30 @@ export function MedicationCard({
         <Text className="text-xs text-muted mt-1 ml-12">{medication.notes}</Text>
       ) : null}
 
+      {/* Stock badge */}
+      {medication.stockQuantity != null && (() => {
+        const qty = medication.stockQuantity!;
+        const threshold = medication.stockAlertThreshold;
+        const isLow = threshold != null && qty <= threshold;
+        const isWarning = threshold != null && qty <= threshold + 3 && !isLow;
+        return (
+          <View className="flex-row items-center gap-1.5 mt-2 ml-12">
+            <Ionicons
+              name="cube-outline"
+              size={13}
+              color={isLow ? "#ef4444" : isWarning ? "#f97316" : "#22c55e"}
+            />
+            <Text
+              style={{ color: isLow ? "#ef4444" : isWarning ? "#f97316" : "#22c55e" }}
+              className="text-xs font-semibold"
+            >
+              {t('stock.badge', { count: qty })}
+              {isLow ? ` · ${t('stock.low')}` : ""}
+            </Text>
+          </View>
+        );
+      })()}
+
       {/* Schedules */}
       {schedules.length > 0 && (
         <View className="mt-3 gap-1">

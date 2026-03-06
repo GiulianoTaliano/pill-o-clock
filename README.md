@@ -12,6 +12,10 @@ Pill-O-Clock is a personal medication assistant built with React Native and Expo
 - **Quick actions** — Take, snooze (15 min), or skip a dose directly from the notification, without opening the app.
 - **Complete medication management** — Name, dose (mg, ml, drops, tablets, capsules…), category, instructions, color, and treatment period (start/end dates).
 - **Flexible schedules** — Daily alarms or only on specific days of the week. Multiple alarms per medication.
+- **Adherence streak** — Flame streak chip on the home screen showing consecutive days of full adherence.
+- **Stock tracking** — Optional current-stock and alert-threshold fields per medication. The stock decrements automatically on each taken dose and a notification fires when it reaches the threshold.
+- **Notes per dose** — Add a free-text note when taking or skipping a dose from the alarm screen or from the home screen. Notes are displayed inline on the History tab and are editable via the dose card.
+- **Appointments** — Dedicated tab to track upcoming and past medical appointments. Each appointment supports title, doctor, location, date/time, notes, and a configurable reminder (none / 1 h / 2 h / 1 day before).
 - **Adherence tracking** — History tab showing taken, skipped, and missed doses over the last 30 days with an adherence rate.
 - **Visual calendar** — Monthly view grouped by status: pending, taken, skipped, and missed.
 - **Backup & restore** — Export and import a full backup (medications + history) at any time.
@@ -46,10 +50,11 @@ pill-o-clock/
 │   ├── alarm.tsx               # Fullscreen alarm screen
 │   ├── onboarding.tsx          # First-launch onboarding
 │   ├── (tabs)/                 # Bottom tab navigator
-│   │   ├── index.tsx           # Today's schedule
+│   │   ├── index.tsx           # Today's schedule (+ streak chip)
 │   │   ├── calendar.tsx        # Monthly calendar
-│   │   ├── history.tsx         # Adherence history
+│   │   ├── history.tsx         # Adherence history (+ dose notes)
 │   │   ├── medications.tsx     # Medication list
+│   │   ├── appointments.tsx    # Appointments manager
 │   │   └── settings.tsx        # App settings
 │   └── medication/
 │       ├── new.tsx             # Add medication
@@ -59,12 +64,12 @@ pill-o-clock/
 │   ├── db/                     # SQLite database & migrations
 │   ├── store/                  # Zustand store
 │   ├── services/               # Notifications, backup, background tasks
-│   ├── hooks/                  # Custom hooks
+│   ├── hooks/                  # Custom hooks (useAdherenceStreak, …)
 │   ├── i18n/                   # English & Spanish translations
 │   ├── types/                  # TypeScript interfaces
 │   └── utils/                  # Shared helpers
 ├── assets/                     # Icons, images, fonts
-└── docs/                       # Privacy policy
+└── docs/                       # Privacy policy & testing guide
 ```
 
 ---

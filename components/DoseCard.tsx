@@ -1,6 +1,7 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Modal, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useState } from "react";
 import { TodayDose } from "../src/types";
 import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig } from "../src/utils";
 import { useTranslation } from "../src/i18n";
@@ -15,6 +16,8 @@ interface DoseCardProps {
   onRevert?: () => void;
   /** Optional — when provided, the time badge is tappable to pick a custom time */
   onReschedule?: () => void;
+  /** Optional — when provided, a note chip is shown and tapping it saves the note */
+  onUpdateNote?: (note: string) => void;
 }
 
 const STATUS_ICONS = {
@@ -24,7 +27,7 @@ const STATUS_ICONS = {
   missed:  "alert-circle-outline" as const,
 };
 
-export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedule }: DoseCardProps) {
+export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedule, onUpdateNote }: DoseCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const colors = getColorConfig(dose.medication.color);
@@ -34,7 +37,11 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
   const isSnoozed = !!dose.snoozedUntil;
   const displayTime = dose.snoozedUntil ?? dose.scheduledTime;
 
+  const [noteModalVisible, setNoteModalVisible] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(dose.notes ?? "");
+
   return (
+  <>
     <View
       style={{ backgroundColor: statusTheme.bg, borderColor: statusTheme.border }}
       className="rounded-2xl border p-4 mb-3 shadow-sm"
@@ -152,6 +159,19 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Note chip (taken/skipped only) */}
+        {!isPending && !isMissed && onUpdateNote && (
+          <TouchableOpacity
+            onPress={() => { setNoteDraft(dose.notes ?? ""); setNoteModalVisible(true); }}
+            className="flex-row items-center gap-1.5 mt-2 ml-12"
+          >
+            <Ionicons name={dose.notes ? "chatbubble-outline" : "add-circle-outline"} size={13} color="#94a3b8" />
+            <Text className="text-xs text-muted">
+              {dose.notes ? dose.notes : t('doseCard.addNote')}
+            </Text>
+          </TouchableOpacity>
+        )}
       ) : isPending ? (
         <View className="flex-row gap-2 mt-2">
           {/* Snooze */}
@@ -208,5 +228,49 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
       )}
       </View>
     </View>
+
+    {/* Note editing modal */}
+    <Modal
+      visible={noteModalVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setNoteModalVisible(false)}
+    >
+      <View className="flex-1 justify-end bg-black/40">
+        <View className="bg-card rounded-t-3xl px-5 pt-5 pb-8">
+          <Text className="text-base font-bold text-text mb-3">{t('doseCard.noteModalTitle')}</Text>
+          <TextInput
+            value={noteDraft}
+            onChangeText={setNoteDraft}
+            placeholder={t('doseCard.noteModalPlaceholder')}
+            placeholderTextColor="#94a3b8"
+            className="border border-border rounded-2xl px-4 py-3 text-text text-sm bg-slate-50 dark:bg-slate-800 mb-4"
+            multiline
+            numberOfLines={3}
+            maxLength={200}
+            autoFocus
+          />
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              onPress={() => setNoteModalVisible(false)}
+              className="flex-1 rounded-2xl py-3 items-center bg-slate-100 dark:bg-slate-800"
+            >
+              <Text className="text-muted font-semibold">{t('common.cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                onUpdateNote?.(noteDraft.trim());
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setNoteModalVisible(false);
+              }}
+              className="flex-1 rounded-2xl py-3 items-center bg-primary"
+            >
+              <Text className="text-white font-bold">{t('common.save')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  </>
   );
 }

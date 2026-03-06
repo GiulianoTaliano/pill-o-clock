@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import { Medication, Schedule, DoseLog, DoseStatus, DosageUnit, MedicationCategory } from "../types";
+import { Medication, Schedule, DoseLog, DoseStatus, DosageUnit, MedicationCategory, Appointment } from "../types";
 
 // ─── Open DB ───────────────────────────────────────────────────────────────
 
@@ -54,6 +54,19 @@ export async function initDatabase(): Promise<void> {
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_dose_unique
       ON dose_logs(schedule_id, scheduled_date);
+
+    CREATE TABLE IF NOT EXISTS appointments (
+      id                TEXT PRIMARY KEY,
+      title             TEXT NOT NULL,
+      doctor            TEXT,
+      location          TEXT,
+      notes             TEXT,
+      date              TEXT NOT NULL,
+      time              TEXT,
+      reminder_minutes  INTEGER,
+      notification_id   TEXT,
+      created_at        TEXT NOT NULL
+    );
   `);
 
   // ── Schema migrations ──────────────────────────────────────────────
@@ -80,6 +93,21 @@ export async function initDatabase(): Promise<void> {
     }
     await db.execAsync("PRAGMA user_version = 2");
   }
+
+  if (user_version < 3) {
+    for (const sql of [
+      "ALTER TABLE medications ADD COLUMN stock_quantity INTEGER",
+      "ALTER TABLE medications ADD COLUMN stock_alert_threshold INTEGER",
+    ]) {
+      try { await db.execAsync(sql); } catch { /* already exists */ }
+    }
+    await db.execAsync("PRAGMA user_version = 3");
+  }
+
+  if (user_version < 4) {
+    try { await db.execAsync("ALTER TABLE dose_logs ADD COLUMN notes TEXT"); } catch { /* already exists */ }
+    await db.execAsync("PRAGMA user_version = 4");
+  }
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────
@@ -100,6 +128,8 @@ function rowToMedication(row: Record<string, unknown>): Medication {
     endDate: row.end_date as string | undefined,
     isActive: (row.is_active as number) === 1,
     createdAt: row.created_at as string,
+    stockQuantity: row.stock_quantity != null ? (row.stock_quantity as number) : undefined,
+    stockAlertThreshold: row.stock_alert_threshold != null ? (row.stock_alert_threshold as number) : undefined,
   };
 }
 
@@ -124,8 +154,8 @@ export async function insertMedication(med: Medication): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO medications
-       (id, name, dosage, dosage_amount, dosage_unit, category, notes, color, start_date, end_date, is_active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, name, dosage, dosage_amount, dosage_unit, category, notes, color, start_date, end_date, is_active, created_at, stock_quantity, stock_alert_threshold)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       med.id,
       med.name,
@@ -139,6 +169,8 @@ export async function insertMedication(med: Medication): Promise<void> {
       med.endDate ?? null,
       med.isActive ? 1 : 0,
       med.createdAt,
+      med.stockQuantity ?? null,
+      med.stockAlertThreshold ?? null,
     ]
   );
 }
@@ -148,7 +180,8 @@ export async function updateMedication(med: Medication): Promise<void> {
   await db.runAsync(
     `UPDATE medications
      SET name = ?, dosage = ?, dosage_amount = ?, dosage_unit = ?, category = ?,
-         notes = ?, color = ?, start_date = ?, end_date = ?, is_active = ?
+         notes = ?, color = ?, start_date = ?, end_date = ?, is_active = ?,
+         stock_quantity = ?, stock_alert_threshold = ?
      WHERE id = ?`,
     [
       med.name,
@@ -161,6 +194,8 @@ export async function updateMedication(med: Medication): Promise<void> {
       med.startDate ?? null,
       med.endDate ?? null,
       med.isActive ? 1 : 0,
+      med.stockQuantity ?? null,
+      med.stockAlertThreshold ?? null,
       med.id,
     ]
   );
@@ -260,6 +295,7 @@ function rowToDoseLog(row: Record<string, unknown>): DoseLog {
     status: row.status as DoseStatus,
     takenAt: row.taken_at as string | undefined,
     createdAt: row.created_at as string,
+    notes: row.notes as string | undefined,
   };
 }
 
@@ -313,8 +349,8 @@ export async function upsertDoseLog(log: DoseLog): Promise<void> {
     [log.scheduleId, log.scheduledDate]
   );
   await db.runAsync(
-    `INSERT INTO dose_logs (id, medication_id, schedule_id, scheduled_date, scheduled_time, status, taken_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO dose_logs (id, medication_id, schedule_id, scheduled_date, scheduled_time, status, taken_at, created_at, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       log.id,
       log.medicationId,
@@ -324,6 +360,7 @@ export async function upsertDoseLog(log: DoseLog): Promise<void> {
       log.status,
       log.takenAt ?? null,
       log.createdAt,
+      log.notes ?? null,
     ]
   );
 }
@@ -362,5 +399,94 @@ export async function clearAllData(): Promise<void> {
     DELETE FROM dose_logs;
     DELETE FROM schedules;
     DELETE FROM medications;
+    DELETE FROM appointments;
   `);
+}
+
+// ─── Appointments ─────────────────────────────────────────────────────────
+
+function rowToAppointment(row: Record<string, unknown>): Appointment {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    doctor: row.doctor as string | undefined,
+    location: row.location as string | undefined,
+    notes: row.notes as string | undefined,
+    date: row.date as string,
+    time: row.time as string | undefined,
+    reminderMinutes: row.reminder_minutes != null ? (row.reminder_minutes as number) : undefined,
+    notificationId: row.notification_id as string | undefined,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getAppointments(): Promise<Appointment[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM appointments ORDER BY date ASC, time ASC"
+  );
+  return rows.map(rowToAppointment);
+}
+
+export async function insertAppointment(appt: Appointment): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO appointments (id, title, doctor, location, notes, date, time, reminder_minutes, notification_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      appt.id,
+      appt.title,
+      appt.doctor ?? null,
+      appt.location ?? null,
+      appt.notes ?? null,
+      appt.date,
+      appt.time ?? null,
+      appt.reminderMinutes ?? null,
+      appt.notificationId ?? null,
+      appt.createdAt,
+    ]
+  );
+}
+
+export async function updateAppointment(appt: Appointment): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE appointments
+     SET title = ?, doctor = ?, location = ?, notes = ?, date = ?, time = ?,
+         reminder_minutes = ?, notification_id = ?
+     WHERE id = ?`,
+    [
+      appt.title,
+      appt.doctor ?? null,
+      appt.location ?? null,
+      appt.notes ?? null,
+      appt.date,
+      appt.time ?? null,
+      appt.reminderMinutes ?? null,
+      appt.notificationId ?? null,
+      appt.id,
+    ]
+  );
+}
+
+export async function deleteAppointment(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync("DELETE FROM appointments WHERE id = ?", [id]);
+}
+
+export async function updateMedicationStock(id: string, newQuantity: number): Promise<void> {
+  const db = await getDb();
+  await db.runAsync("UPDATE medications SET stock_quantity = ? WHERE id = ?", [newQuantity, id]);
+}
+
+export async function updateDoseLogNotes(
+  scheduleId: string,
+  scheduledDate: string,
+  notes: string
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "UPDATE dose_logs SET notes = ? WHERE schedule_id = ? AND scheduled_date = ?",
+    [notes, scheduleId, scheduledDate]
+  );
 }

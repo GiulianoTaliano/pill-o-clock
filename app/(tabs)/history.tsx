@@ -164,6 +164,14 @@ export default function HistoryScreen() {
                         <Text className="text-xs text-muted">
                           {log.scheduledTime} · {med?.dosage}
                         </Text>
+                        {log.notes ? (
+                          <View className="flex-row items-center gap-1 mt-0.5">
+                            <Ionicons name="chatbubble-outline" size={11} color="#94a3b8" />
+                            <Text className="text-xs text-muted italic flex-1" numberOfLines={1}>
+                              {log.notes}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                       <View
                         style={{ backgroundColor: statusBadge.bg }}

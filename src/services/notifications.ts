@@ -4,7 +4,7 @@ import * as ExpoAlarm from "expo-alarm";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { addDays, addMinutes, startOfDay } from "date-fns";
-import { Schedule, Medication, NotificationMap } from "../types";
+import { Schedule, Medication, NotificationMap, Appointment } from "../types";
 import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString } from "../utils";
 import i18n from "../i18n";
 import { getMedications, getAllActiveSchedules } from "../db/database";
@@ -98,14 +98,14 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 500, 300, 500, 300, 500],
       lightColor: "#4f9cff",
-      // alarm.wav is bundled via app.json > plugins > expo-notifications > sounds.
-      // Using the filename with extension correctly resolves to res/raw/alarm.
       sound: "alarm.wav",
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      bypassDnd: true,        // bypass Do Not Disturb for critical reminders
+      bypassDnd: true,
     });
+    await setupStockAlertChannel();
+    await setupAppointmentChannel();
   }
 
   // Request permissions
@@ -397,6 +397,87 @@ export async function scheduleAllUpcoming(
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
   await AsyncStorage.removeItem(NOTIF_MAP_KEY);
+}
+
+// ─── Stock-alert notification (immediate, informational) ────────────────────
+
+export const STOCK_ALERT_CHANNEL_ID = "stock-alerts";
+
+export async function setupStockAlertChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(STOCK_ALERT_CHANNEL_ID, {
+    name: "Stock alerts",
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: [0, 250],
+    lightColor: "#f97316",
+  });
+}
+
+/**
+ * Fires an immediate local notification informing the user that their stock
+ * for `medication` is running low.
+ */
+export async function scheduleStockAlert(medication: Medication): Promise<void> {
+  if (Platform.OS === "web") return;
+  const count = medication.stockQuantity ?? 0;
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: i18n.t("stock.alertTitle", { name: medication.name }),
+      body: i18n.t("stock.alertBody", { count }),
+      data: { type: "stock_alert", medicationId: medication.id },
+      ...(Platform.OS === "android" ? { channelId: STOCK_ALERT_CHANNEL_ID } : {}),
+    },
+    trigger: null, // immediate
+  });
+}
+
+// ─── Appointment notifications ─────────────────────────────────────────────
+
+export const APPOINTMENTS_CHANNEL_ID = "appointment-reminders";
+
+export async function setupAppointmentChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(APPOINTMENTS_CHANNEL_ID, {
+    name: i18n.t("appointments.title"),
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 400, 200, 400],
+    lightColor: "#4f9cff",
+    sound: "default",
+  });
+}
+
+/**
+ * Schedules a reminder for the given appointment.
+ * Returns the notification identifier (to store for later cancellation),
+ * or undefined if reminders are disabled or the time is in the past.
+ */
+export async function scheduleAppointmentNotification(
+  appt: Appointment
+): Promise<string | undefined> {
+  if (Platform.OS === "web") return undefined;
+  if (!appt.reminderMinutes || appt.reminderMinutes === 0) return undefined;
+
+  const [year, month, day] = appt.date.split("-").map(Number);
+  const [hour, minute] = appt.time ? appt.time.split(":").map(Number) : [9, 0];
+  const apptDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+  const fireDate = new Date(apptDate.getTime() - appt.reminderMinutes * 60_000);
+
+  if (fireDate <= new Date()) return undefined;
+
+  const notifId = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: i18n.t("appointments.notifTitle"),
+      body: i18n.t("appointments.notifBody", { title: appt.title }),
+      data: { type: "appointment", appointmentId: appt.id },
+      ...(Platform.OS === "android" ? { channelId: APPOINTMENTS_CHANNEL_ID } : {}),
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
+  });
+  return notifId;
+}
+
+export async function cancelAppointmentNotification(notificationId: string): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
 }
 
 // ─── Cancel notifications for a specific schedule ─────────────────────────

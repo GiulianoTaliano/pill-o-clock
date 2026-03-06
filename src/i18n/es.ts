@@ -67,6 +67,8 @@ const es = {
     chipMissed_one: "{{count}} no tomado",
     chipMissed_other: "{{count}} no tomados",
     tipReschedule: "Tip: Tocá el horario de una dosis pendiente para reprogramarla hoy. Tocá para cerrar.",
+    streak_one: "🔥 {{count}} día seguido",
+    streak_other: "🔥 {{count}} días seguidos",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
@@ -153,6 +155,12 @@ const es = {
     errorInvalidPeriod: "Período inválido",
     errorInvalidPeriodMsg: "La fecha de fin no puede ser anterior a la fecha de inicio.",
     errorGeneric: "No se pudo guardar el medicamento. Intentá de nuevo.",
+    sectionStock: "Stock (opcional)",
+    fieldStock: "Stock actual",
+    fieldStockPlaceholder: "ej: 30",
+    fieldStockThreshold: "Alertar cuando queden menos de",
+    fieldStockThresholdPlaceholder: "ej: 5",
+    fieldStockUnit: "unidades",
   },
 
   // ─── Alarm screen ─────────────────────────────────────────────────────────
@@ -176,6 +184,10 @@ const es = {
     rescheduleConfirm: "Toma reprogramada para las {{time}} 🕐",
     rescheduleTitle: "Reprogramar toma",
     rescheduleOriginal: "Horario original: {{time}}",
+    addNote: "Agregar nota",
+    noteModalTitle: "Nota de dosis",
+    noteModalPlaceholder: "¿Cómo te sentiste? ¿Algún efecto secundario?",
+    noteSaved: "Nota guardada",
   },
 
   // ─── Medication card ──────────────────────────────────────────────────────
@@ -209,12 +221,56 @@ const es = {
     fullScreenMessage:
       "En Android 14+, necesitás otorgar el permiso \"Mostrar notificaciones en pantalla completa\" para que la pantalla de alarma pueda aparecer sobre la pantalla de bloqueo. Tapá \"Abrir configuración\" y activá la opción para Pill-O-Clock.",  },
 
+  // ─── Stock ────────────────────────────────────────────────────────────────
+  stock: {
+    alertTitle: "Stock bajo: {{name}}",
+    alertBody: "Solo te quedan {{count}}. Es hora de pedir más.",
+    badge_one: "Queda {{count}}",
+    badge_other: "Quedan {{count}}",
+    low: "Stock bajo",
+  },
+
+  // ─── Citas ───────────────────────────────────────────────────────────────
+  appointments: {
+    title: "Citas",
+    noAppointments: "Sin citas",
+    noAppointmentsSubtitle: "Agregá tu próxima visita médica tocando +",
+    upcoming: "Próximas",
+    past: "Pasadas",
+    deleteTitle: "Eliminar cita",
+    deleteMessage: "¿Estás seguro que querés eliminar esta cita?",
+    newTitle: "Nueva cita",
+    editTitle: "Editar cita",
+    fieldTitle: "Título",
+    fieldTitlePlaceholder: "ej: Cardiólogo",
+    fieldDoctor: "Médico (opcional)",
+    fieldDoctorPlaceholder: "ej: Dr. García",
+    fieldLocation: "Lugar (opcional)",
+    fieldLocationPlaceholder: "ej: Hospital General, Piso 2",
+    fieldNotes: "Notas (opcional)",
+    fieldNotesPlaceholder: "Preguntas para hacer, cosas para llevar...",
+    fieldDate: "Fecha",
+    fieldTime: "Hora (opcional)",
+    fieldReminder: "Recordatorio",
+    reminderNone: "Sin recordatorio",
+    reminder1h: "1 hora antes",
+    reminder2h: "2 horas antes",
+    reminder1d: "1 día antes",
+    notifTitle: "📅 Recordatorio de cita",
+    notifBody: "{{title}}",
+    saveButton: "Guardar cita",
+    errorTitleRequired: "Título requerido",
+    errorDateRequired: "Fecha requerida",
+    errorGeneric: "No se pudo guardar la cita. Intentá de nuevo.",
+  },
+
   // ─── Tabs ─────────────────────────────────────────────────────────────────
   tabs: {
     today: "Hoy",
     calendar: "Calendario",
     medications: "Medicamentos",
     history: "Historial",
+    appointments: "Citas",
     settings: "Ajustes",
   },
 

@@ -8,6 +8,7 @@ import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/dat
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppStore } from "../../src/store";
 import { useTodaySchedule } from "../../src/hooks/useTodaySchedule";
+import { useAdherenceStreak } from "../../src/hooks/useAdherenceStreak";
 import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
 import { TodayDose } from "../../src/types";
@@ -25,12 +26,14 @@ export default function HomeScreen() {
   const snoozeDose = useAppStore((s) => s.snoozeDose);
   const rescheduleOnce = useAppStore((s) => s.rescheduleOnce);
   const revertDose = useAppStore((s) => s.revertDose);
+  const updateDoseNote = useAppStore((s) => s.updateDoseNote);
   const [refreshing, setRefreshing] = useState(false);
   const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(null);
   const [pickerDraft, setPickerDraft] = useState<Date>(new Date());
   // default true avoids a flash on first render; useEffect corrects it after AsyncStorage read
   const [tipSeen, setTipSeen] = useState(true);
   const doses = useTodaySchedule();
+  const streak = useAdherenceStreak();
 
   useEffect(() => {
     AsyncStorage.getItem("@pilloclock/tip_reschedule_seen").then((val) => {
@@ -87,6 +90,10 @@ export default function HomeScreen() {
 
   const handleRevert = (dose: TodayDose) => {
     revertDose(dose);
+  };
+
+  const handleUpdateNote = (dose: TodayDose, note: string) => {
+    updateDoseNote(dose.schedule.id, dose.scheduledDate, note);
   };
 
   const handleRescheduleChange = (_: DateTimePickerEvent, date?: Date) => {
@@ -147,6 +154,13 @@ export default function HomeScreen() {
           <View className="bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
             <Ionicons name="alert-circle-outline" size={14} color="#64748b" />
             <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">{t('home.chipMissed', { count: missed.length })}</Text>
+          </View>
+        )}
+        {streak >= 1 && (
+          <View className="bg-orange-100 dark:bg-orange-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
+            <Text className="text-orange-700 dark:text-orange-400 text-xs font-bold">
+              {t('home.streak', { count: streak })}
+            </Text>
           </View>
         )}
       </View>
@@ -242,6 +256,7 @@ export default function HomeScreen() {
                     onSkip={() => handleMarkDose(dose, "skipped")}
                     onSnooze={() => handleSnooze(dose)}
                     onRevert={() => handleRevert(dose)}
+                    onUpdateNote={(note) => handleUpdateNote(dose, note)}
                   />
                 ))}
               </>

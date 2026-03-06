@@ -26,6 +26,8 @@ export default function NewMedicationScreen() {
           color: values.color,
           startDate: values.startDate,
           endDate: values.endDate,
+          stockQuantity: values.stockQuantity,
+          stockAlertThreshold: values.stockAlertThreshold,
         },
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );

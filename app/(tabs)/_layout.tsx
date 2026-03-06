@@ -82,6 +82,19 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="appointments"
+        options={{
+          title: t('tabs.appointments'),
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon
+              name={focused ? "calendar-number" : "calendar-number-outline"}
+              focused={focused}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: t('tabs.settings'),

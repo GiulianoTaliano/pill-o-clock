@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Appearance, LayoutAnimation, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Medication, Schedule, DoseLog, TodayDose } from "../types";
+import { Medication, Schedule, DoseLog, TodayDose, Appointment } from "../types";
 import {
   getMedications,
   getSchedulesByMedication,
@@ -17,6 +17,12 @@ import {
   upsertDoseLog,
   deleteDoseLog,
   clearAllData,
+  getAppointments,
+  insertAppointment,
+  updateAppointment as updateAppointmentDb,
+  deleteAppointment as deleteAppointmentDb,
+  updateMedicationStock,
+  updateDoseLogNotes,
 } from "../db/database";
 import {
   generateId,
@@ -32,6 +38,9 @@ import {
   cancelAllNotifications,
   snoozeDose,
   SNOOZE_MINUTES,
+  scheduleStockAlert,
+  scheduleAppointmentNotification,
+  cancelAppointmentNotification,
 } from "../services/notifications";
 import { unregisterBackgroundFetch } from "../services/backgroundTask";
 
@@ -45,6 +54,7 @@ interface AppState {
   medications: Medication[];
   schedules: Schedule[];  // all schedules in memory
   todayLogs: DoseLog[];
+  appointments: Appointment[];
   /** In-memory map of "scheduleId-date" → "HH:mm" for snoozed-but-not-yet-due doses. */
   snoozedTimes: Record<string, string>;
   isLoading: boolean;
@@ -72,8 +82,12 @@ interface AppState {
 
   markDose: (
     dose: TodayDose,
-    status: "taken" | "skipped"
+    status: "taken" | "skipped",
+    notes?: string
   ) => Promise<void>;
+
+  /** Update the free-text note on an already-logged dose. */
+  updateDoseNote: (scheduleId: string, scheduledDate: string, notes: string) => Promise<void>;
 
   snoozeDose: (dose: TodayDose) => Promise<void>;
 
@@ -89,6 +103,12 @@ interface AppState {
 
   /** Wipes all DB rows and cancels all scheduled notifications. */
   resetAllData: () => Promise<void>;
+
+  // ── Appointments ─────────────────────────────────────────────────
+  loadAppointments: () => Promise<void>;
+  addAppointment: (data: Omit<Appointment, "id" | "createdAt" | "notificationId">) => Promise<void>;
+  updateAppointment: (appt: Omit<Appointment, "notificationId">) => Promise<void>;
+  deleteAppointment: (id: string) => Promise<void>;
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────────
@@ -97,6 +117,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   medications: [],
   schedules: [],
   todayLogs: [],
+  appointments: [],
   snoozedTimes: {},
   isLoading: false,
   themeMode: "system",
@@ -121,12 +142,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   async loadAll() {
     set({ isLoading: true });
     try {
-      const [meds, schedules] = await Promise.all([
+      const [meds, schedules, appointments] = await Promise.all([
         getMedications(),
         getAllActiveSchedules(),
+        getAppointments(),
       ]);
       const logs = await getDoseLogsByDate(today());
-      set({ medications: meds, schedules, todayLogs: logs, isLoading: false });
+      set({ medications: meds, schedules, todayLogs: logs, appointments, isLoading: false });
     } catch (e) {
       set({ isLoading: false });
       throw e;
@@ -343,10 +365,56 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   async resetAllData() {
     await cancelAllNotifications();
-    await unregisterBackgroundFetch();
     await clearAllData();
-    if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    set({ medications: [], schedules: [], todayLogs: [], snoozedTimes: {} });
+    await unregisterBackgroundFetch();
+    const [meds, schedules] = await Promise.all([getMedications(), getAllActiveSchedules()]);
+    const logs = await getDoseLogsByDate(today());
+    set({ medications: meds, schedules, todayLogs: logs, appointments: [], snoozedTimes: {} });
+  },
+
+  // ── Appointments ─────────────────────────────────────────────────
+
+  async loadAppointments() {
+    const appointments = await getAppointments();
+    set({ appointments });
+  },
+
+  async addAppointment(data) {
+    const appt: Appointment = {
+      ...data,
+      id: generateId(),
+      createdAt: toISOString(new Date()),
+    };
+    const notificationId = await scheduleAppointmentNotification(appt);
+    const apptWithNotif = { ...appt, notificationId };
+    await insertAppointment(apptWithNotif);
+    set((s) => ({ appointments: [...s.appointments, apptWithNotif].sort((a, b) => a.date.localeCompare(b.date)) }));
+  },
+
+  async updateAppointment(data) {
+    const existing = get().appointments.find((a) => a.id === data.id);
+    // Cancel old notification if any
+    if (existing?.notificationId) {
+      await cancelAppointmentNotification(existing.notificationId);
+    }
+    const appt: Appointment = { ...data, notificationId: undefined };
+    const notificationId = await scheduleAppointmentNotification(appt);
+    const apptWithNotif = { ...appt, notificationId };
+    await updateAppointmentDb(apptWithNotif);
+    set((s) => ({
+      appointments: s.appointments
+        .map((a) => (a.id === data.id ? apptWithNotif : a))
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    }));
+  },
+
+  async deleteAppointment(id) {
+    const appt = get().appointments.find((a) => a.id === id);
+    if (appt?.notificationId) {
+      await cancelAppointmentNotification(appt.notificationId);
+    }
+    await deleteAppointmentDb(id);
+    set((s) => ({ appointments: s.appointments.filter((a) => a.id !== id) }));
   },
 }));
 

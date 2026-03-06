@@ -46,6 +46,8 @@ export default function EditMedicationScreen() {
     color: medication.color,
     startDate: medication.startDate,
     endDate: medication.endDate,
+    stockQuantity: medication.stockQuantity,
+    stockAlertThreshold: medication.stockAlertThreshold,
     schedules: schedules.map((s) => ({
       id: s.id,
       time: s.time,
@@ -68,6 +70,8 @@ export default function EditMedicationScreen() {
           color: values.color,
           startDate: values.startDate,
           endDate: values.endDate,
+          stockQuantity: values.stockQuantity,
+          stockAlertThreshold: values.stockAlertThreshold,
         },
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );

@@ -186,6 +186,8 @@ export interface MedicationFormValues {
   startDate?: string;
   endDate?: string;
   schedules: ScheduleInput[];
+  stockQuantity?: number;
+  stockAlertThreshold?: number;
 }
 
 interface MedicationFormProps {
@@ -232,6 +234,12 @@ export function MedicationForm({
   const [endDate, setEndDate] = useState(initialValues?.endDate);
   const [schedules, setSchedules] = useState<ScheduleInput[]>(
     initialValues?.schedules?.length ? initialValues.schedules : [newSchedule()]
+  );
+  const [stockQtyStr, setStockQtyStr] = useState(
+    initialValues?.stockQuantity != null ? String(initialValues.stockQuantity) : ""
+  );
+  const [stockThreshStr, setStockThreshStr] = useState(
+    initialValues?.stockAlertThreshold != null ? String(initialValues.stockAlertThreshold) : ""
   );
 
   // ─ Frecuencia ────────────────────────────────────────────────────────────
@@ -282,13 +290,13 @@ export function MedicationForm({
       category,
       notes: notes.trim(),
       color,
-      // In "once" mode collapse the treatment period to the single chosen date
       startDate: repeatMode === "once" ? onceDate : startDate,
       endDate:   repeatMode === "once" ? onceDate : endDate,
-      // In "once" mode drop day selections (single date already constrains it)
       schedules: schedules.map((s) =>
         repeatMode === "once" ? { ...s, days: [] } : s
       ),
+      stockQuantity: stockQtyStr.trim() ? Math.max(0, parseInt(stockQtyStr, 10)) : undefined,
+      stockAlertThreshold: stockThreshStr.trim() ? Math.max(0, parseInt(stockThreshStr, 10)) : undefined,
     });
   };
 
@@ -571,13 +579,48 @@ export function MedicationForm({
           </>
         )}
 
+        {/* Section: Stock */}
+        <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
+          {t('form.sectionStock')}
+        </Text>
+        <View className="bg-card rounded-2xl border border-border p-4 mb-4 gap-4">
+          <View>
+            <Text className="text-sm font-semibold text-text mb-1.5">{t('form.fieldStock')}</Text>
+            <View className="flex-row items-center gap-2">
+              <TextInput
+                value={stockQtyStr}
+                onChangeText={(v) => { setStockQtyStr(v); if (!v.trim()) setStockThreshStr(""); }}
+                placeholder={t('form.fieldStockPlaceholder')}
+                placeholderTextColor="#94a3b8"
+                keyboardType="number-pad"
+                className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
+              />
+              <Text className="text-muted text-sm">{t('form.fieldStockUnit')}</Text>
+            </View>
+          </View>
+          {!!stockQtyStr.trim() && (
+            <View>
+              <Text className="text-sm font-semibold text-text mb-1.5">{t('form.fieldStockThreshold')}</Text>
+              <View className="flex-row items-center gap-2">
+                <TextInput
+                  value={stockThreshStr}
+                  onChangeText={setStockThreshStr}
+                  placeholder={t('form.fieldStockThresholdPlaceholder')}
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="number-pad"
+                  className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
+                />
+                <Text className="text-muted text-sm">{t('form.fieldStockUnit')}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
         {/* Submit */}
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSubmit(); }}
           disabled={isSubmitting}
-          className={`rounded-2xl py-4 items-center mt-2 ${
-            isSubmitting ? "bg-slate-300" : "bg-primary"
-          }`}
+          className={`rounded-2xl py-4 items-center mt-2 ${isSubmitting ? "bg-slate-300" : "bg-primary"}`}
         >
           <Text className="text-white font-bold text-base">
             {isSubmitting ? t('common.saving') : submitLabel}

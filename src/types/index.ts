@@ -46,6 +46,10 @@ export interface Medication {
   endDate?: string;
   isActive: boolean;
   createdAt: string;
+  /** Number of units currently in stock (optional). */
+  stockQuantity?: number;
+  /** Fire a low-stock notification when stockQuantity drops to this value. */
+  stockAlertThreshold?: number;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────
@@ -83,6 +87,27 @@ export interface DoseLog {
   /** ISO datetime – populated when status = 'taken' */
   takenAt?: string;
   createdAt: string;
+  /** Optional free-text note added by the user when logging the dose. */
+  notes?: string;
+}
+
+// ─── Appointment ──────────────────────────────────────────────────────────
+
+export interface Appointment {
+  id: string;
+  title: string;
+  doctor?: string;
+  location?: string;
+  notes?: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:mm – optional */
+  time?: string;
+  /** Minutes before appointment to fire notification. 0 = no reminder. */
+  reminderMinutes?: number;
+  /** Expo notification identifier for cancellation. */
+  notificationId?: string;
+  createdAt: string;
 }
 
 // ─── Notification mapping ──────────────────────────────────────────────────
@@ -109,6 +134,8 @@ export interface TodayDose {
   scheduledTime: string;
   status: TodayDoseStatus;
   takenAt?: string;
+  /** Free-text note attached to the dose log (if any). */
+  notes?: string;
   /** HH:mm of the snoozed reminder — only set when the dose has been snoozed
    *  but the original scheduled time hasn't passed yet. */
   snoozedUntil?: string;

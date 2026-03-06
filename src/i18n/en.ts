@@ -69,6 +69,8 @@ const en: TranslationShape = {
     chipMissed_one: "{{count}} missed",
     chipMissed_other: "{{count}} missed",
     tipReschedule: "Tip: Tap the time badge on any pending dose to reschedule it today. Tap to dismiss.",
+    streak_one: "🔥 {{count}} day streak",
+    streak_other: "🔥 {{count}} day streak",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
@@ -155,6 +157,12 @@ const en: TranslationShape = {
     errorInvalidPeriod: "Invalid period",
     errorInvalidPeriodMsg: "The end date cannot be before the start date.",
     errorGeneric: "Could not save the medication. Please try again.",
+    sectionStock: "Stock (optional)",
+    fieldStock: "Current stock",
+    fieldStockPlaceholder: "e.g. 30",
+    fieldStockThreshold: "Alert when below",
+    fieldStockThresholdPlaceholder: "e.g. 5",
+    fieldStockUnit: "units",
   },
 
   // ─── Alarm screen ─────────────────────────────────────────────────────────
@@ -178,6 +186,10 @@ const en: TranslationShape = {
     rescheduleConfirm: "Dose rescheduled to {{time}} 🕐",
     rescheduleTitle: "Reschedule dose",
     rescheduleOriginal: "Original time: {{time}}",
+    addNote: "Add note",
+    noteModalTitle: "Dose note",
+    noteModalPlaceholder: "How did you feel? Any side effects?",
+    noteSaved: "Note saved",
   },
 
   // ─── Medication card ──────────────────────────────────────────────────────
@@ -211,12 +223,56 @@ const en: TranslationShape = {
     fullScreenMessage:
       "On Android 14+, you need to grant \"Display full-screen notifications\" permission so the alarm screen can appear above the lock screen. Tap \"Open settings\" and enable it for Pill-O-Clock.",  },
 
+  // ─── Stock ────────────────────────────────────────────────────────────────
+  stock: {
+    alertTitle: "Low stock: {{name}}",
+    alertBody: "Only {{count}} left. Time to request a refill.",
+    badge_one: "{{count}} left",
+    badge_other: "{{count}} left",
+    low: "Low stock",
+  },
+
+  // ─── Appointments ─────────────────────────────────────────────────────────
+  appointments: {
+    title: "Appointments",
+    noAppointments: "No appointments",
+    noAppointmentsSubtitle: "Add your next doctor visit or checkup",
+    upcoming: "Upcoming",
+    past: "Past",
+    deleteTitle: "Delete appointment",
+    deleteMessage: "Are you sure you want to delete this appointment?",
+    newTitle: "New appointment",
+    editTitle: "Edit appointment",
+    fieldTitle: "Title",
+    fieldTitlePlaceholder: "e.g. Cardiologist",
+    fieldDoctor: "Doctor (optional)",
+    fieldDoctorPlaceholder: "e.g. Dr. García",
+    fieldLocation: "Location (optional)",
+    fieldLocationPlaceholder: "e.g. City Hospital, Floor 2",
+    fieldNotes: "Notes (optional)",
+    fieldNotesPlaceholder: "Questions to ask, things to bring...",
+    fieldDate: "Date",
+    fieldTime: "Time (optional)",
+    fieldReminder: "Reminder",
+    reminderNone: "No reminder",
+    reminder1h: "1 hour before",
+    reminder2h: "2 hours before",
+    reminder1d: "1 day before",
+    notifTitle: "📅 Appointment reminder",
+    notifBody: "{{title}}",
+    saveButton: "Save appointment",
+    errorTitleRequired: "Title required",
+    errorDateRequired: "Date required",
+    errorGeneric: "Could not save the appointment. Please try again.",
+  },
+
   // ─── Tabs ─────────────────────────────────────────────────────────────────
   tabs: {
     today: "Today",
     calendar: "Calendar",
     medications: "Medications",
     history: "History",
+    appointments: "Appointments",
     settings: "Settings",
   },
 
