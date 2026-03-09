@@ -9,13 +9,13 @@ def safeExtGet(prop, fallback) {
 }
 
 android {
-  compileSdkVersion safeExtGet('compileSdkVersion', 35)
+  compileSdk safeExtGet('compileSdk', 36)
 
   namespace 'expo.modules.alarm'
 
   defaultConfig {
     minSdkVersion safeExtGet('minSdkVersion', 24)
-    targetSdkVersion safeExtGet('targetSdkVersion', 35)
+    targetSdk safeExtGet('targetSdk', 36)
     versionCode 1
     versionName '1.0.0'
   }

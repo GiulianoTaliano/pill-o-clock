@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
@@ -98,9 +97,11 @@ class ExpoAlarmModule : Module() {
     // Only relevant on Android 14+ (API 34); a no-op on older versions.
     AsyncFunction("requestFullScreenIntentPermission") {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENTS).apply {
+        // ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENTS constant added in API 34;
+        // use the string literal so this compiles against any SDK >= 34.
+        val intent = Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENTS").apply {
           data = Uri.parse("package:${context.packageName}")
-          flags = Intent.FLAG_ACTIVITY_NEW_TASK
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
       }

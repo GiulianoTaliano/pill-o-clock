@@ -1,14 +1,13 @@
 import "../global.css";
-import { useEffect, useState } from "react";
-import { Redirect, SplashScreen, Stack } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { SplashScreen, Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Alert, AppState, View, Text, LogBox, Platform, UIManager } from "react-native";
+import { Alert, AppState, Linking, View, Text, LogBox, Platform, UIManager } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initDatabase } from "../src/db/database";
 import { setupNotifications, openExactAlarmSettings, rescheduleAllNotifications } from "../src/services/notifications";
-import { checkFullScreenIntentPermission } from "expo-alarm";
-import * as IntentLauncher from "expo-intent-launcher";
+import { checkFullScreenIntentPermission, requestFullScreenIntentPermission } from "expo-alarm";
 // Side-effect import (registers TaskManager.defineTask) + named imports from same module.
 import { registerBackgroundFetch } from "../src/services/backgroundTask";
 import { useAppStore } from "../src/store";
@@ -43,6 +42,20 @@ export default function RootLayout() {
   const loadAll = useAppStore((s) => s.loadAll);
   const loadTodayLogs = useAppStore((s) => s.loadTodayLogs);
   const loadThemeMode = useAppStore((s) => s.loadThemeMode);
+  const router = useRouter();
+
+  // Navigate to onboarding exactly once after the layout is ready.
+  // Using a one-shot effect (rather than a persistent <Redirect> component)
+  // avoids an infinite loop: a persistent Redirect re-fires on every
+  // re-render, which now happens on every pathname change after adding
+  // route-awareness to the layout.
+  const onboardingNavigatedRef = useRef(false);
+  useEffect(() => {
+    if (!ready || !showOnboarding || onboardingNavigatedRef.current) return;
+    onboardingNavigatedRef.current = true;
+    setShowOnboarding(false);
+    router.replace("/onboarding");
+  }, [ready, showOnboarding, router]);
 
   useNotificationResponseHandler();
 
@@ -55,7 +68,18 @@ export default function RootLayout() {
 
         const onboardingDone = await AsyncStorage.getItem(ONBOARDING_DONE_KEY);
 
-        if (onboardingDone) {
+        // Detect alarm deep-link cold-start.
+        // When the app is opened from a notification tap or fullScreenIntent,
+        // the initial URL contains the alarm route.  In that case we must run
+        // the full notification/data setup even if onboarding has never been
+        // completed — otherwise the alarm screen can't access store data, and
+        // the onboarding Redirect would hijack the navigation stack.
+        const initialUrl = await Linking.getInitialURL();
+        const isAlarmColdStart =
+          !!initialUrl &&
+          (initialUrl.includes("pilloclock://alarm") || initialUrl.includes("/alarm?"));
+
+        if (onboardingDone || isAlarmColdStart) {
           // Normal launch: setup notifications and reschedule if needed.
           const { needsExactAlarmPermission } = await setupNotifications();
           await loadAll();
@@ -98,19 +122,18 @@ export default function RootLayout() {
                     { text: t('permissions.exactAlarmLater'), style: "cancel" },
                     {
                       text: t('permissions.exactAlarmOpen'),
-                      onPress: () =>
-                        IntentLauncher.startActivityAsync(
-                          "android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT",
-                          { data: "package:com.pilloclock.app" }
-                        ).catch(() => {}),
+                      onPress: () => requestFullScreenIntentPermission().catch(() => {}),
                     },
                   ]
                 );
               }
             }
           }
+          // alarm cold-start: data + notifications are set up; onboarding is
+          // NOT forced here to avoid redirect loops. If the user has never
+          // completed onboarding they will see it on the next regular launch.
         } else {
-          // First launch: load data but defer notification setup to onboarding.
+          // First launch (normal): load data and defer notification setup to onboarding.
           await loadAll();
           setShowOnboarding(true);
         }
@@ -186,7 +209,8 @@ export default function RootLayout() {
             }}
           />
         </Stack>
-          {showOnboarding && <Redirect href="/onboarding" />}
+          {/* <Redirect> removed — onboarding navigation is handled by the
+              one-shot useEffect above, which avoids re-render loops. */}
         </ToastProvider>
       </SafeAreaProvider>
     </ErrorBoundary>

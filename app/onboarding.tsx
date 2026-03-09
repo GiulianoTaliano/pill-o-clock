@@ -141,6 +141,9 @@ export default function OnboardingScreen() {
   }
 
   async function handleSkip() {
+    // Request notification permission even when the user skips the onboarding
+    // flow — otherwise alarms will never show without an explicit re-prompt.
+    await setupNotifications().catch(() => {});
     await AsyncStorage.setItem(ONBOARDING_DONE_KEY, "1");
     router.replace("/(tabs)");
   }

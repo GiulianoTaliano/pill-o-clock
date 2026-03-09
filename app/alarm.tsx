@@ -29,6 +29,7 @@ export default function AlarmScreen() {
 
   const medications = useAppStore((s) => s.medications);
   const schedules = useAppStore((s) => s.schedules);
+  const isLoading = useAppStore((s) => s.isLoading);
   const markDose = useAppStore((s) => s.markDose);
   const snoozeDose = useAppStore((s) => s.snoozeDose);
   const [noteText, setNoteText] = useState("");
@@ -47,13 +48,16 @@ export default function AlarmScreen() {
     };
   }, []);
 
-  // Navigate back if data is unavailable — must be inside useEffect, never during render.
+  // Navigate back if data is unavailable — but only after the store has
+  // finished loading to avoid false-negatives on cold start.
   useEffect(() => {
+    if (isLoading) return;          // store not ready yet, don't bail
     if (!medication || !schedule) {
       stopAlarm().catch(() => {});
-      router.back();
+      if (router.canGoBack()) router.back();
+      else router.replace("/");
     }
-  }, [medication, schedule, router]);
+  }, [isLoading, medication, schedule, router]);
 
   const pendingDose = schedule && medication ? {
     medication,
