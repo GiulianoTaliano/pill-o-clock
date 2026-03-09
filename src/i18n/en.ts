@@ -413,6 +413,12 @@ const en: TranslationShape = {
     sectionLanguage: "Language",
     languageEs: "Español",
     languageEn: "English",
+    // Permissions
+    sectionPermissions: "Permissions",
+    fullScreenPermission: "Full-screen alarm",
+    fullScreenPermissionSubtitle: "Lets alarm appear over the lock screen and above other apps (Android 14+)",
+    fullScreenPermissionGranted: "Granted",
+    fullScreenPermissionRequired: "Tap to enable",
     // Appearance
     sectionAppearance: "Appearance",
     themeSystem: "Automatic (system)",

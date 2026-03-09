@@ -1,14 +1,15 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform } from "react-native";
 import { useToast } from "../../src/context/ToastContext";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore, ThemeMode } from "../../src/store";
 import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
 import { generateAndShareReport } from "../../src/services/pdfReport";
+import { checkFullScreenIntentPermission, requestFullScreenIntentPermission } from "expo-alarm";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -112,7 +113,30 @@ export default function SettingsScreen() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const { showToast } = useToast();
 
+  // Full-screen intent permission (Android 14+ only)
+  const [hasFullScreenPerm, setHasFullScreenPerm] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => setHasFullScreenPerm(true));
+  }, []);
+
+  // Re-check the permission every time the screen comes back into focus
+  // (user may have just granted it in Settings).
+  useEffect(() => {
+    if (Platform.OS !== "android" || hasFullScreenPerm === null) return;
+    const id = setInterval(() => {
+      checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => {});
+    }, 2000);
+    return () => clearInterval(id);
+  }, [hasFullScreenPerm]);
+
   // ─── Handlers ──────────────────────────────────────────────────────────
+
+  async function handleFullScreenPermission() {
+    Haptics.selectionAsync();
+    await requestFullScreenIntentPermission();
+  }
 
   async function handleExport() {
     setExporting(true);
@@ -214,6 +238,31 @@ export default function SettingsScreen() {
         <View className="px-5 pt-4 pb-2">
           <Text className="text-2xl font-bold text-text">{t("settings.title")}</Text>
         </View>
+
+        {/* ─── Permissions (Android only) ─── */}
+        {Platform.OS === "android" && (
+          <>
+            <SectionHeader title={t("settings.sectionPermissions")} />
+            <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+              <SettingRow
+                icon="notifications-outline"
+                iconColor={hasFullScreenPerm === false ? "#f59e0b" : "#4f9cff"}
+                title={t("settings.fullScreenPermission")}
+                subtitle={t("settings.fullScreenPermissionSubtitle")}
+                value={
+                  hasFullScreenPerm === null
+                    ? undefined
+                    : hasFullScreenPerm
+                    ? t("settings.fullScreenPermissionGranted")
+                    : t("settings.fullScreenPermissionRequired")
+                }
+                onPress={hasFullScreenPerm === false ? handleFullScreenPermission : undefined}
+                loading={hasFullScreenPerm === null}
+                chevron={hasFullScreenPerm === false}
+              />
+            </View>
+          </>
+        )}
 
         {/* ─── Your data ─── */}
         <SectionHeader title={t("settings.sectionData")} />

@@ -3,18 +3,23 @@ package expo.modules.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 
 /**
  * Handles taps on the quick-action buttons (Take / Snooze / Skip) that are
  * embedded in the alarm notification.
  *
- * For each action:
- *  1. Broadcasts ACTION_STOP so AlarmAudioService silences the alarm
- *     immediately, even before the app is fully in the foreground.
- *  2. Launches the React Native alarm screen with an `action=` query
- *     parameter so the JS layer can persist the result to the database and
- *     navigate away without showing the full alarm UI.
+ * Delegates to AlarmAudioService with ACTION_EXECUTE_BUTTON so the foreground
+ * service stops the alarm AND launches the RN screen with `action=`.
+ * This delegation is required because on Android 10+ a bare BroadcastReceiver
+ * cannot start activities from the background; only a foreground Service has
+ * that privilege.
+ *
+ * We use startService (not startForegroundService) deliberately:
+ *   - If AlarmAudioService is already running (alarm ringing), onStartCommand
+ *     is called immediately on the existing foreground instance — no new
+ *     startForeground() call is needed.
+ *   - If the service already stopped, startService brings it up without the
+ *     mandatory-5 s startForeground() timer that startForegroundService imposes.
  */
 class AlarmActionReceiver : BroadcastReceiver() {
 
@@ -27,26 +32,12 @@ class AlarmActionReceiver : BroadcastReceiver() {
     val scheduleId    = intent.getStringExtra(AlarmAudioService.EXTRA_SCHEDULE_ID)    ?: return
     val scheduledDate = intent.getStringExtra(AlarmAudioService.EXTRA_SCHEDULED_DATE) ?: return
 
-    // 1. Stop the alarm audio immediately (safe no-op if service is not running).
-    context.sendBroadcast(Intent(AlarmAudioService.ACTION_STOP).apply {
-      setPackage(context.packageName)
-    })
-
-    // 2. Open the alarm screen with the action parameter.
-    //    alarm.tsx reads `action` on mount, executes silently, and pops back.
-    val uri = Uri.parse(
-      "pilloclock://alarm" +
-      "?scheduleId=${Uri.encode(scheduleId)}" +
-      "&date=${Uri.encode(scheduledDate)}" +
-      "&action=${Uri.encode(actionValue)}"
-    )
-    context.startActivity(
-      Intent(Intent.ACTION_VIEW, uri).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-        setPackage(context.packageName)
-      }
-    )
+    val serviceIntent = Intent(context, AlarmAudioService::class.java).apply {
+      action = AlarmAudioService.ACTION_EXECUTE_BUTTON
+      putExtra(AlarmAudioService.EXTRA_ACTION,         actionValue)
+      putExtra(AlarmAudioService.EXTRA_SCHEDULE_ID,    scheduleId)
+      putExtra(AlarmAudioService.EXTRA_SCHEDULED_DATE, scheduledDate)
+    }
+    context.startService(serviceIntent)
   }
 }

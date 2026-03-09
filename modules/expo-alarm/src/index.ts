@@ -57,6 +57,15 @@ export async function checkFullScreenIntentPermission(): Promise<boolean> {
 }
 
 /**
+ * Opens the system settings screen where the user can grant
+ * USE_FULL_SCREEN_INTENT (Android 14+ only).  No-op on older versions.
+ */
+export async function requestFullScreenIntentPermission(): Promise<void> {
+  if (!isAvailable) return;
+  return ExpoAlarmNativeModule!.requestFullScreenIntentPermission();
+}
+
+/**
  * Sets window flags so the activity shows on the lock screen and wakes the
  * display.
  * Call on mount of the alarm screen so it appears above the lock screen.

@@ -32,6 +32,7 @@ export default function AlarmScreen() {
   const markDose = useAppStore((s) => s.markDose);
   const snoozeDose = useAppStore((s) => s.snoozeDose);
   const [noteText, setNoteText] = useState("");
+  const [showNote, setShowNote] = useState(false);
 
   const schedule = schedules.find((s) => s.id === scheduleId);
   const medication = schedule ? medications.find((m) => m.id === schedule.medicationId) : null;
@@ -63,7 +64,7 @@ export default function AlarmScreen() {
   } : null;
 
   // Auto-execute action when screen is opened via a notification quick-action button.
-  // This runs silently (no alarm UI shown) and immediately pops back.
+  // This runs silently (no alarm UI shown) and immediately navigates away.
   useEffect(() => {
     if (!action || !pendingDose) return;
     const run = async () => {
@@ -74,11 +75,19 @@ export default function AlarmScreen() {
       } else if (action === "snooze") {
         await snoozeDose(pendingDose);
       }
-      router.back();
+      // On cold-start there is no history stack — use replace as a safe fallback.
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/");
+      }
     };
-    run().catch(() => router.back());
+    run().catch(() => {
+      if (router.canGoBack()) router.back();
+      else router.replace("/");
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action]);
+  }, [action, pendingDose]);
 
   // Pulse animation
   const pulse = useRef(new Animated.Value(1)).current;
@@ -152,22 +161,47 @@ export default function AlarmScreen() {
         >
           {medication.name}
         </Text>
-        <Text className="text-lg text-text mt-1">{medication.dosage}</Text>
+        {/* Dosage pill */}
+        <View
+          style={{ backgroundColor: colors.bg + "22", borderColor: colors.bg + "55" }}
+          className="mt-2 px-4 py-1 rounded-full border"
+        >
+          <Text style={{ color: colors.text }} className="text-sm font-semibold text-center">
+            {medication.dosage}
+          </Text>
+        </View>
         {medication.notes ? (
-          <Text className="text-sm text-muted mt-1 text-center">{medication.notes}</Text>
+          <Text className="text-sm text-slate-500 mt-2 text-center">{medication.notes}</Text>
         ) : null}
 
-        {/* Optional note input */}
-        <TextInput
-          value={noteText}
-          onChangeText={setNoteText}
-          placeholder={t('doseCard.noteModalPlaceholder')}
-          placeholderTextColor="rgba(100,116,139,0.7)"
-          className="mt-4 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 px-4 py-3 text-text text-sm"
-          multiline
-          numberOfLines={2}
-          maxLength={200}
-        />
+        {/* Optional note input — hidden until the user taps the toggle */}
+        <TouchableOpacity
+          onPress={() => setShowNote((v) => !v)}
+          className="mt-4 flex-row items-center gap-1 self-center"
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={showNote ? "chevron-up" : "create-outline"}
+            size={14}
+            color="#94a3b8"
+          />
+          <Text className="text-xs text-slate-400">
+            {showNote ? t('common.cancel') : t('doseCard.addNote')}
+          </Text>
+        </TouchableOpacity>
+        {showNote && (
+          <TextInput
+            value={noteText}
+            onChangeText={setNoteText}
+            placeholder={t('doseCard.noteModalPlaceholder')}
+            placeholderTextColor="rgba(100,116,139,0.6)"
+            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-slate-700 text-sm"
+            multiline
+            numberOfLines={2}
+            maxLength={200}
+            autoFocus
+          />
+        )}
       </View>
 
       {/* Actions */}

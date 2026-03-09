@@ -41,10 +41,16 @@ class AlarmAudioService : Service() {
   // ── Constants ──────────────────────────────────────────────────────────────
 
   companion object {
-    const val ACTION_START   = "expo.modules.alarm.ACTION_START"
-    const val ACTION_STOP    = "expo.modules.alarm.ACTION_STOP"
+    const val ACTION_START          = "expo.modules.alarm.ACTION_START"
+    const val ACTION_STOP           = "expo.modules.alarm.ACTION_STOP"
     /** Broadcast sent by the notification's deleteIntent when the user swipes it away. */
-    const val ACTION_DISMISS = "expo.modules.alarm.ACTION_DISMISS"
+    const val ACTION_DISMISS        = "expo.modules.alarm.ACTION_DISMISS"
+    /**
+     * Sent by AlarmActionReceiver when the user taps a quick-action button.
+     * The foreground service handles it because only a Service (not a bare
+     * BroadcastReceiver) is allowed to start activities on Android 10+.
+     */
+    const val ACTION_EXECUTE_BUTTON = "expo.modules.alarm.ACTION_EXECUTE_BUTTON"
 
     // Intent extras — mirrored in AlarmIntentHelper
     const val EXTRA_SCHEDULE_ID     = "scheduleId"
@@ -128,6 +134,32 @@ class AlarmAudioService : Service() {
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     if (intent?.action == ACTION_STOP) {
+      stopSelf()
+      return START_NOT_STICKY
+    }
+
+    // ── Quick-action button: stop alarm + launch alarm screen with action param ─
+    // Routed here from AlarmActionReceiver so that startActivity() runs in a
+    // foreground-service context, which is allowed on Android 10+.
+    if (intent?.action == ACTION_EXECUTE_BUTTON) {
+      val scheduleId    = intent.getStringExtra(EXTRA_SCHEDULE_ID)    ?: ""
+      val scheduledDate = intent.getStringExtra(EXTRA_SCHEDULED_DATE) ?: ""
+      val actionValue   = intent.getStringExtra(EXTRA_ACTION)         ?: ""
+      // If this service instance was just created (not already in foreground),
+      // we must call startForeground() within 5 s to satisfy Android 8+ rules.
+      // Use a minimal, instantly-dismissed notification.
+      ensureNotificationChannels()
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        startForeground(ALARM_NOTIF_ID,
+          NotificationCompat.Builder(this, ALARM_CHANNEL_ID).build(),
+          ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+      } else {
+        startForeground(ALARM_NOTIF_ID,
+          NotificationCompat.Builder(this, ALARM_CHANNEL_ID).build())
+      }
+      if (scheduleId.isNotEmpty() && actionValue.isNotEmpty()) {
+        launchAlarmScreenWithAction(scheduleId, scheduledDate, actionValue)
+      }
       stopSelf()
       return START_NOT_STICKY
     }
@@ -230,8 +262,10 @@ class AlarmAudioService : Service() {
     requestCode: Int,
     pendingFlags: Int,
   ): PendingIntent {
-    val intent = Intent(AlarmActionReceiver.ACTION_ALARM_BUTTON).apply {
-      setPackage(packageName)
+    // Explicit broadcast targeting AlarmActionReceiver by class so that the
+    // PendingIntent is delivered even though the receiver has no <intent-filter>.
+    val intent = Intent(this, AlarmActionReceiver::class.java).apply {
+      action = AlarmActionReceiver.ACTION_ALARM_BUTTON
       putExtra(EXTRA_SCHEDULE_ID,     scheduleId)
       putExtra(EXTRA_MEDICATION_ID,   medicationId)
       putExtra(EXTRA_SCHEDULED_DATE,  scheduledDate)
@@ -245,9 +279,6 @@ class AlarmAudioService : Service() {
 
   private fun launchAlarmScreen(scheduleId: String, scheduledDate: String) {
     val launchIntent = Intent(Intent.ACTION_VIEW, buildAlarmUri(scheduleId, scheduledDate)).apply {
-      // FLAG_ACTIVITY_NEW_TASK       : required when starting from a Service.
-      // FLAG_ACTIVITY_SINGLE_TOP     : reuses an existing instance instead of stacking.
-      // FLAG_ACTIVITY_REORDER_TO_FRONT: brings an existing task to the front.
       flags = Intent.FLAG_ACTIVITY_NEW_TASK or
               Intent.FLAG_ACTIVITY_SINGLE_TOP or
               Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
@@ -257,7 +288,27 @@ class AlarmAudioService : Service() {
       startActivity(launchIntent)
     } catch (e: Exception) {
       Log.w(TAG, "Could not launch alarm screen via deep link: ${e.message}")
-      // fullScreenIntent on the notification will handle the lock-screen case.
+    }
+  }
+
+  /** Launches alarm screen carrying an `action=` param so alarm.tsx persists the result silently. */
+  private fun launchAlarmScreenWithAction(scheduleId: String, scheduledDate: String, actionValue: String) {
+    val uri = Uri.parse(
+      "pilloclock://alarm" +
+      "?scheduleId=${Uri.encode(scheduleId)}" +
+      "&date=${Uri.encode(scheduledDate)}" +
+      "&action=${Uri.encode(actionValue)}"
+    )
+    val launchIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+      flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+              Intent.FLAG_ACTIVITY_SINGLE_TOP or
+              Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+      setPackage(packageName)
+    }
+    try {
+      startActivity(launchIntent)
+    } catch (e: Exception) {
+      Log.w(TAG, "Could not launch alarm screen with action: ${e.message}")
     }
   }
 

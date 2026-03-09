@@ -13,6 +13,7 @@ interface ExpoAlarmNativeModule {
   cancelAlarm(scheduleId: string, scheduledDate: string): Promise<void>;
   stopAlarm(): Promise<void>;
   checkFullScreenIntentPermission(): Promise<boolean>;
+  requestFullScreenIntentPermission(): Promise<void>;
   setAlarmWindowFlags(): Promise<void>;
   clearAlarmWindowFlags(): Promise<void>;
 }

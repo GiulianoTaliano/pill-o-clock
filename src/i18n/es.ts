@@ -411,6 +411,12 @@ const es = {
     sectionLanguage: "Idioma",
     languageEs: "Español",
     languageEn: "English",
+    // Permissions
+    sectionPermissions: "Permisos",
+    fullScreenPermission: "Alarma en pantalla completa",
+    fullScreenPermissionSubtitle: "Permite que la alarma aparezca sobre la pantalla de bloqueo y sobre otras apps (Android 14+)",
+    fullScreenPermissionGranted: "Concedido",
+    fullScreenPermissionRequired: "Toca para habilitar",
     // Appearance
     sectionAppearance: "Apariencia",
     themeSystem: "Automático (sistema)",
