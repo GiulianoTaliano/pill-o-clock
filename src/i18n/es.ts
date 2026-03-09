@@ -267,6 +267,18 @@ const es = {
     errorTitleRequired: "Título requerido",
     errorDateRequired: "Fecha requerida",
     errorGeneric: "No se pudo guardar la cita. Intentá de nuevo.",
+    // Location picker
+    pickOnMap: "Fijar en mapa",
+    locationPickerTitle: "Fijar ubicación",
+    locationPickerSubtitle: "Tocá el mapa para marcar la ubicación",
+    locationPickerConfirm: "Confirmar ubicación",
+    locateMe: "Mi ubicación",
+    viewOnMap: "Ver en mapa",
+    shareLocation: "Compartir",
+    locationPermDenied: "Se necesita permiso de ubicación para usar esta función.",
+    locationPermTitle: "Permiso de ubicación",
+    locationLoading: "Obteniendo ubicación…",
+    locationClear: "Borrar ubicación",
   },
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────

@@ -5,17 +5,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import { format } from "date-fns";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useAppStore } from "../../src/store";
-import { Appointment } from "../../src/types";
+import { Appointment, LocationCoords } from "../../src/types";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { EmptyState } from "../../components/EmptyState";
 import { today } from "../../src/utils";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
+import { LocationPickerModal } from "../../components/LocationPickerModal";
 
 // ─── Sub-tab button ──────────────────────────────────────────────────────
 
@@ -74,10 +75,12 @@ const REMINDER_OPTIONS: { key: string; minutes: number }[] = [
 
 function AppointmentCard({
   appt,
+  onPress,
   onEdit,
   onDelete,
 }: {
   appt: Appointment;
+  onPress: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -88,7 +91,9 @@ function AppointmentCard({
   const isPast = appt.date < today();
 
   return (
-    <View
+    <TouchableOpacity
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
+      activeOpacity={0.75}
       className={`bg-card rounded-2xl border border-border p-4 mb-3 shadow-sm ${isPast ? "opacity-60" : ""}`}
     >
       <View className="flex-row items-start justify-between">
@@ -110,8 +115,20 @@ function AppointmentCard({
             ) : null}
             {appt.location ? (
               <View className="flex-row items-center gap-1 mt-0.5">
-                <Ionicons name="location-outline" size={12} color="#94a3b8" />
-                <Text className="text-xs text-muted">{appt.location}</Text>
+                <Ionicons
+                  name={appt.locationCoords ? "location" : "location-outline"}
+                  size={12}
+                  color={appt.locationCoords ? "#4f9cff" : "#94a3b8"}
+                />
+                <Text className="text-xs text-muted" numberOfLines={1}>{appt.location}</Text>
+              </View>
+            ) : null}
+            {!appt.location && appt.locationCoords ? (
+              <View className="flex-row items-center gap-1 mt-0.5">
+                <Ionicons name="location" size={12} color="#4f9cff" />
+                <Text className="text-xs text-primary font-medium">
+                  {`${appt.locationCoords.latitude.toFixed(4)}, ${appt.locationCoords.longitude.toFixed(4)}`}
+                </Text>
               </View>
             ) : null}
             {appt.notes ? (
@@ -146,7 +163,7 @@ function AppointmentCard({
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -156,6 +173,7 @@ interface FormState {
   title: string;
   doctor: string;
   location: string;
+  locationCoords: LocationCoords | undefined;
   notes: string;
   date: string;
   time: string;
@@ -168,6 +186,7 @@ function defaultForm(): FormState {
     title: "",
     doctor: "",
     location: "",
+    locationCoords: undefined,
     notes: "",
     date: today(),
     time: "09:00",
@@ -181,6 +200,7 @@ function formFromAppointment(appt: Appointment): FormState {
     title: appt.title,
     doctor: appt.doctor ?? "",
     location: appt.location ?? "",
+    locationCoords: appt.locationCoords,
     notes: appt.notes ?? "",
     date: appt.date,
     time: appt.time ?? "09:00",
@@ -198,12 +218,16 @@ export default function AppointmentsScreen() {
   const addAppointment = useAppStore((s) => s.addAppointment);
   const updateAppointment = useAppStore((s) => s.updateAppointment);
   const deleteAppointment = useAppStore((s) => s.deleteAppointment);
+  const pendingEditAppointmentId = useAppStore((s) => s.pendingEditAppointmentId);
+  const setPendingEditAppointmentId = useAppStore((s) => s.setPendingEditAppointmentId);
+  const setSelectedAppointmentId = useAppStore((s) => s.setSelectedAppointmentId);
 
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(defaultForm());
+  const [locationPickerVisible, setLocationPickerVisible] = useState(false);
 
   // Date / Time pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -214,6 +238,20 @@ export default function AppointmentsScreen() {
       loadAppointments();
     }, [loadAppointments])
   );
+
+  // ── Respond to pending edit from detail modal ──────────────────────────
+
+  useEffect(() => {
+    if (pendingEditAppointmentId && appointments.length > 0) {
+      const appt = appointments.find((a) => a.id === pendingEditAppointmentId);
+      if (appt) {
+        setEditingId(appt.id);
+        setForm(formFromAppointment(appt));
+        setModalVisible(true);
+        setPendingEditAppointmentId(null);
+      }
+    }
+  }, [pendingEditAppointmentId, appointments, setPendingEditAppointmentId]);
 
   const todayStr = today();
   const upcoming = appointments.filter((a) => a.date >= todayStr);
@@ -238,6 +276,7 @@ export default function AppointmentsScreen() {
     setModalVisible(false);
     setShowDatePicker(false);
     setShowTimePicker(false);
+    setLocationPickerVisible(false);
   };
 
   const handleSave = async () => {
@@ -255,6 +294,7 @@ export default function AppointmentsScreen() {
         title: form.title.trim(),
         doctor: form.doctor.trim() || undefined,
         location: form.location.trim() || undefined,
+        locationCoords: form.locationCoords,
         notes: form.notes.trim() || undefined,
         date: form.date,
         time: form.hasTime ? form.time : undefined,
@@ -351,6 +391,7 @@ export default function AppointmentsScreen() {
             <AppointmentCard
               key={appt.id}
               appt={appt}
+              onPress={() => setSelectedAppointmentId(appt.id)}
               onEdit={() => openEdit(appt)}
               onDelete={() => handleDelete(appt)}
             />
@@ -415,8 +456,40 @@ export default function AppointmentsScreen() {
                   onChangeText={(v) => setForm((f) => ({ ...f, location: v }))}
                   placeholder={t("appointments.fieldLocationPlaceholder")}
                   placeholderTextColor="#94a3b8"
-                  className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
+                  className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-2"
                 />
+
+                {/* Location — map picker row */}
+                <View className="flex-row gap-2 mb-4">
+                  <TouchableOpacity
+                    onPress={() => setLocationPickerVisible(true)}
+                    className="flex-1 flex-row items-center justify-center gap-2 border border-primary rounded-2xl px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30"
+                  >
+                    <Ionicons name="map-outline" size={16} color="#4f9cff" />
+                    <Text className="text-primary text-sm font-bold">
+                      {form.locationCoords
+                        ? t("appointments.pickOnMap")
+                        : t("appointments.pickOnMap")}
+                    </Text>
+                  </TouchableOpacity>
+                  {form.locationCoords ? (
+                    <TouchableOpacity
+                      onPress={() => setForm((f) => ({ ...f, locationCoords: undefined }))}
+                      className="flex-row items-center gap-1.5 px-3 py-2.5 border border-border rounded-2xl bg-card"
+                    >
+                      <Ionicons name="close-circle-outline" size={16} color="#94a3b8" />
+                      <Text className="text-muted text-xs font-semibold">{t("appointments.locationClear")}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                {form.locationCoords ? (
+                  <View className="flex-row items-center gap-2 mb-3 -mt-2 px-1">
+                    <Ionicons name="location" size={14} color="#4f9cff" />
+                    <Text className="text-xs text-primary font-semibold">
+                      {`${form.locationCoords.latitude.toFixed(5)}, ${form.locationCoords.longitude.toFixed(5)}`}
+                    </Text>
+                  </View>
+                ) : null}
 
                 {/* Date */}
                 <Text className="text-sm font-semibold text-text mb-1.5">{t("appointments.fieldDate")} <Text className="text-danger">*</Text></Text>
@@ -526,6 +599,14 @@ export default function AppointmentsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Location picker — fullscreen map */}
+      <LocationPickerModal
+        visible={locationPickerVisible}
+        initial={form.locationCoords}
+        onConfirm={(coords) => setForm((f) => ({ ...f, locationCoords: coords }))}
+        onClose={() => setLocationPickerVisible(false)}
+      />
     </SafeAreaView>
   );
 }

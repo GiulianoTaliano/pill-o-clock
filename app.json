@@ -22,7 +22,8 @@
         "UIBackgroundModes": [
           "fetch",
           "remote-notification"
-        ]
+        ],
+        "NSLocationWhenInUseUsageDescription": "Pill-O-Clock uses your location to pin precise appointment locations on the map."
       },
       "entitlements": {
         "com.apple.developer.usernotifications.critical-alerts": true
@@ -47,8 +48,15 @@
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_ALARM",
-        "android.permission.USE_FULL_SCREEN_INTENT"
-      ]
+        "android.permission.USE_FULL_SCREEN_INTENT",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -56,6 +64,7 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
+      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Pill-O-Clock uses your location to pin precise appointment locations on the map." }],
       "./modules/expo-alarm/app.plugin.js",
       [
         "expo-notifications",

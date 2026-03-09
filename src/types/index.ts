@@ -93,11 +93,20 @@ export interface DoseLog {
 
 // ─── Appointment ──────────────────────────────────────────────────────────
 
+/** GPS coordinates tied to an appointment location. */
+export interface LocationCoords {
+  latitude: number;
+  longitude: number;
+}
+
 export interface Appointment {
   id: string;
   title: string;
   doctor?: string;
+  /** Free-text location label (address, hospital name, etc.) */
   location?: string;
+  /** GPS coordinates for the location — set via the in-app map picker. */
+  locationCoords?: LocationCoords;
   notes?: string;
   /** YYYY-MM-DD */
   date: string;

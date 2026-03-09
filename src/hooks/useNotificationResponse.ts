@@ -15,7 +15,8 @@ import { TodayDose } from "../types";
 
 /**
  * Registers a notification response listener.
- * Handles TAKEN, SNOOZE, SKIP actions globally.
+ * Handles TAKEN, SNOOZE, SKIP actions globally (for dose reminders) and
+ * DEFAULT_ACTION_IDENTIFIER for appointment reminders (opens detail modal).
  *
  * Uses useAppStore.getState() inside the callback so it always reads the
  * freshest store data — avoids stale-closure issues when the effect runs
@@ -30,6 +31,23 @@ export function useNotificationResponseHandler() {
       async (response) => {
         const actionId = response.actionIdentifier;
         const notifId = response.notification.request.identifier;
+        const notifData = response.notification.request.content.data as Record<string, unknown>;
+
+        // ── Appointment notification tap ─────────────────────────────────
+        // Appointment notifications use type = "appointment" or "appointment_headsup".
+        // They are NOT stored in the NotificationMap, so handle them first.
+        if (
+          notifData?.type === "appointment" ||
+          notifData?.type === "appointment_headsup"
+        ) {
+          const appointmentId = notifData.appointmentId as string | undefined;
+          if (appointmentId) {
+            // Dismiss the notification from the tray, then open the detail modal.
+            await Notifications.dismissNotificationAsync(notifId).catch(() => {});
+            useAppStore.getState().setSelectedAppointmentId(appointmentId);
+          }
+          return;
+        }
 
         const entry = await getNotifMapEntry(notifId);
         if (!entry) return;

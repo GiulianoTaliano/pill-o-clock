@@ -1,7 +1,10 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "../../src/i18n";
+import { useAppStore } from "../../src/store";
+import { AppointmentDetailModal } from "../../components/AppointmentDetailModal";
+import { Appointment } from "../../src/types";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -23,7 +26,35 @@ function TabIcon({
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+  const router = useRouter();
+  const appointments = useAppStore((s) => s.appointments);
+  const selectedAppointmentId = useAppStore((s) => s.selectedAppointmentId);
+  const setSelectedAppointmentId = useAppStore((s) => s.setSelectedAppointmentId);
+  const setPendingEditAppointmentId = useAppStore((s) => s.setPendingEditAppointmentId);
+  const deleteAppointment = useAppStore((s) => s.deleteAppointment);
+
+  const selectedAppt = appointments.find((a) => a.id === selectedAppointmentId) ?? null;
+
+  const handleEdit = (appt: Appointment) => {
+    setSelectedAppointmentId(null);
+    setPendingEditAppointmentId(appt.id);
+    router.push("/(tabs)/appointments");
+  };
+
+  const handleDelete = (appt: Appointment) => {
+    deleteAppointment(appt.id);
+    setSelectedAppointmentId(null);
+  };
+
   return (
+    <>
+      <AppointmentDetailModal
+        appt={selectedAppt}
+        visible={!!selectedAppt}
+        onClose={() => setSelectedAppointmentId(null)}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -103,5 +134,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </>
   );
 }

@@ -126,7 +126,14 @@ interface AppState {
   // ── Daily check-ins ──────────────────────────────────────────────────
   dailyCheckins: DailyCheckin[];
   loadDailyCheckins: () => Promise<void>;
-  saveDailyCheckin: (data: Omit<DailyCheckin, 'id' | 'createdAt'>) => Promise<void>;}
+  saveDailyCheckin: (data: Omit<DailyCheckin, 'id' | 'createdAt'>) => Promise<void>;
+
+  // ── Appointment detail modal ──────────────────────────────────────────
+  /** The appointment ID to show in the detail modal. null = hidden. */
+  selectedAppointmentId: string | null;
+  setSelectedAppointmentId: (id: string | null) => void;  /** When set, the Appointments screen auto-opens the edit form for this ID. */
+  pendingEditAppointmentId: string | null;
+  setPendingEditAppointmentId: (id: string | null) => void;}
 
 // ─── Store ─────────────────────────────────────────────────────────────────
 
@@ -138,6 +145,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   healthMeasurements: [],
   dailyCheckins: [],
   snoozedTimes: {},
+  selectedAppointmentId: null,
+  pendingEditAppointmentId: null,
   isLoading: false,
   themeMode: "system",
 
@@ -534,6 +543,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...s.dailyCheckins.filter((c) => c.date !== checkin.date),
       ].sort((a, b) => b.date.localeCompare(a.date)),
     }));
+  },
+
+  // ── Appointment detail modal ──────────────────────────────────────────────
+
+  setSelectedAppointmentId(id) {
+    set({ selectedAppointmentId: id });
+  },
+
+  setPendingEditAppointmentId(id) {
+    set({ pendingEditAppointmentId: id });
   },
 }));
 

@@ -93,6 +93,7 @@ export default function CalendarScreen() {
   const markDose    = useAppStore((s) => s.markDose);
   const appointments    = useAppStore((s) => s.appointments);
   const loadAppointments = useAppStore((s) => s.loadAppointments);
+  const setSelectedAppointmentId = useAppStore((s) => s.setSelectedAppointmentId);
 
   const DAY_HEADERS = t("calendar.dayHeaders", { returnObjects: true }) as string[];
 
@@ -489,7 +490,7 @@ export default function CalendarScreen() {
                 appt={appt}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/(tabs)/appointments");
+                  setSelectedAppointmentId(appt.id);
                 }}
               />
             ))}

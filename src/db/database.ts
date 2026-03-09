@@ -127,6 +127,16 @@ export async function initDatabase(): Promise<void> {
     try { await db.execAsync("ALTER TABLE dose_logs ADD COLUMN notes TEXT"); } catch { /* already exists */ }
     await db.execAsync("PRAGMA user_version = 4");
   }
+
+  if (user_version < 5) {
+    for (const sql of [
+      "ALTER TABLE appointments ADD COLUMN location_lat REAL",
+      "ALTER TABLE appointments ADD COLUMN location_lng REAL",
+    ]) {
+      try { await db.execAsync(sql); } catch { /* already exists */ }
+    }
+    await db.execAsync("PRAGMA user_version = 5");
+  }
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────
@@ -427,11 +437,15 @@ export async function clearAllData(): Promise<void> {
 // ─── Appointments ─────────────────────────────────────────────────────────
 
 function rowToAppointment(row: Record<string, unknown>): Appointment {
+  const lat = row.location_lat != null ? (row.location_lat as number) : undefined;
+  const lng = row.location_lng != null ? (row.location_lng as number) : undefined;
   return {
     id: row.id as string,
     title: row.title as string,
     doctor: row.doctor as string | undefined,
     location: row.location as string | undefined,
+    locationCoords:
+      lat != null && lng != null ? { latitude: lat, longitude: lng } : undefined,
     notes: row.notes as string | undefined,
     date: row.date as string,
     time: row.time as string | undefined,
@@ -452,13 +466,15 @@ export async function getAppointments(): Promise<Appointment[]> {
 export async function insertAppointment(appt: Appointment): Promise<void> {
   const db = await getDb();
   await db.runAsync(
-    `INSERT INTO appointments (id, title, doctor, location, notes, date, time, reminder_minutes, notification_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO appointments (id, title, doctor, location, location_lat, location_lng, notes, date, time, reminder_minutes, notification_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       appt.id,
       appt.title,
       appt.doctor ?? null,
       appt.location ?? null,
+      appt.locationCoords?.latitude ?? null,
+      appt.locationCoords?.longitude ?? null,
       appt.notes ?? null,
       appt.date,
       appt.time ?? null,
@@ -473,13 +489,15 @@ export async function updateAppointment(appt: Appointment): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `UPDATE appointments
-     SET title = ?, doctor = ?, location = ?, notes = ?, date = ?, time = ?,
-         reminder_minutes = ?, notification_id = ?
+     SET title = ?, doctor = ?, location = ?, location_lat = ?, location_lng = ?,
+         notes = ?, date = ?, time = ?, reminder_minutes = ?, notification_id = ?
      WHERE id = ?`,
     [
       appt.title,
       appt.doctor ?? null,
       appt.location ?? null,
+      appt.locationCoords?.latitude ?? null,
+      appt.locationCoords?.longitude ?? null,
       appt.notes ?? null,
       appt.date,
       appt.time ?? null,

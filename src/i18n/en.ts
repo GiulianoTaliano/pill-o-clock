@@ -269,6 +269,18 @@ const en: TranslationShape = {
     errorTitleRequired: "Title required",
     errorDateRequired: "Date required",
     errorGeneric: "Could not save the appointment. Please try again.",
+    // Location picker
+    pickOnMap: "Pin on map",
+    locationPickerTitle: "Pin location",
+    locationPickerSubtitle: "Tap on the map to set the location",
+    locationPickerConfirm: "Set this location",
+    locateMe: "My location",
+    viewOnMap: "View on map",
+    shareLocation: "Share",
+    locationPermDenied: "Location permission is required to use this feature.",
+    locationPermTitle: "Location permission",
+    locationLoading: "Getting your location…",
+    locationClear: "Clear location",
   },
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────
