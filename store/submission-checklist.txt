@@ -1,5 +1,5 @@
 ══════════════════════════════════════════════════════════════
- PILL-O-CLOCK — INTERNAL TRACK SUBMISSION CHECKLIST
+ PILL O-CLOCK — INTERNAL TRACK SUBMISSION CHECKLIST
  VERSION 1.2.0
 ══════════════════════════════════════════════════════════════
 
@@ -13,7 +13,7 @@ STEP 0 — ONE-TIME SETUP (only on first submission ever)
     https://play.google.com/console
 
 [ ] New app created in Play Console
-    → "Create app" → App name: Pill-O-Clock → Free → Not a game
+    → "Create app" → App name: Pill O-Clock → Free → Not a game
 
 [ ] Service account key generated for EAS Submit:
     Play Console → Setup → API access → Link to Google Cloud project
@@ -57,7 +57,7 @@ STEP 2 — CONFIGURE NOTIFICATIONS PLUGIN (collapsed title i18n)
 
 [ ] In app.json, the "androidCollapsedTitle" is build-time only.
     Since we support two languages, keep it neutral:
-    "androidCollapsedTitle": "Pill-O-Clock"
+    "androidCollapsedTitle": "Pill O-Clock"
     (the runtime channel name is already translated via i18n.t())
 
 ───────────────────────────────────────────────────────────────

@@ -52,7 +52,7 @@ const es = {
 
   // ─── Home screen ──────────────────────────────────────────────────────────
   home: {
-    title: "💊 Pill-O-Clock",
+    title: "💊 Pill O-Clock",
     noMeds: "Sin medicamentos hoy",
     noMedsSubtitle: "Agregá tu primer medicamento tocando el + arriba",
     sectionPending: "Pendientes",
@@ -216,11 +216,11 @@ const es = {
   permissions: {
     exactAlarmTitle: "Permiso necesario",
     exactAlarmMessage:
-      "Para que las alarmas suenen a tiempo en Android 12, habilitá \"Alarmas y recordatorios\" para Pill-O-Clock en Configuración.",
+      "Para que las alarmas suenen a tiempo en Android 12, habilitá \"Alarmas y recordatorios\" para Pill O-Clock en Configuración.",
     exactAlarmLater: "Ahora no",
     exactAlarmOpen: "Abrir configuración",    fullScreenTitle: "Permitir alarmas en pantalla completa",
     fullScreenMessage:
-      "En Android 14+, necesitás otorgar el permiso \"Mostrar notificaciones en pantalla completa\" para que la pantalla de alarma pueda aparecer sobre la pantalla de bloqueo. Tapá \"Abrir configuración\" y activá la opción para Pill-O-Clock.",  },
+      "En Android 14+, necesitás otorgar el permiso \"Mostrar notificaciones en pantalla completa\" para que la pantalla de alarma pueda aparecer sobre la pantalla de bloqueo. Tapá \"Abrir configuración\" y activá la opción para Pill O-Clock.",  },
 
   // ─── Stock ────────────────────────────────────────────────────────────────
   stock: {
@@ -229,6 +229,7 @@ const es = {
     badge_one: "Queda {{count}}",
     badge_other: "Quedan {{count}}",
     low: "Stock bajo",
+    channelName: "Alertas de stock",
   },
 
   // ─── Citas ───────────────────────────────────────────────────────────────
@@ -253,7 +254,7 @@ const es = {
     fieldNotes: "Notas (opcional)",
     fieldNotesPlaceholder: "Preguntas para hacer, cosas para llevar...",
     fieldDate: "Fecha",
-    fieldTime: "Hora (opcional)",
+    fieldTime: "Hora",
     fieldReminder: "Recordatorio",
     reminderNone: "Sin recordatorio",
     reminder1h: "1 hora antes",
@@ -270,7 +271,8 @@ const es = {
     // Location picker
     pickOnMap: "Fijar en mapa",
     locationPickerTitle: "Fijar ubicación",
-    locationPickerSubtitle: "Tocá el mapa para marcar la ubicación",
+    locationSearchPlaceholder: "Buscar dirección o arrastrá el mapa…",
+    locationPickerSubtitle: "Arrastrá el mapa para posicionar el pin",
     locationPickerConfirm: "Confirmar ubicación",
     locateMe: "Mi ubicación",
     viewOnMap: "Ver en mapa",
@@ -316,6 +318,7 @@ const es = {
     reminderSection: "Recordatorio diario",
     reminderSubtitle: "Recibí una notificación para medir",
     reminderNone: "Sin recordatorio",
+    reminderTapToConfigure: "tocá para configurar",
     reminderActive: "Activo · {{time}}",
     reminderSaved: "Recordatorio guardado",
     reminderCancelled: "Recordatorio desactivado",
@@ -342,6 +345,7 @@ const es = {
     heart_rate_format: "{{v1}}",
     notifTitle: "⏱ Hora de registrar",
     notifBody: "Abrí la app para registrar tus mediciones del día",
+    channelName: "Recordatorios de salud",
   },
 
   // ─── Check-in diario ───────────────────────────────────────────────────────
@@ -387,13 +391,13 @@ const es = {
     generating: "Generando informe...",
     errorTitle: "Error al generar",
     errorMsg: "No se pudo generar el informe. Intentá de nuevo.",
-    sectionTitle: "Informe de Salud — Pill-O-Clock",
+    sectionTitle: "Informe de Salud — Pill O-Clock",
     sectionMeds: "Medicamentos activos",
     sectionHistory: "Historial de dosis — últimos 30 días",
     sectionHealth: "Mediciones de salud",
     sectionDiary: "Diario de bienestar",
     noData: "Sin datos disponibles",
-    generatedBy: "Generado con Pill-O-Clock",
+    generatedBy: "Generado con Pill O-Clock",
     privacyNote: "Datos 100% locales — no se comparten con terceros",
   },
 
@@ -415,7 +419,7 @@ const es = {
     importSuccessMsg_one: "{{count}} medicamento importado correctamente.",
     importSuccessMsg_other: "{{count}} medicamentos importados correctamente.",
     importError: "Error al importar",
-    importErrorFormat: "El archivo no tiene el formato correcto de Pill-O-Clock.",
+    importErrorFormat: "El archivo no tiene el formato correcto de Pill O-Clock.",
     importErrorGeneric: "No se pudo importar el archivo. Intentá de nuevo.",
     exportError: "Error al exportar",
     exportErrorGeneric: "No se pudo exportar. Intentá de nuevo.",
@@ -452,7 +456,7 @@ const es = {
     next: "Siguiente",
     skip: "Omitir",
     start: "Comenzar",
-    slide1Title: "Pill-O-Clock",
+    slide1Title: "Pill O-Clock",
     slide1Sub: "Tu asistente de medicamentos",
     slide1Desc: "Nunca más olvidés una dosis. Alarmas puntuales y seguimiento de adherencia en un solo lugar.",
     slide2Title: "Alarmas inteligentes",

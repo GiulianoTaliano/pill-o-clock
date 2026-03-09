@@ -1,68 +1,72 @@
 ══════════════════════════════════════════════════════
- PILL-O-CLOCK — PLAY STORE LISTING (ESPAÑOL)
+ PILL O-CLOCK — PLAY STORE LISTING (ESPAÑOL)
  Copy-paste into Google Play Console → Store listing
 ══════════════════════════════════════════════════════
 
 ── TÍTULO DE LA APP (max 30 caracteres) ────────────────
-Pill-O-Clock
+Pill O-Clock: Pastillero
 
 ── DESCRIPCIÓN BREVE (max 80 caracteres) ───────────────
-Recordatorios, mediciones de salud y diario de síntomas. Sin cuenta, 100% local.
+Alarma de medicamentos y diario de salud. Sin cuenta — gratis y 100% privado.
 
 ── DESCRIPCIÓN COMPLETA (max 4000 caracteres) ──────────
 
-💊 Pill-O-Clock — Nunca más olvides una dosis
+💊 Pill O-Clock — La alarma de medicamentos que realmente suena
 
-Pill-O-Clock es tu asistente personal de medicamentos. Te recuerda exactamente cuándo tomar cada medicamento, hace sonar una alarma con opciones de acción rápida, registra tu adherencia, hace seguimiento de tus mediciones de salud con gráficos de tendencia, y te permite registrar cómo te sentís cada día — todo guardado de forma privada en tu dispositivo.
+Nunca más olvidés una dosis. Pill O-Clock es tu asistente personal de salud completo: hace sonar una alarma real cuando es hora de tomar tu medicamento, registra cada dosis que tomás (o no), hace seguimiento de tus mediciones con gráficos de tendencia, y te permite anotar cómo te sentís cada día — todo guardado de forma privada en tu teléfono. Sin cuenta. Sin suscripción. Sin que tus datos salgan de tu dispositivo. Nunca.
 
 ▸ ALARMAS QUE REALMENTE SUENAN
-Recordatorios con sonido de alarma que se repiten cada 5 minutos hasta que respondés: podés marcar la dosis como tomada, posponerla 15 minutos u omitirla — todo sin abrir la app.
+La mayoría de las apps de recordatorio envían una notificación silenciosa fácil de ignorar. Pill O-Clock hace sonar una alarma completa que se repite cada 5 minutos hasta que respondés. Tomá la dosis, posponé 15 minutos u omití — todo directamente desde la notificación o la pantalla de bloqueo, sin abrir la app.
 
 ▸ GESTIÓN COMPLETA DE MEDICAMENTOS
-Organizá todos tus medicamentos con nombre, dosis (mg, ml, gotas, comprimidos, cápsulas...), categoría, instrucciones y color. Configurá alarmas diarias o solo en días específicos. Establecé un período de tratamiento con fecha de inicio y fin. Controlá el stock y recibí alertas cuando esté por agotarse.
+Agregá cualquier medicamento con su nombre, dosis (mg, ml, gotas, comprimidos, cápsulas…), categoría, instrucciones especiales, color y período de tratamiento. Configurá una o múltiples alarmas por día, solo algunos días de la semana, o todos los días. Controlá el stock actual y recibí alertas automáticas de stock bajo antes de quedarte sin dosis.
 
 ▸ MEDICIONES DE SALUD
 Registrá presión arterial (sistólica/diastólica), glucemia, peso, SpO₂ y frecuencia cardíaca. Cada métrica muestra el último valor, una mini gráfica y un gráfico de tendencia completo para detectar patrones a lo largo del tiempo. Configurá un recordatorio diario opcional para medir.
 
-▸ DIARIO DE SÍNTOMAS Y ESTADO
-Registrá tu humor (5 niveles) y síntomas cada día — dolor de cabeza, náuseas, fatiga, mareos y más. Editable en cualquier momento. Correlacioná cómo te sentís con tu historial de medicación de un vistazo.
+▸ DIARIO DE BIENESTAR DIARIO
+Registrá tu estado de ánimo en una escala de 5 niveles y hacé seguimiento de síntomas cada día — dolor de cabeza, náuseas, fatiga, mareos, dolor de estómago, ansiedad, insomnio y más. Las entradas pasadas son editables en cualquier momento. Correlacioná cómo te sentís con tu historial de medicación de un vistazo.
 
 ▸ REPORTE PDF PARA TU MÉDICO
-Generá y compartí un reporte completo en PDF — medicamentos, historial de dosis, mediciones de salud y diario — listo para llevar a tu próxima consulta médica.
+Generá un informe completo de salud en PDF con un toque — medicamentos activos, historial de dosis de los últimos 30 días, mediciones y diario de bienestar — listo para compartir con tu médico o especialista en tu próxima consulta.
 
-▸ SEGUIMIENTO DE ADHERENCIA
-El Historial muestra qué dosis tomaste, cuáles omitiste y cuáles no tomaste en los últimos 30 días. La tasa de adherencia te da una visión clara de cómo estás siguiendo tu tratamiento.
+▸ RACHA DE ADHERENCIA E HISTORIAL
+Un chip de llama en la pantalla principal muestra tus días consecutivos de adherencia completa. La pestaña Historial muestra dosis tomadas, omitidas y no tomadas con un porcentaje de adherencia claro para que siempre sepas cómo estás siguiendo tu tratamiento.
 
 ▸ CALENDARIO VISUAL
-Vista mensual que agrupa tus dosis por día y por estado — pendientes, tomadas, omitidas y no tomadas — para identificar rápidamente los días con incidencias.
-
-▸ TUS DATOS SON TUYOS
-Todo se guarda en tu dispositivo. Nada se envía a servidores externos. Podés exportar una copia de seguridad completa (medicamentos + historial) en cualquier momento y restaurarla si cambiás de teléfono.
+Vista mensual que agrupa tus dosis por día y estado — pendientes, tomadas, omitidas y no tomadas — para identificar al instante los días con incidencias y mantenerte en control.
 
 ▸ CITAS MÉDICAS
-Seguí tus próximas y pasadas citas médicas con médico, ubicación, fecha/hora, notas y un recordatorio configurable.
+Organizá todas tus citas médicas próximas y pasadas: nombre del médico, ubicación con pin en el mapa, fecha/hora, notas y recordatorio configurable (1 hora, 2 horas o 1 día antes).
+
+▸ TUS DATOS SON TUYOS — SIEMPRE
+Todo se almacena en una base de datos local privada en tu dispositivo. Nada se envía a servidores externos. Sin cuenta, sin sincronización en la nube, sin analíticas, sin anuncios. Exportá una copia de seguridad completa (medicamentos + historial) en cualquier momento y restaurala si cambiás de teléfono.
 
 ▸ DISPONIBLE EN ESPAÑOL E INGLÉS
-La app detecta automáticamente el idioma de tu dispositivo y también permite cambiarlo manualmente desde Ajustes.
+La app detecta automáticamente el idioma de tu dispositivo. Español e inglés tienen soporte completo, y podés cambiar el idioma manualmente desde Ajustes en cualquier momento.
 
-⚠️ Aviso: Pill-O-Clock es una herramienta de recordatorio y seguimiento que no reemplaza el consejo de un profesional de salud. Siempre consultá a tu médico o farmacéutico.
+▸ MODO OSCURO Y DISEÑO LIMPIO
+Sigue automáticamente el tema claro/oscuro del sistema. Tipografía clara y legible con indicadores de estado por colores para un uso rápido y fácil.
+
+⚠️ Aviso: Pill O-Clock es una herramienta de recordatorio y seguimiento que no reemplaza el consejo de un profesional de la salud calificado. Siempre consultá a tu médico o farmacéutico antes de realizar cambios en tu tratamiento.
 
 ── NOVEDADES / RELEASE NOTES (max 500 caracteres) ──────
 
 v1.2.0
-
 • Mediciones de salud: presión arterial, glucemia, peso, SpO₂, frecuencia cardíaca
-• Gráficos de tendencia por métrica
-• Diario de humor y síntomas diarios
+• Gráficos de tendencia por métrica de salud
+• Diario diario de humor y síntomas
 • Reporte PDF para compartir con tu médico
 • Recordatorio diario de medición
 
 v1.1.0
-
-• Racha de adherencia consecutiva
-• Control de stock con alertas de stock bajo
+• Racha de adherencia: días consecutivos de adherencia completa
+• Control de stock con alertas automáticas de stock bajo
 • Notas por dosis (pantalla de alarma + inicio)
-• Pestaña de citas médicas
+• Pestaña de citas médicas con recordatorios
+
+v1.0.0
+• Lanzamiento inicial: alarmas, historial de adherencia, calendario, backup y restauración
 
 ── CATEGORÍA ────────────────────────────────────────────
 Health & Fitness
@@ -71,7 +75,7 @@ Health & Fitness
 Everyone
 
 ── ETIQUETAS / KEYWORDS ─────────────────────────────────
-medicamento, pastilla, alarma, recordatorio, dosis, adherencia, salud, presión arterial, glucemia, diario de síntomas, salud personal, health, medication, reminder, pill, alarm
+recordatorio de medicamentos, pastillero, alarma de pastillas, rastreador de salud, control de medicación, presión arterial, glucemia, diario de síntomas, rastreador de humor, diario de salud, historial de medicamentos, recordatorio de dosis, agenda médica, citas médicas, adherencia, seguimiento de salud, recordatorio de píldoras, medicación diaria, pastilla, alarma médica, informe médico PDF, medication reminder, pill reminder, health tracker, dose tracker
 
 ── CORREO DE CONTACTO ───────────────────────────────────
 privacy@pilloclock.app
@@ -85,3 +89,17 @@ https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html
 ¿Permite eliminar datos?  → Sí (Ajustes → Borrar todos los datos)
 ¿Cifrado en tránsito?     → No aplica (no hay tránsito de datos)
 ¿Sigue pautas de datos de familia?  → No
+
+── COPIA SUGERIDA PARA EL FEATURE GRAPHIC ───────────────
+Titular: "Alarmas confiables. Salud privada."
+Subtítulo: "Sin cuenta. Sin nube. 100% tuyo."
+
+── NOMBRES DE CAPTURAS DE PANTALLA (sugerido) ───────────
+1. Pestaña Hoy       — "Tus dosis del día de un vistazo"
+2. Pantalla alarma   — "Alarmas que suenan hasta que respondés"
+3. Pestaña Salud     — "Registrá presión, glucemia y más"
+4. Gráfico tendencia — "Detectá patrones con gráficos claros"
+5. Check-in diario   — "Anotá tu humor y síntomas cada día"
+6. Pestaña Medicamentos — "Todos tus remedios organizados"
+7. Historial         — "Tu adherencia de un vistazo"
+8. Reporte PDF       — "Compartí tu informe con tu médico"

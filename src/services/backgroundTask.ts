@@ -6,6 +6,25 @@ import { rescheduleAllNotifications } from "./notifications";
 
 // ─── Task name ─────────────────────────────────────────────────────────────
 
+// ─── Platform documentation ────────────────────────────────────────────────
+//
+// Android
+//   • BackgroundFetch runs at roughly the requested minimumInterval (6 h).
+//   • stopOnTerminate: false keeps the task alive after the app is force-quit.
+//   • startOnBoot: true re-registers automatically after a device reboot, so
+//     AlarmManager alarms are restored when the phone powers back on.
+//
+// iOS
+//   • stopOnTerminate and startOnBoot are silently ignored by iOS.
+//   • The system decides when to execute the background fetch based on the
+//     user’s historical usage patterns; minimumInterval is only a hint.
+//     Execution may be delayed by hours or skipped entirely in low-power mode.
+//   • Because iOS pre-schedules all dose notifications at app-open time
+//     (see notifications.ts → DAYS_AHEAD = 3), the 3-day window is the real
+//     safety buffer.  The AppState 'active' listener in _layout.tsx
+//     (rescheduleAllNotifications on foreground) is the most reliable
+//     reschedule hook on iOS.
+//
 export const BG_TASK_NAME = "PILL_RESCHEDULE_NOTIFICATIONS";
 
 // ─── Task definition ───────────────────────────────────────────────────────

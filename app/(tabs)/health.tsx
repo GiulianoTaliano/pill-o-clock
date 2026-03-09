@@ -631,7 +631,7 @@ export default function HealthScreen() {
                       className="flex-row items-center gap-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3"
                     >
                       <Ionicons name="time-outline" size={16} color="#94a3b8" />
-                      <Text className="text-sm text-muted">{t("health.reminderNone")} · toc\u00e1 para configurar</Text>
+                      <Text className="text-sm text-muted">{t("health.reminderNone")} · {t("health.reminderTapToConfigure")}</Text>
                     </TouchableOpacity>
                   )}
 

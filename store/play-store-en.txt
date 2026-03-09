@@ -1,68 +1,72 @@
 ══════════════════════════════════════════════════════
- PILL-O-CLOCK — PLAY STORE LISTING (ENGLISH)
+ PILL O-CLOCK — PLAY STORE LISTING (ENGLISH)
  Copy-paste into Google Play Console → Store listing
 ══════════════════════════════════════════════════════
 
 ── APP TITLE (max 30 characters) ───────────────────────
-Pill-O-Clock
+Pill O-Clock: Pill Reminder
 
 ── SHORT DESCRIPTION (max 80 characters) ───────────────
-Medication reminders, health tracking & symptom diary. All local, no account.
+Medication alarm & health diary. No account required — 100% free & private.
 
 ── FULL DESCRIPTION (max 4000 characters) ──────────────
 
-💊 Pill-O-Clock — Never miss a dose again
+💊 Pill O-Clock — The medication alarm that actually rings
 
-Pill-O-Clock is your personal medication assistant. It reminds you exactly when to take each medication, rings an alarm with quick-action buttons, logs your adherence, tracks your health measurements with trends, and lets you record how you feel every day — all stored privately on your device.
+Never miss a dose again. Pill O-Clock is a complete personal health assistant: it fires a real alarm sound when it's time to take your medication, tracks every dose you take (or skip), monitors your health measurements with trend charts, and records how you feel each day — all stored privately on your phone. No account. No subscription. No data leaving your device. Ever.
 
 ▸ ALARMS THAT ACTUALLY RING
-Reminders with a real alarm sound that repeat every 5 minutes until you respond. Mark the dose as taken, snooze it 15 minutes, or skip it — all without opening the app, directly from the notification.
+Most reminder apps send a silent notification that's easy to ignore. Pill O-Clock rings a full alarm sound that repeats every 5 minutes until you respond. Take the dose, snooze for 15 minutes, or skip — all directly from the notification or lock screen, without opening the app.
 
 ▸ COMPLETE MEDICATION MANAGEMENT
-Organize all your medications with name, dose (mg, ml, drops, tablets, capsules...), category, instructions, and color. Set daily alarms or only on specific days of the week. Define a treatment period with start and end dates. Track stock and get low-stock alerts.
+Add any medication with its name, dose (mg, ml, drops, tablets, capsules…), category, special instructions, color tag, and treatment period. Set one or multiple alarms per day, only on certain days of the week, or every single day. Track your current stock and get automatic low-stock alerts before you run out.
 
 ▸ HEALTH MEASUREMENTS
-Record blood pressure (systolic/diastolic), blood glucose, weight, SpO₂, and heart rate. Each metric shows your latest value, a sparkline, and a full trend chart so you can spot patterns over time. Set an optional daily reminder to measure.
+Record blood pressure (systolic/diastolic), blood glucose, weight, SpO₂, and heart rate. Each metric shows your latest value, a sparkline preview, and a full trend chart so you can easily spot patterns over time. Set an optional daily reminder to measure.
 
 ▸ DAILY WELLBEING DIARY
-Log your mood (5 levels) and symptoms every day — headache, nausea, fatigue, dizziness, and more. Editable at any time. Correlate how you feel with your medication history at a glance.
+Log your mood on a 5-level scale and track symptoms every day — headache, nausea, fatigue, dizziness, stomach pain, anxiety, insomnia, and more. Past entries are editable at any time. Correlate how you feel with your medication history at a glance.
 
-▸ PDF HEALTH REPORT
-Generate and share a comprehensive report as a PDF — medications, dose history, health measurements, and diary entries — ready to bring to your doctor appointment.
+▸ PDF HEALTH REPORT FOR YOUR DOCTOR
+Generate a comprehensive health report as a PDF in one tap — active medications, 30-day dose history, health measurements, and diary entries — ready to share with your doctor or specialist at your next appointment.
 
-▸ ADHERENCE TRACKING
-The History tab shows which doses you took, skipped, or missed over the last 30 days. Your adherence rate gives you a clear picture of how well you are following your treatment.
+▸ ADHERENCE STREAK & HISTORY
+A flame chip on the home screen shows your consecutive days of full adherence. The History tab shows taken, skipped, and missed doses with a clear adherence rate percentage so you always know how well you're following your treatment.
 
 ▸ VISUAL CALENDAR
-Monthly view that groups your doses by day and status — pending, taken, skipped, and missed — so you can quickly spot days with issues.
-
-▸ YOUR DATA BELONGS TO YOU
-Everything is saved on your device. Nothing is sent to external servers. You can export a full backup (medications + history) at any time and restore it if you switch phones.
+Monthly view that groups your doses by day and status — pending, taken, skipped, and missed — so you can instantly spot days with issues and stay on track.
 
 ▸ MEDICAL APPOINTMENTS
-Keep track of upcoming and past appointments with doctor, location, date/time, notes, and a configurable reminder.
+Keep all your upcoming and past medical appointments organized: doctor name, location with map pin, date/time, notes, and a configurable reminder (1 hour, 2 hours, or 1 day before).
+
+▸ YOUR DATA IS YOURS — ALWAYS
+Everything is stored in a private local database on your device. Nothing is ever sent to external servers. No account, no cloud sync, no analytics, no ads. Export a full backup (medications + history) at any time and restore it if you switch phones.
 
 ▸ SPANISH & ENGLISH
-The app automatically detects your device's language and also lets you change it manually from Settings.
+The app automatically detects your device language. Spanish and English are both fully supported, and you can switch languages manually from Settings at any time.
 
-⚠️ Disclaimer: Pill-O-Clock is a reminder and tracking tool and does not replace the advice of a qualified healthcare professional. Always consult your doctor or pharmacist.
+▸ DARK MODE & CLEAN DESIGN
+Follows your system's light/dark theme automatically. Clean, readable typography and color-coded status indicators make it easy to use at a glance.
+
+⚠️ Disclaimer: Pill O-Clock is a reminder and tracking tool and does not replace the advice of a qualified healthcare professional. Always consult your doctor or pharmacist before changing your medication regimen.
 
 ── WHAT'S NEW / RELEASE NOTES (max 500 characters) ─────
 
 v1.2.0
-
 • Health measurements: blood pressure, glucose, weight, SpO₂, heart rate
-• Trend charts for every metric
+• Trend charts for every health metric
 • Daily mood & symptom diary
 • PDF health report — share with your doctor
 • Daily measurement reminder notification
 
 v1.1.0
+• Adherence streak: consecutive days of full adherence
+• Stock tracking with automatic low-stock alerts
+• Notes per dose (alarm screen + home screen)
+• Medical appointments tab with reminders
 
-• Streaks: track consecutive days of full adherence
-• Stock tracking with low-stock alerts
-• Notes per dose (alarm screen + home)
-• Medical appointments tab
+v1.0.0
+• Initial release: medication alarms, adherence history, calendar, backup & restore
 
 ── CATEGORY ─────────────────────────────────────────────
 Health & Fitness
@@ -71,7 +75,7 @@ Health & Fitness
 Everyone
 
 ── TAGS / KEYWORDS ──────────────────────────────────────
-medication, pill, alarm, reminder, dose, adherence, health, blood pressure, glucose, symptom diary, health tracker, medicamento, pastilla, alarma, recordatorio
+medication reminder, pill reminder, medicine alarm, medication tracker, pill alarm, dose reminder, health tracker, blood pressure tracker, glucose tracker, symptom diary, mood tracker, medication diary, adherence tracker, health journal, medication log, pill counter, medicine tracker, drug reminder, prescription reminder, health app, medical appointments, pill organizer, daily medication, medication schedule, medication management, diabetes tracker, blood pressure log
 
 ── CONTACT EMAIL ────────────────────────────────────────
 privacy@pilloclock.app
@@ -85,3 +89,17 @@ Does the app share data?             → No
 Can users request data deletion?     → Yes (Settings → Delete all data)
 Is data encrypted in transit?        → N/A (no data is transmitted)
 Does it follow Families guidelines?  → No
+
+── FEATURE GRAPHIC SUGGESTED COPY ──────────────────────
+Headline:  "Reliable alarms. Private health tracking."
+Sub-copy:  "No account. No cloud. 100% yours."
+
+── SCREENSHOT CAPTIONS (suggested) ─────────────────────
+1. Today tab        — "Your daily doses at a glance"
+2. Alarm screen     — "Alarms that ring until you respond"
+3. Health tab       — "Track blood pressure, glucose & more"
+4. Trend chart      — "Spot patterns with beautiful charts"
+5. Diary check-in   — "Log your mood & symptoms daily"
+6. Medications tab  — "All your meds in one organized view"
+7. History tab      — "See your adherence at a glance"
+8. PDF report       — "Share a health report with your doctor"

@@ -1,4 +1,4 @@
-# Pill-O-Clock — Guía de Testing
+# Pill O-Clock — Guía de Testing
 
 > **Versión de referencia:** 1.2.0  
 > **Última actualización:** Marzo 2026  
@@ -139,7 +139,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | 1 | Completar TC-01 en un dispositivo Android 12 | — |
 | 2 | Crear un medicamento con una alarma | ✅ Se muestra un diálogo indicando que se requiere el permiso "Alarmas y recordatorios" |
 | 3 | Tocar "Abrir configuración" | ✅ Abre la pantalla de Ajustes del sistema en la sección correcta |
-| 4 | Habilitar "Alarmas y recordatorios" para Pill-O-Clock | ✅ Volver a la app; las alarmas funcionan con exactitud |
+| 4 | Habilitar "Alarmas y recordatorios" para Pill O-Clock | ✅ Volver a la app; las alarmas funcionan con exactitud |
 | 5 | Tocar "Ahora no" en el diálogo | ✅ El diálogo se cierra; el medicamento se guarda pero la alarma puede llegar con retraso |
 
 ---
@@ -553,7 +553,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 
 | # | Paso | Resultado esperado |
 |---|------|--------------------|
-| 1 | Intentar importar un JSON que no sea un backup de Pill-O-Clock | ✅ Toast de error: "Formato inválido" |
+| 1 | Intentar importar un JSON que no sea un backup de Pill O-Clock | ✅ Toast de error: "Formato inválido" |
 | 2 | Cancelar en el selector de archivos | ✅ No se muestra ningún error; vuelve a Ajustes |
 
 ---
@@ -811,7 +811,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 | 3 | Sección historial | ✅ Filas agrupadas por fecha; cada dosis muestra nombre, hora, estado y nota (si tiene) |
 | 4 | Sección mediciones | ✅ Una sub-sección por tipo de métrica; muestra hasta 20 lecturas con fecha y valor |
 | 5 | Sección diario | ✅ Hasta 30 check-ins con emoji de humor, síntomas y notas |
-| 6 | Footer | ✅ Incluye nota de privacidad: "Datos 100% locales — Pill-O-Clock" |
+| 6 | Footer | ✅ Incluye nota de privacidad: "Datos 100% locales — Pill O-Clock" |
 | 7 | Sin datos en alguna sección | ✅ Se muestra el texto "Sin datos registrados" en esa sección |
 
 ---
@@ -908,8 +908,8 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 - [ ] TC-03 (Permiso alarma exacta Android 12) verificado en API 31 o 32
 - [ ] TC-33 (Bypass DnD) verificado
 - [ ] TC-45a (Reprogramación post-reinicio) verificado
-- [ ] El canal `pill-reminders` aparece en Ajustes → Notificaciones → Pill-O-Clock
-- [ ] El canal `health-reminders` aparece en Ajustes → Notificaciones → Pill-O-Clock
+- [ ] El canal `pill-reminders` aparece en Ajustes → Notificaciones → Pill O-Clock
+- [ ] El canal `health-reminders` aparece en Ajustes → Notificaciones → Pill O-Clock
 - [ ] El sonido `alarm.wav` suena correctamente (no el sonido de sistema default)
 - [ ] La app no cierra con el gesto de retroceso predictivo (predictiveBackGestureEnabled: false)
 

@@ -13,6 +13,22 @@ import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alar
  * Fullscreen alarm screen.
  * Opened via deep link: pilloclock://alarm?scheduleId=...&date=...
  *
+ * Platform behaviour:
+ *
+ *  Android
+ *   • Opened automatically by AlarmManager’s fullScreenIntent when the alarm
+ *     fires, even when the screen is locked. setAlarmWindowFlags() keeps the
+ *     activity visible above the lock screen and wakes the display.
+ *   • AlarmAudioService streams alarm.wav on STREAM_ALARM (audible in silent
+ *     mode) in a continuous loop until stopAlarm() is called.
+ *
+ *  iOS
+ *   • fullScreenIntent and AlarmManager do not exist on iOS. This screen is
+ *     only reached when the user taps the notification banner or a quick-action
+ *     button (TAKEN / SNOOZE / SKIP). It is never auto-opened above lock screen.
+ *   • setAlarmWindowFlags / stopAlarm are no-ops (platform-guarded in expo-alarm).
+ *   • Sound plays once per notification delivery (≤30 s, iOS limit).
+ *
  * When an `action` query param is present (sent by notification quick-action
  * buttons), the screen silently executes the action and navigates back
  * without rendering any UI.
@@ -20,11 +36,14 @@ import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alar
 export default function AlarmScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { scheduleId, date, action } = useLocalSearchParams<{
+  const { scheduleId, date, action, time } = useLocalSearchParams<{
     scheduleId: string;
     date: string;
     /** Set by AlarmActionReceiver: "taken" | "snooze" | "skipped" */
     action?: string;
+    /** Actual fire time (HH:mm). May differ from schedule.time when the user
+     *  used "reschedule once" from the Today screen. */
+    time?: string;
   }>();
 
   const medications = useAppStore((s) => s.medications);
@@ -63,7 +82,9 @@ export default function AlarmScreen() {
     medication,
     schedule,
     scheduledDate: date,
-    scheduledTime: schedule.time,
+    // Use the URL-supplied time when present (set by the native alarm module)
+    // so that a rescheduled dose records the correct time, not the original.
+    scheduledTime: time ?? schedule.time,
     status: "pending" as const,
   } : null;
 
@@ -113,7 +134,7 @@ export default function AlarmScreen() {
     medication,
     schedule,
     scheduledDate: date,
-    scheduledTime: schedule.time,
+    scheduledTime: time ?? schedule.time,
     status: "pending" as const,
   };
 
@@ -142,7 +163,7 @@ export default function AlarmScreen() {
     >
       {/* Top: time */}
       <View className="items-center">
-        <Text className="text-6xl font-black text-text">{schedule.time}</Text>
+        <Text className="text-6xl font-black text-text">{time ?? schedule.time}</Text>
         <Text className="text-base text-muted mt-1">{t('alarm.subtitle')}</Text>
       </View>
 

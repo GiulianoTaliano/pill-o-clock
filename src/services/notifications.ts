@@ -7,7 +7,7 @@ import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Schedule, Medication, NotificationMap, Appointment } from "../types";
 import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString } from "../utils";
 import i18n from "../i18n";
-import { getMedications, getAllActiveSchedules } from "../db/database";
+import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange } from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -16,10 +16,24 @@ export const NOTIFICATION_CHANNEL_ID = "pill-reminders-v2";
 // immutable after creation, so a new ID forces a fresh channel on existing devices.
 export const SNOOZE_MINUTES = 15;
 export const REPEAT_INTERVAL_MINUTES = 5;
-/** How many repeat reminders before giving up (5, 10, 15, 20 min after first) */
-export const MAX_REPEATS = 4;
-/** How many days ahead to schedule notifications */
-const DAYS_AHEAD = 7;
+/**
+ * How many repeat reminders to schedule after the initial notification.
+ *
+ * Android: 4 — each dose uses a single AlarmManager alarm, repeats are irrelevant.
+ * iOS    : 2 — conserves the 64-notification slot budget.
+ *               (initial + 2 repeats at +5 min and +10 min)
+ */
+export const MAX_REPEATS = Platform.OS === "ios" ? 2 : 4;
+
+/**
+ * How many days ahead to schedule notifications.
+ *
+ * Android: 7 — AlarmManager has no scheduling cap.
+ * iOS    : 3 — keeps total pending notifications safely under the 64-slot OS limit.
+ *              (3 days × ~6 schedules × 3 notifs/dose ≈ 54, leaving room for
+ *               appointment + health-reminder notifications)
+ */
+const DAYS_AHEAD = Platform.OS === "ios" ? 3 : 7;
 
 const NOTIF_MAP_KEY = "@pilloclock/notif_map";
 
@@ -28,6 +42,34 @@ const NOTIF_MAP_KEY = "@pilloclock/notif_map";
 export const ACTION_TAKEN = "TAKEN";
 export const ACTION_SNOOZE = "SNOOZE";
 export const ACTION_SKIP = "SKIP";
+
+// ─── Platform documentation ────────────────────────────────────────────────
+//
+// Android vs iOS notification delivery model:
+//
+//  Android
+//   • Dose reminders use ExpoAlarm (AlarmManager.setAlarmClock) — a native
+//     alarm that bypasses Doze, plays on STREAM_ALARM (sounds in silent mode),
+//     opens the fullscreen alarm.tsx screen above the lock screen, and rings
+//     until the user interacts.
+//   • One alarm per dose is sufficient; the native module has no scheduling cap.
+//   • Background reschedule (BackgroundFetch) runs reliably with startOnBoot.
+//
+//  iOS
+//   • AlarmManager / fullScreenIntent do NOT exist on iOS. The alarm screen
+//     is only reachable if the user taps the notification banner.
+//   • Dose reminders use expo-notifications chains: initial + repeat every
+//     REPEAT_INTERVAL_MINUTES minutes (up to MAX_REPEATS times).
+//   • iOS enforces a hard cap of 64 pending local notifications across the
+//     entire app. Exceeding it causes iOS to silently drop the oldest entries.
+//     Budget breakdown: 3 days × (up to ~6 schedules) × 3 notifs/dose = ~54,
+//     plus slots for appointment and health reminders.  Keep DAYS_AHEAD × MAX_REPEATS
+//     products conservative on iOS.
+//   • Sound plays once per notification (max 30 s). Bypass of DND requires
+//     the Critical Alerts entitlement approved by Apple (see README).
+//   • Background reschedule is best-effort; the AppState "active" listener
+//     is the reliable hook on iOS.
+//
 
 // ─── Setup ─────────────────────────────────────────────────────────────────
 
@@ -251,6 +293,18 @@ export async function scheduleDoseChain(
       dose:           medication.dosage,
       fireTimestamp:  baseDate.getTime(),
     });
+    // Track in the notification map so rescheduleAllNotifications can detect
+    // that this dose already has an alarm and not re-create one.
+    await addNotifMapEntries([{
+      notifId: `android-alarm:${schedule.id}:${scheduledDate}`,
+      data: {
+        doseLogId:     `${schedule.id}-${scheduledDate}`,
+        medicationId:  medication.id,
+        scheduleId:    schedule.id,
+        scheduledDate,
+        scheduledTime: schedule.time,
+      },
+    }]);
     return;
   }
 
@@ -298,15 +352,32 @@ export async function snoozeDose(
 
   // ── Android: re-schedule as an AlarmManager alarm ──────────────────────
   if (Platform.OS === "android") {
+    // Use the actual fire time as the display time on the alarm screen so the
+    // user sees the rescheduled time (e.g. 13:02) rather than the original
+    // schedule time (e.g. 13:05) when they used "reschedule once" from Today.
+    const displayTime = format(snoozeDate, "HH:mm");
     await ExpoAlarm.scheduleAlarm({
       scheduleId:     schedule.id,
       medicationId:   medication.id,
       scheduledDate,
-      scheduledTime:  schedule.time,
+      scheduledTime:  displayTime,
       medicationName: medication.name,
       dose:           medication.dosage,
       fireTimestamp:  snoozeDate.getTime(),
     });
+    // Track in the notification map so rescheduleAllNotifications can detect
+    // that this dose already has an alarm and not re-create one at the
+    // original schedule time.
+    await addNotifMapEntries([{
+      notifId: `android-alarm:${schedule.id}:${scheduledDate}`,
+      data: {
+        doseLogId:     `${schedule.id}-${scheduledDate}`,
+        medicationId:  medication.id,
+        scheduleId:    schedule.id,
+        scheduledDate,
+        scheduledTime: displayTime,
+      },
+    }]);
     return;
   }
 
@@ -410,7 +481,7 @@ export const STOCK_ALERT_CHANNEL_ID = "stock-alerts";
 export async function setupStockAlertChannel(): Promise<void> {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync(STOCK_ALERT_CHANNEL_ID, {
-    name: "Stock alerts",
+    name: i18n.t("stock.channelName"),
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250],
     lightColor: "#f97316",
@@ -525,7 +596,7 @@ const HEALTH_REMINDER_TIME_KEY = "@pilloclock/health_reminder_time";
 export async function setupHealthReminderChannel(): Promise<void> {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync(HEALTH_CHANNEL_ID, {
-    name: "Health reminders",
+    name: i18n.t("health.channelName"),
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250],
     lightColor: "#22c55e",
@@ -616,17 +687,30 @@ export async function rescheduleAllNotifications(): Promise<void> {
   // Purge stale entries first so the map doesn't grow indefinitely.
   await cleanupExpiredNotifMapEntries();
 
-  const [medications, schedules, map] = await Promise.all([
+  const now = new Date();
+  const todayStr = toDateString(now);
+  const endStr   = toDateString(addDays(now, 7));
+
+  const [medications, schedules, map, logs] = await Promise.all([
     getMedications(),
     getAllActiveSchedules(),
     loadNotifMap(),
+    getDoseLogsByDateRange(todayStr, endStr),
   ]);
 
   const scheduledKeys = new Set(
     Object.values(map).map((e) => `${e.scheduleId}:${e.scheduledDate}`)
   );
 
-  const now = new Date();
+  // Doses that are already resolved (taken / skipped / missed) must not be
+  // re-scheduled.  This is particularly important on Android where alarms are
+  // NOT stored in the notification map, so a rescheduled-then-resolved dose
+  // would otherwise get a fresh alarm at its original schedule.time.
+  const resolvedKeys = new Set(
+    logs
+      .filter((l) => l.status !== "pending")
+      .map((l) => `${l.scheduleId}:${l.scheduledDate}`)
+  );
 
   for (const sched of schedules) {
     const med = medications.find((m) => m.id === sched.medicationId);
@@ -637,7 +721,12 @@ export async function rescheduleAllNotifications(): Promise<void> {
       if (!isScheduleActiveOnDate(sched, date, med)) continue;
 
       const scheduledDate = toDateString(date);
+
+      // Already tracked in the notification map (iOS) → skip.
       if (scheduledKeys.has(`${sched.id}:${scheduledDate}`)) continue;
+
+      // Already resolved by the user → never re-alarm.
+      if (resolvedKeys.has(`${sched.id}:${scheduledDate}`)) continue;
 
       const [h, m] = sched.time.split(":").map(Number);
       const fireDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);

@@ -54,7 +54,7 @@ const en: TranslationShape = {
 
   // ─── Home screen ──────────────────────────────────────────────────────────
   home: {
-    title: "💊 Pill-O-Clock",
+    title: "💊 Pill O-Clock",
     noMeds: "No medications today",
     noMedsSubtitle: "Add your first medication by tapping + above",
     sectionPending: "Pending",
@@ -218,11 +218,11 @@ const en: TranslationShape = {
   permissions: {
     exactAlarmTitle: "Permission needed",
     exactAlarmMessage:
-      "For alarms to ring on time on Android 12, enable \"Alarms & Reminders\" for Pill-O-Clock in Settings.",
+      "For alarms to ring on time on Android 12, enable \"Alarms & Reminders\" for Pill O-Clock in Settings.",
     exactAlarmLater: "Not now",
     exactAlarmOpen: "Open settings",    fullScreenTitle: "Allow full-screen alarms",
     fullScreenMessage:
-      "On Android 14+, you need to grant \"Display full-screen notifications\" permission so the alarm screen can appear above the lock screen. Tap \"Open settings\" and enable it for Pill-O-Clock.",  },
+      "On Android 14+, you need to grant \"Display full-screen notifications\" permission so the alarm screen can appear above the lock screen. Tap \"Open settings\" and enable it for Pill O-Clock.",  },
 
   // ─── Stock ────────────────────────────────────────────────────────────────
   stock: {
@@ -231,6 +231,7 @@ const en: TranslationShape = {
     badge_one: "{{count}} left",
     badge_other: "{{count}} left",
     low: "Low stock",
+    channelName: "Stock alerts",
   },
 
   // ─── Appointments ─────────────────────────────────────────────────────────
@@ -255,7 +256,7 @@ const en: TranslationShape = {
     fieldNotes: "Notes (optional)",
     fieldNotesPlaceholder: "Questions to ask, things to bring...",
     fieldDate: "Date",
-    fieldTime: "Time (optional)",
+    fieldTime: "Time",
     fieldReminder: "Reminder",
     reminderNone: "No reminder",
     reminder1h: "1 hour before",
@@ -272,7 +273,8 @@ const en: TranslationShape = {
     // Location picker
     pickOnMap: "Pin on map",
     locationPickerTitle: "Pin location",
-    locationPickerSubtitle: "Tap on the map to set the location",
+    locationSearchPlaceholder: "Search address or drag the map…",
+    locationPickerSubtitle: "Drag the map to position the pin",
     locationPickerConfirm: "Set this location",
     locateMe: "My location",
     viewOnMap: "View on map",
@@ -318,6 +320,7 @@ const en: TranslationShape = {
     reminderSection: "Daily reminder",
     reminderSubtitle: "Get a notification to take your measurements",
     reminderNone: "No reminder",
+    reminderTapToConfigure: "tap to configure",
     reminderActive: "Active · {{time}}",
     reminderSaved: "Reminder saved",
     reminderCancelled: "Reminder disabled",
@@ -344,6 +347,7 @@ const en: TranslationShape = {
     heart_rate_format: "{{v1}}",
     notifTitle: "⏱ Time to record",
     notifBody: "Open the app to log your daily measurements",
+    channelName: "Health reminders",
   },
 
   // ─── Daily check-in ─────────────────────────────────────────────────────────
@@ -389,13 +393,13 @@ const en: TranslationShape = {
     generating: "Generating report...",
     errorTitle: "Generation error",
     errorMsg: "Could not generate the report. Please try again.",
-    sectionTitle: "Health Report — Pill-O-Clock",
+    sectionTitle: "Health Report — Pill O-Clock",
     sectionMeds: "Active medications",
     sectionHistory: "Dose history — last 30 days",
     sectionHealth: "Health measurements",
     sectionDiary: "Wellness diary",
     noData: "No data available",
-    generatedBy: "Generated with Pill-O-Clock",
+    generatedBy: "Generated with Pill O-Clock",
     privacyNote: "100% local data — not shared with third parties",
   },
 
@@ -417,7 +421,7 @@ const en: TranslationShape = {
     importSuccessMsg_one: "{{count}} medication imported successfully.",
     importSuccessMsg_other: "{{count}} medications imported successfully.",
     importError: "Import error",
-    importErrorFormat: "The file is not a valid Pill-O-Clock backup.",
+    importErrorFormat: "The file is not a valid Pill O-Clock backup.",
     importErrorGeneric: "Could not import the file. Please try again.",
     exportError: "Export error",
     exportErrorGeneric: "Could not export. Please try again.",
@@ -454,7 +458,7 @@ const en: TranslationShape = {
     next: "Next",
     skip: "Skip",
     start: "Get started",
-    slide1Title: "Pill-O-Clock",
+    slide1Title: "Pill O-Clock",
     slide1Sub: "Your medication assistant",
     slide1Desc: "Never miss a dose again. Smart alarms and adherence tracking, all in one place.",
     slide2Title: "Smart alarms",

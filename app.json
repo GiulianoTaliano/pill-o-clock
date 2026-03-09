@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Pill-O-Clock",
+    "name": "Pill O-Clock",
     "slug": "pill-o-clock",
     "version": "1.2.0",
     "scheme": "pilloclock",
@@ -17,13 +17,16 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.pilloclock.app",
       "buildNumber": "1",
+      "config": {
+        "googleMapsApiKey": "AIzaSyDiy3PgDjyuqGQOBRojmwby9Kfh_DHZKNs"
+      },
       "infoPlist": {
         "UIUserInterfaceStyle": "Automatic",
         "UIBackgroundModes": [
           "fetch",
           "remote-notification"
         ],
-        "NSLocationWhenInUseUsageDescription": "Pill-O-Clock uses your location to pin precise appointment locations on the map."
+        "NSLocationWhenInUseUsageDescription": "Pill O-Clock uses your location to pin precise appointment locations on the map."
       },
       "entitlements": {
         "com.apple.developer.usernotifications.critical-alerts": true
@@ -51,12 +54,7 @@
         "android.permission.USE_FULL_SCREEN_INTENT",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
-        }
-      }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -64,7 +62,7 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Pill-O-Clock uses your location to pin precise appointment locations on the map." }],
+      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Pill O-Clock uses your location to pin precise appointment locations on the map." }],
       "./modules/expo-alarm/app.plugin.js",
       [
         "expo-notifications",

@@ -144,6 +144,7 @@ class AlarmAudioService : Service() {
     if (intent?.action == ACTION_EXECUTE_BUTTON) {
       val scheduleId    = intent.getStringExtra(EXTRA_SCHEDULE_ID)    ?: ""
       val scheduledDate = intent.getStringExtra(EXTRA_SCHEDULED_DATE) ?: ""
+      val scheduledTime = intent.getStringExtra(EXTRA_SCHEDULED_TIME) ?: ""
       val actionValue   = intent.getStringExtra(EXTRA_ACTION)         ?: ""
       // If this service instance was just created (not already in foreground),
       // we must call startForeground() within 5 s to satisfy Android 8+ rules.
@@ -158,7 +159,7 @@ class AlarmAudioService : Service() {
           NotificationCompat.Builder(this, ALARM_CHANNEL_ID).build())
       }
       if (scheduleId.isNotEmpty() && actionValue.isNotEmpty()) {
-        launchAlarmScreenWithAction(scheduleId, scheduledDate, actionValue)
+        launchAlarmScreenWithAction(scheduleId, scheduledDate, actionValue, scheduledTime)
       }
       stopSelf()
       return START_NOT_STICKY
@@ -201,7 +202,7 @@ class AlarmAudioService : Service() {
     // Works both when the app is in the foreground (single-top navigation) and
     // when it needs to be launched cold (new task).
     // fullScreenIntent on the notification handles the lock-screen case.
-    launchAlarmScreen(scheduleId, scheduledDate)
+    launchAlarmScreen(scheduleId, scheduledDate, scheduledTime)
 
     // ── Play alarm audio ─────────────────────────────────────────────────────
     playAlarm()
@@ -231,18 +232,22 @@ class AlarmAudioService : Service() {
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
-  private fun buildAlarmUri(scheduleId: String, scheduledDate: String): Uri =
-    Uri.parse(
-      "pilloclock://alarm?scheduleId=${Uri.encode(scheduleId)}&date=${Uri.encode(scheduledDate)}"
-    )
+  private fun buildAlarmUri(scheduleId: String, scheduledDate: String, scheduledTime: String = ""): Uri {
+    val base = "pilloclock://alarm?scheduleId=${Uri.encode(scheduleId)}&date=${Uri.encode(scheduledDate)}"
+    return if (scheduledTime.isNotEmpty())
+      Uri.parse("$base&time=${Uri.encode(scheduledTime)}")
+    else
+      Uri.parse(base)
+  }
 
   private fun buildAlarmPendingIntent(
     scheduleId: String,
     scheduledDate: String,
     pendingFlags: Int,
     requestCode: Int = scheduleId.hashCode(),
+    scheduledTime: String = "",
   ): PendingIntent {
-    val intent = Intent(Intent.ACTION_VIEW, buildAlarmUri(scheduleId, scheduledDate)).apply {
+    val intent = Intent(Intent.ACTION_VIEW, buildAlarmUri(scheduleId, scheduledDate, scheduledTime)).apply {
       flags = Intent.FLAG_ACTIVITY_NEW_TASK or
               Intent.FLAG_ACTIVITY_SINGLE_TOP or
               Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
@@ -277,8 +282,8 @@ class AlarmAudioService : Service() {
     return PendingIntent.getBroadcast(this, requestCode, intent, pendingFlags)
   }
 
-  private fun launchAlarmScreen(scheduleId: String, scheduledDate: String) {
-    val launchIntent = Intent(Intent.ACTION_VIEW, buildAlarmUri(scheduleId, scheduledDate)).apply {
+  private fun launchAlarmScreen(scheduleId: String, scheduledDate: String, scheduledTime: String = "") {
+    val launchIntent = Intent(Intent.ACTION_VIEW, buildAlarmUri(scheduleId, scheduledDate, scheduledTime)).apply {
       flags = Intent.FLAG_ACTIVITY_NEW_TASK or
               Intent.FLAG_ACTIVITY_SINGLE_TOP or
               Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
@@ -292,11 +297,13 @@ class AlarmAudioService : Service() {
   }
 
   /** Launches alarm screen carrying an `action=` param so alarm.tsx persists the result silently. */
-  private fun launchAlarmScreenWithAction(scheduleId: String, scheduledDate: String, actionValue: String) {
+  private fun launchAlarmScreenWithAction(scheduleId: String, scheduledDate: String, actionValue: String, scheduledTime: String = "") {
+    val timePart = if (scheduledTime.isNotEmpty()) "&time=${Uri.encode(scheduledTime)}" else ""
     val uri = Uri.parse(
       "pilloclock://alarm" +
       "?scheduleId=${Uri.encode(scheduleId)}" +
       "&date=${Uri.encode(scheduledDate)}" +
+      timePart +
       "&action=${Uri.encode(actionValue)}"
     )
     val launchIntent = Intent(Intent.ACTION_VIEW, uri).apply {
@@ -352,7 +359,7 @@ class AlarmAudioService : Service() {
     val baseCode = scheduleId.hashCode()
 
     // Content / fullScreenIntent
-    val contentPendingIntent = buildAlarmPendingIntent(scheduleId, scheduledDate, pendingFlags, baseCode)
+    val contentPendingIntent = buildAlarmPendingIntent(scheduleId, scheduledDate, pendingFlags, baseCode, scheduledTime)
 
     // Delete intent — fires ONLY when the user swipes the notification away (not on programmatic cancel).
     val dismissBroadcast = Intent(ACTION_DISMISS).apply { setPackage(packageName) }
@@ -409,7 +416,7 @@ class AlarmAudioService : Service() {
     if (cachedScheduleId.isEmpty()) return
     ensureNotificationChannels()
     val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    val contentPendingIntent = buildAlarmPendingIntent(cachedScheduleId, cachedScheduledDate, pendingFlags)
+    val contentPendingIntent = buildAlarmPendingIntent(cachedScheduleId, cachedScheduledDate, pendingFlags, scheduledTime = cachedScheduledTime)
 
     val notification = NotificationCompat.Builder(this, SILENT_CHANNEL_ID)
       .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)

@@ -1,4 +1,5 @@
 import { Tabs, useRouter } from "expo-router";
+import { useEffect } from "react";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "../../src/i18n";
@@ -28,10 +29,15 @@ export default function TabsLayout() {
   const { t } = useTranslation();
   const router = useRouter();
   const appointments = useAppStore((s) => s.appointments);
+  const loadAppointments = useAppStore((s) => s.loadAppointments);
   const selectedAppointmentId = useAppStore((s) => s.selectedAppointmentId);
   const setSelectedAppointmentId = useAppStore((s) => s.setSelectedAppointmentId);
   const setPendingEditAppointmentId = useAppStore((s) => s.setPendingEditAppointmentId);
   const deleteAppointment = useAppStore((s) => s.deleteAppointment);
+
+  // Cold-start: ensure appointments are loaded even when the app is opened
+  // directly from a notification (before the Appointments tab is ever visited)
+  useEffect(() => { loadAppointments(); }, [loadAppointments]);
 
   const selectedAppt = appointments.find((a) => a.id === selectedAppointmentId) ?? null;
 

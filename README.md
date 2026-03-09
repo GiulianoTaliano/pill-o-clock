@@ -1,8 +1,8 @@
-# 💊 Pill-O-Clock
+# 💊 Pill O-Clock
 
 > Never miss a dose again. Smart medication reminders, health tracking, and personal insights.
 
-Pill-O-Clock is a personal medication assistant built with React Native and Expo. It reminds you exactly when to take each medication, rings a persistent alarm with quick-action buttons, logs your adherence, tracks health measurements with trends, and records your daily wellbeing — all stored locally on your device with no data ever sent to external servers.
+Pill O-Clock is a personal medication assistant built with React Native and Expo. It reminds you exactly when to take each medication, rings a persistent alarm with quick-action buttons, logs your adherence, tracks health measurements with trends, and records your daily wellbeing — all stored locally on your device with no data ever sent to external servers.
 
 ---
 

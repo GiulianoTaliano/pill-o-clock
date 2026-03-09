@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import { format } from "date-fns";
@@ -177,7 +177,6 @@ interface FormState {
   notes: string;
   date: string;
   time: string;
-  hasTime: boolean;
   reminderMinutes: number;
 }
 
@@ -190,7 +189,6 @@ function defaultForm(): FormState {
     notes: "",
     date: today(),
     time: "09:00",
-    hasTime: false,
     reminderMinutes: 60,
   };
 }
@@ -204,7 +202,6 @@ function formFromAppointment(appt: Appointment): FormState {
     notes: appt.notes ?? "",
     date: appt.date,
     time: appt.time ?? "09:00",
-    hasTime: !!appt.time,
     reminderMinutes: appt.reminderMinutes ?? 0,
   };
 }
@@ -228,6 +225,30 @@ export default function AppointmentsScreen() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(defaultForm());
   const [locationPickerVisible, setLocationPickerVisible] = useState(false);
+
+  // iOS: two Modals cannot overlap. When the user taps "Pin on map" while the
+  // form modal is visible, we must fully dismiss the form first, then present
+  // the map picker. This ref signals that the dismiss was triggered by this
+  // flow so we can reopen the form once the picker closes.
+  const pendingPickerRef = useRef(false);
+
+  const handleOpenPicker = () => {
+    if (Platform.OS === "ios") {
+      // Mark intent and hide the form modal — onDismiss will open the picker
+      // after the slide-down animation completes.
+      pendingPickerRef.current = true;
+      setModalVisible(false);
+    } else {
+      // Android handles stacked modals without issues.
+      setLocationPickerVisible(true);
+    }
+  };
+
+  // Reset the pending-picker flag if the component unmounts while the picker
+  // is open (safety guard — normal flow clears it in onClose).
+  useEffect(() => {
+    return () => { pendingPickerRef.current = false; };
+  }, []);
 
   // Date / Time pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -297,7 +318,7 @@ export default function AppointmentsScreen() {
         locationCoords: form.locationCoords,
         notes: form.notes.trim() || undefined,
         date: form.date,
-        time: form.hasTime ? form.time : undefined,
+        time: form.time,
         reminderMinutes: form.reminderMinutes,
       };
       if (editingId) {
@@ -406,6 +427,14 @@ export default function AppointmentsScreen() {
         transparent
         animationType="slide"
         onRequestClose={closeModal}
+        onDismiss={() => {
+          // iOS-only: fires after the dismiss animation completes.
+          // If the user tapped "Pin on map", open the map picker now that the
+          // form modal is fully gone (iOS forbids two overlapping Modals).
+          if (pendingPickerRef.current) {
+            setLocationPickerVisible(true);
+          }
+        }}
       >
         <KeyboardAvoidingView
           className="flex-1"
@@ -450,46 +479,42 @@ export default function AppointmentsScreen() {
                 />
 
                 {/* Location */}
-                <Text className="text-sm font-semibold text-text mb-1.5">{t("appointments.fieldLocation")}</Text>
-                <TextInput
-                  value={form.location}
-                  onChangeText={(v) => setForm((f) => ({ ...f, location: v }))}
-                  placeholder={t("appointments.fieldLocationPlaceholder")}
-                  placeholderTextColor="#94a3b8"
-                  className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-2"
-                />
-
-                {/* Location — map picker row */}
-                <View className="flex-row gap-2 mb-4">
+                {/* Location */}
+                <Text className="text-sm font-semibold text-text mb-1.5">
+                  {t("appointments.fieldLocation")}
+                </Text>
+                {form.locationCoords || form.location ? (
+                  /* ── Location set — show address chip + actions ── */
+                  <View className="flex-row items-center gap-2 border border-blue-200 dark:border-blue-800 rounded-2xl bg-blue-50 dark:bg-blue-950/30 px-3 py-2.5 mb-4">
+                    <Ionicons name="location" size={16} color="#4f9cff" style={{ flexShrink: 0 }} />
+                    <Text className="text-primary text-sm font-medium flex-1" numberOfLines={2}>
+                      {form.location || `${form.locationCoords!.latitude.toFixed(5)}, ${form.locationCoords!.longitude.toFixed(5)}`}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleOpenPicker()}
+                      className="p-1"
+                    >
+                      <Ionicons name="pencil-outline" size={16} color="#4f9cff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setForm((f) => ({ ...f, locationCoords: undefined, location: "" }))}
+                      className="p-1"
+                    >
+                      <Ionicons name="close-circle-outline" size={16} color="#94a3b8" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  /* ── No location — single "Pin location" button ── */
                   <TouchableOpacity
-                    onPress={() => setLocationPickerVisible(true)}
-                    className="flex-1 flex-row items-center justify-center gap-2 border border-primary rounded-2xl px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30"
+                    onPress={() => handleOpenPicker()}
+                    className="flex-row items-center justify-center gap-2 border border-border rounded-2xl px-4 py-3 bg-card mb-4"
                   >
                     <Ionicons name="map-outline" size={16} color="#4f9cff" />
                     <Text className="text-primary text-sm font-bold">
-                      {form.locationCoords
-                        ? t("appointments.pickOnMap")
-                        : t("appointments.pickOnMap")}
+                      {t("appointments.pickOnMap")}
                     </Text>
                   </TouchableOpacity>
-                  {form.locationCoords ? (
-                    <TouchableOpacity
-                      onPress={() => setForm((f) => ({ ...f, locationCoords: undefined }))}
-                      className="flex-row items-center gap-1.5 px-3 py-2.5 border border-border rounded-2xl bg-card"
-                    >
-                      <Ionicons name="close-circle-outline" size={16} color="#94a3b8" />
-                      <Text className="text-muted text-xs font-semibold">{t("appointments.locationClear")}</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-                {form.locationCoords ? (
-                  <View className="flex-row items-center gap-2 mb-3 -mt-2 px-1">
-                    <Ionicons name="location" size={14} color="#4f9cff" />
-                    <Text className="text-xs text-primary font-semibold">
-                      {`${form.locationCoords.latitude.toFixed(5)}, ${form.locationCoords.longitude.toFixed(5)}`}
-                    </Text>
-                  </View>
-                ) : null}
+                )}
 
                 {/* Date */}
                 <Text className="text-sm font-semibold text-text mb-1.5">{t("appointments.fieldDate")} <Text className="text-danger">*</Text></Text>
@@ -512,24 +537,14 @@ export default function AppointmentsScreen() {
                 )}
 
                 {/* Time */}
-                <View className="flex-row items-center gap-3 mb-4 mt-3">
-                  <TouchableOpacity
-                    onPress={() => setForm((f) => ({ ...f, hasTime: !f.hasTime }))}
-                    className={`w-6 h-6 rounded border-2 items-center justify-center ${form.hasTime ? "bg-primary border-primary" : "border-slate-300 dark:border-slate-600"}`}
-                  >
-                    {form.hasTime && <Ionicons name="checkmark" size={14} color="#fff" />}
-                  </TouchableOpacity>
-                  <Text className="text-sm font-semibold text-text">{t("appointments.fieldTime")}</Text>
-                  {form.hasTime && (
-                    <TouchableOpacity
-                      onPress={() => setShowTimePicker(true)}
-                      className="flex-row items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl px-3 py-1.5"
-                    >
-                      <Ionicons name="time-outline" size={14} color="#4f9cff" />
-                      <Text className="text-primary font-bold text-sm">{form.time}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                <Text className="text-sm font-semibold text-text mb-1.5">{t("appointments.fieldTime")} <Text className="text-danger">*</Text></Text>
+                <TouchableOpacity
+                  onPress={() => setShowTimePicker(true)}
+                  className="flex-row items-center gap-2 border border-border rounded-2xl px-4 py-3 bg-card mb-4"
+                >
+                  <Ionicons name="time-outline" size={16} color="#4f9cff" />
+                  <Text className="text-text font-semibold">{form.time}</Text>
+                </TouchableOpacity>
                 {showTimePicker && (
                   <DateTimePicker
                     value={timeDateObj}
@@ -604,8 +619,21 @@ export default function AppointmentsScreen() {
       <LocationPickerModal
         visible={locationPickerVisible}
         initial={form.locationCoords}
-        onConfirm={(coords) => setForm((f) => ({ ...f, locationCoords: coords }))}
-        onClose={() => setLocationPickerVisible(false)}
+        onConfirm={(coords, address) => {
+          setForm((f) => ({
+            ...f,
+            locationCoords: coords,
+            location: address ?? f.location,
+          }));
+        }}
+        onClose={() => {
+          setLocationPickerVisible(false);
+          // iOS: reopen the form modal that was hidden to show this picker.
+          if (pendingPickerRef.current) {
+            pendingPickerRef.current = false;
+            setModalVisible(true);
+          }
+        }}
       />
     </SafeAreaView>
   );

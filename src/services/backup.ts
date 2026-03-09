@@ -54,7 +54,7 @@ export async function exportBackup(): Promise<void> {
     await Sharing.shareAsync(file.uri, {
       mimeType: "application/json",
       UTI: "public.json",
-      dialogTitle: "Pill-O-Clock backup",
+      dialogTitle: "Pill O-Clock backup",
     });
   }
 }
