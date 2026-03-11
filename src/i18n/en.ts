@@ -480,15 +480,26 @@ const en: TranslationShape = {
     next: "Next",
     skip: "Skip",
     start: "Get started",
+    // Slide 1 — Welcome
     slide1Title: "Pill O-Clock",
     slide1Sub: "Your medication assistant",
-    slide1Desc: "Never miss a dose again. Smart alarms and adherence tracking, all in one place.",
+    slide1Desc: "Your complete medication companion. Stay organized, get timely reminders, and track your health.",
+    chip1: "Medications",
+    chip2: "Smart alarms",
+    chip3: "Appointments",
+    chip4: "Health tracker",
+    // Slide 2 — Alarms
     slide2Title: "Smart alarms",
     slide2Desc: "Reminders with options to take, snooze or skip — without opening the app.",
-    slide3Title: "Track your adherence",
-    slide3Desc: "Full history and stats to know how well you\'re keeping up with your treatments.",
-    slide4Title: "Almost ready",
-    slide4Desc: "We need your permission to send you reminders when it\'s time to take your medications.",
+    // Slide 3 — Appointments (NEW)
+    slide3Title: "Medical appointments",
+    slide3Desc: "Schedule doctor visits, set advance reminders and pin the location on a map. Your agenda, organized.",
+    // Slide 4 — Health (NEW)
+    slide4Title: "Track your health",
+    slide4Desc: "Log blood pressure, glucose, weight and more. Record daily wellness check-ins and export PDF reports for your doctor.",
+    // Slide 5 — Permissions
+    slide5Title: "Almost ready",
+    slide5Desc: "We need your permission to send you reminders when it\'s time to take your medications.",
     enableNotifications: "Enable notifications",
     notificationsGranted: "✅ Notifications enabled",
     notificationsDenied: "You can enable them later from System Settings.",
@@ -496,6 +507,25 @@ const en: TranslationShape = {
     exactAlarmHint: "Required on Android 12 for on-time alarms.",
     fullScreenBtn: "Allow full-screen alarms",
     fullScreenHint: "Required on Android 14+ to show alarms above the lock screen.",
+  },
+
+  // ─── In-app tour ──────────────────────────────────────────────────────────
+  tour: {
+    next: "Next",
+    done: "Got it!",
+    skip: "Skip tour",
+    // Step 1 — Add medication button
+    step1Title: "Start here",
+    step1Desc: "Tap + to add your first medication. Set the name, dose, schedule and alarm.",
+    // Step 2 — Calendar tab
+    step2Title: "Agenda & appointments",
+    step2Desc: "Here you'll see your daily dose schedule. You can also add medical appointments with reminders and location.",
+    // Step 3 — Health tab
+    step3Title: "Your health",
+    step3Desc: "Track blood pressure, glucose, weight and more. Record your daily wellness check-in here.",
+    // Step 4 — Settings tab
+    step4Title: "Settings",
+    step4Desc: "Manage your data, backup, language preferences, and generate PDF reports for your doctor.",
   },
 
   // ─── Color picker ─────────────────────────────────────────────────────────

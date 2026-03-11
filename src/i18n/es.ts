@@ -478,15 +478,26 @@ const es = {
     next: "Siguiente",
     skip: "Omitir",
     start: "Comenzar",
+    // Slide 1 — Bienvenida
     slide1Title: "Pill O-Clock",
     slide1Sub: "Tu asistente de medicamentos",
-    slide1Desc: "Nunca más olvidés una dosis. Alarmas puntuales y seguimiento de adherencia en un solo lugar.",
+    slide1Desc: "Tu compañero completo de medicamentos. Organizados, con recordatorios a tiempo y tu salud en seguimiento.",
+    chip1: "Medicamentos",
+    chip2: "Alarmas",
+    chip3: "Turnos médicos",
+    chip4: "Salud",
+    // Slide 2 — Alarmas
     slide2Title: "Alarmas inteligentes",
     slide2Desc: "Recordatorios con opciones para tomar, posponer u omitir — sin necesidad de abrir la app.",
-    slide3Title: "Seguí tu adherencia",
-    slide3Desc: "Historial completo y estadísticas para saber cómo vas con tus tratamientos.",
-    slide4Title: "Casi listo",
-    slide4Desc: "Necesitamos tu permiso para enviarte recordatorios cuando sea momento de tomar tus medicamentos.",
+    // Slide 3 — Turnos (NUEVO)
+    slide3Title: "Turnos médicos",
+    slide3Desc: "Agendá tus visitas al médico, configurá recordatorios anticipados y marcá la ubicación en el mapa. Tu agenda, organizada.",
+    // Slide 4 — Salud (NUEVO)
+    slide4Title: "Seguí tu salud",
+    slide4Desc: "Registrá presión arterial, glucosa, peso y más. Completá tu check-in diario de bienestar y exportá informes PDF para tu médico.",
+    // Slide 5 — Permisos
+    slide5Title: "Casi listo",
+    slide5Desc: "Necesitamos tu permiso para enviarte recordatorios cuando sea momento de tomar tus medicamentos.",
     enableNotifications: "Activar notificaciones",
     notificationsGranted: "✅ Notificaciones activadas",
     notificationsDenied: "Podés activarlas luego desde Ajustes del sistema.",
@@ -494,6 +505,25 @@ const es = {
     exactAlarmHint: "Necesario en Android 12 para alarmas a tiempo exacto.",
     fullScreenBtn: "Permitir alarmas en pantalla completa",
     fullScreenHint: "Necesario en Android 14+ para mostrar alarmas sobre la pantalla de bloqueo.",
+  },
+
+  // ─── Tour in-app ──────────────────────────────────────────────────────────
+  tour: {
+    next: "Siguiente",
+    done: "¡Entendido!",
+    skip: "Saltar tour",
+    // Paso 1 — Botón agregar medicamento
+    step1Title: "Empezá aquí",
+    step1Desc: "Tocá + para agregar tu primer medicamento. Configurá nombre, dosis, horario y alarma.",
+    // Paso 2 — Tab Calendario
+    step2Title: "Agenda y turnos",
+    step2Desc: "Acá ves tu plan de dosis del día. También podés agregar turnos médicos con recordatorios y ubicación.",
+    // Paso 3 — Tab Salud
+    step3Title: "Tu salud",
+    step3Desc: "Registrá presión arterial, glucosa, peso y más. Completá tu check-in diario de bienestar aquí.",
+    // Paso 4 — Tab Ajustes
+    step4Title: "Ajustes",
+    step4Desc: "Administrá tus datos, backup, preferencias de idioma y generá informes PDF para tu médico.",
   },
 
   // ─── Color picker ─────────────────────────────────────────────────────────

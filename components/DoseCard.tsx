@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Modal, TextInput, Image } from "react-native";
+import { View, Text, TouchableOpacity, Modal, TextInput, Image, PanResponder, Pressable } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,7 +7,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { TodayDose, SkipReason } from "../src/types";
 import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig } from "../src/utils";
 import { useTranslation } from "../src/i18n";
@@ -46,6 +46,20 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [noteDraft, setNoteDraft] = useState(dose.notes ?? "");
   const [skipReasonVisible, setSkipReasonVisible] = useState(false);
+
+  const notePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setNoteModalVisible(false); },
+    })
+  ).current;
+
+  const skipPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setSkipReasonVisible(false); },
+    })
+  ).current;
 
   // Reanimated: flash + ring burst on take button
   const takeScale   = useSharedValue(1);
@@ -327,8 +341,12 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
       animationType="fade"
       onRequestClose={() => setNoteModalVisible(false)}
     >
-      <View className="flex-1 justify-end bg-black/40">
-        <View className="bg-card rounded-t-3xl px-5 pt-5 pb-8">
+      <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setNoteModalVisible(false)}>
+        <Pressable onPress={() => {}} className="bg-card rounded-t-3xl">
+          <View className="items-center pt-3 pb-1" {...notePan.panHandlers}>
+            <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
+          </View>
+          <View className="px-5 pb-8 pt-2">
           <Text className="text-base font-bold text-text mb-3">{t('doseCard.noteModalTitle')}</Text>
           <TextInput
             value={noteDraft}
@@ -359,8 +377,9 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               <Text className="text-white font-bold">{t('common.save')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+          </View>
+        </Pressable>
+      </Pressable>
     </Modal>
 
     {/* Skip reason modal */}
@@ -370,8 +389,12 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
       animationType="fade"
       onRequestClose={() => setSkipReasonVisible(false)}
     >
-      <View className="flex-1 justify-end bg-black/40">
-        <View className="bg-card rounded-t-3xl px-5 pt-5 pb-8">
+      <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setSkipReasonVisible(false)}>
+        <Pressable onPress={() => {}} className="bg-card rounded-t-3xl">
+          <View className="items-center pt-3 pb-1" {...skipPan.panHandlers}>
+            <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
+          </View>
+          <View className="px-5 pb-8 pt-2">
           <Text className="text-base font-bold text-text mb-1">{t('doseCard.skipReasonTitle')}</Text>
           <Text className="text-xs text-muted mb-4">{t('doseCard.skipReasonSubtitle')}</Text>
           {SKIP_REASONS.map(({ key, icon, color }) => (
@@ -397,8 +420,9 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           >
             <Text className="text-muted font-semibold text-sm">{t('common.cancel')}</Text>
           </TouchableOpacity>
-        </View>
-      </View>
+          </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   </>
   );

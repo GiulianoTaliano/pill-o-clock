@@ -51,18 +51,25 @@ const SLIDES: SlideConfig[] = [
     descKey: "onboarding.slide2Desc",
   },
   {
-    icon: "bar-chart",
+    icon: "calendar",
     iconColor: "#16a34a",
     iconBg: "#dcfce7",
     titleKey: "onboarding.slide3Title",
     descKey: "onboarding.slide3Desc",
   },
   {
+    icon: "fitness",
+    iconColor: "#e11d48",
+    iconBg: "#ffe4e6",
+    titleKey: "onboarding.slide4Title",
+    descKey: "onboarding.slide4Desc",
+  },
+  {
     icon: "shield-checkmark",
     iconColor: "#4f9cff",
     iconBg: "#e0eeff",
-    titleKey: "onboarding.slide4Title",
-    descKey: "onboarding.slide4Desc",
+    titleKey: "onboarding.slide5Title",
+    descKey: "onboarding.slide5Desc",
   },
 ];
 
@@ -177,7 +184,7 @@ export default function OnboardingScreen() {
           <View key={i} style={{ width: SCREEN_WIDTH }} className="flex-1 items-center justify-center px-8">
             {/* Icon bubble */}
             <View
-              className="w-28 h-28 rounded-3xl items-center justify-center mb-10"
+              className="w-28 h-28 rounded-3xl items-center justify-center mb-8"
               style={{ backgroundColor: slide.iconBg }}
             >
               <Ionicons name={slide.icon} size={60} color={slide.iconColor} />
@@ -190,7 +197,7 @@ export default function OnboardingScreen() {
 
             {/* Subtitle (optional) */}
             {slide.subKey && (
-              <Text className="text-base font-semibold text-primary text-center mb-4">
+              <Text className="text-base font-semibold text-primary text-center mb-3">
                 {t(slide.subKey)}
               </Text>
             )}
@@ -199,6 +206,32 @@ export default function OnboardingScreen() {
             <Text className="text-base text-muted text-center leading-6">
               {t(slide.descKey)}
             </Text>
+
+            {/* Feature chips (slide 1 only) */}
+            {i === 0 && (
+              <View className="mt-7 w-full gap-2.5">
+                <View className="flex-row gap-2.5">
+                  <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-primary/20 bg-primary/10">
+                    <Ionicons name="medkit-outline" size={15} color="#4f9cff" />
+                    <Text className="text-xs font-semibold text-primary">{t("onboarding.chip1")}</Text>
+                  </View>
+                  <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
+                    <Ionicons name="notifications-outline" size={15} color="#f59e0b" />
+                    <Text className="text-xs font-semibold text-amber-600">{t("onboarding.chip2")}</Text>
+                  </View>
+                </View>
+                <View className="flex-row gap-2.5">
+                  <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800">
+                    <Ionicons name="calendar-outline" size={15} color="#16a34a" />
+                    <Text className="text-xs font-semibold text-green-700">{t("onboarding.chip3")}</Text>
+                  </View>
+                  <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-rose-200 bg-rose-50 dark:bg-rose-950/30 dark:border-rose-800">
+                    <Ionicons name="fitness-outline" size={15} color="#e11d48" />
+                    <Text className="text-xs font-semibold text-rose-600">{t("onboarding.chip4")}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* Permission button on last slide */}
             {i === LAST && (

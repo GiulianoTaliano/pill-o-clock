@@ -1,5 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation, Platform, Modal } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation, Platform, Modal, PanResponder, Pressable } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -12,9 +12,11 @@ import { useAdherenceStreak } from "../../src/hooks/useAdherenceStreak";
 import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
 import { CheckinModal } from "../../components/CheckinModal";
+import { AppTour, TourStep } from "../../components/AppTour";
 import { TodayDose, SkipReason } from "../../src/types";
 import { CATEGORY_CONFIG, getColorConfig } from "../../src/utils";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Dimensions } from "react-native";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useToast } from "../../src/context/ToastContext";
 import { updateWidget } from "expo-widget";
@@ -37,6 +39,13 @@ export default function HomeScreen() {
   const logPRNDose = useAppStore((s) => s.logPRNDose);
   const [refreshing, setRefreshing] = useState(false);
   const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(null);
+
+  const reschedulePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setRescheduleTarget(null); },
+    })
+  ).current;
   const [pickerDraft, setPickerDraft] = useState<Date>(new Date());
   const [checkinVisible, setCheckinVisible] = useState(false);
   const [checkinDismissed, setCheckinDismissed] = useState(false);
@@ -44,6 +53,89 @@ export default function HomeScreen() {
   const [tipSeen, setTipSeen] = useState(true);
   const doses = useTodaySchedule();
   const streak = useAdherenceStreak();
+
+  // ── In-app tour ────────────────────────────────────────────────────────────
+  const TOUR_DONE_KEY = "@pilloclock/tour_done";
+  const addButtonRef = useRef<View>(null);
+  // Stores the + button’s physical-screen rect, updated via onLayout+measureInWindow.
+  // onLayout fires after each native layout pass — the rect is always fresh and accurate.
+  const [addBtnRect, setAddBtnRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const tourShownRef = useRef(false);
+  const [tourActive, setTourActive] = useState(false);
+  const { bottom: safeBottom } = useSafeAreaInsets();
+
+  const onAddButtonLayout = useCallback(() => {
+    addButtonRef.current?.measureInWindow((x, y, w, h) => {
+      if (w > 0) setAddBtnRect({ x, y, width: w, height: h });
+    });
+  }, []);
+
+  // Compute the spotlight rect for a given visible tab index (0 = Today … 4 = Settings)
+  const getTabSpotlight = useCallback(
+    (tabIndex: number) => {
+      const screen = Dimensions.get("screen");
+      const TAB_BAR_HEIGHT = 65;
+      const TAB_COUNT = 5;
+      const tabW = screen.width / TAB_COUNT;
+      return {
+        x: tabIndex * tabW + 4,
+        y: screen.height - safeBottom - TAB_BAR_HEIGHT + 5,
+        width: tabW - 8,
+        height: TAB_BAR_HEIGHT - 8,
+      };
+    },
+    [safeBottom]
+  );
+
+  const tourSteps: TourStep[] = [
+    {
+      titleKey: "tour.step1Title",
+      descKey: "tour.step1Desc",
+      placement: "below",
+      // addBtnRect is populated by onLayout before the tour starts — no async work needed.
+      getTargetRect: async () => addBtnRect,
+    },
+    {
+      titleKey: "tour.step2Title",
+      descKey: "tour.step2Desc",
+      placement: "above",
+      // tabIndex 1 = Calendar
+      getTargetRect: async () => getTabSpotlight(1),
+    },
+    {
+      titleKey: "tour.step3Title",
+      descKey: "tour.step3Desc",
+      placement: "above",
+      // tabIndex 3 = Health
+      getTargetRect: async () => getTabSpotlight(3),
+    },
+    {
+      titleKey: "tour.step4Title",
+      descKey: "tour.step4Desc",
+      placement: "above",
+      // tabIndex 4 = Settings
+      getTargetRect: async () => getTabSpotlight(4),
+    },
+  ];
+
+  const handleTourDone = useCallback(async () => {
+    setTourActive(false);
+    await AsyncStorage.setItem(TOUR_DONE_KEY, "1");
+  }, []);
+
+  // Trigger once, the first time this screen is focused after onboarding
+  useFocusEffect(
+    useCallback(() => {
+      if (tourShownRef.current) return;
+      AsyncStorage.getItem(TOUR_DONE_KEY).then((val) => {
+        if (!val) {
+          tourShownRef.current = true;
+          // Delay so layout is complete and measureInWindow works reliably
+          setTimeout(() => setTourActive(true), 650);
+        }
+      });
+    }, [])
+  );
 
   useEffect(() => {
     AsyncStorage.getItem("@pilloclock/tip_reschedule_seen").then((val) => {
@@ -174,12 +266,14 @@ export default function HomeScreen() {
           >
             <Ionicons name="bar-chart-outline" size={20} color="#4f9cff" />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
-            className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
+          <View ref={addButtonRef} onLayout={onAddButtonLayout}>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
+              className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -398,10 +492,10 @@ export default function HomeScreen() {
       {/* Reschedule: modal sheet on iOS for full context; native picker on Android */}
       {rescheduleTarget && Platform.OS === "ios" && (
         <Modal transparent animationType="fade" visible>
-          <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-background rounded-t-3xl px-6 pt-5 pb-10">
+          <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setRescheduleTarget(null)}>
+            <Pressable onPress={() => {}} className="bg-background rounded-t-3xl px-6 pt-5 pb-10">
               {/* Handle + context header */}
-              <View className="items-center mb-1">
+              <View className="items-center mb-1" {...reschedulePan.panHandlers}>
                 <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full mb-5" />
                 <Text className="text-sm text-muted">{t('doseCard.rescheduleTitle')}</Text>
                 <Text className="text-xl font-bold text-text mt-1">
@@ -436,8 +530,8 @@ export default function HomeScreen() {
                   <Text className="font-bold text-white">{t('common.confirm')}</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </Pressable>
+          </Pressable>
         </Modal>
       )}
       {rescheduleTarget && Platform.OS !== "ios" && (
@@ -453,6 +547,13 @@ export default function HomeScreen() {
       <CheckinModal
         visible={checkinVisible}
         onClose={() => setCheckinVisible(false)}
+      />
+
+      {/* In-app walkthrough tour */}
+      <AppTour
+        steps={tourSteps}
+        visible={tourActive}
+        onDone={handleTourDone}
       />
     </SafeAreaView>
   );

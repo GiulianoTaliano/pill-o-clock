@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Share,
   Linking,
   Platform,
+  PanResponder,
+  Pressable,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -142,6 +144,13 @@ export function AppointmentDetailModal({
 
   const borderColor = theme.isDark ? "#1e293b" : "#e2e8f0";
 
+  const dismissPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderRelease: (_, { dy }) => { if (dy > 50) onClose(); },
+    })
+  ).current;
+
   return (
     <Modal
       visible={visible}
@@ -149,8 +158,9 @@ export function AppointmentDetailModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
-        <View
+      <Pressable onPress={onClose} style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
+        <Pressable
+          onPress={() => {}}
           style={{
             backgroundColor: theme.isDark ? "#0f172a" : "#ffffff",
             borderTopLeftRadius: 28,
@@ -159,7 +169,7 @@ export function AppointmentDetailModal({
           }}
         >
           {/* Handle */}
-          <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 4 }}>
+          <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 4 }} {...dismissPan.panHandlers}>
             <View
               style={{
                 width: 40,
@@ -421,8 +431,8 @@ export function AppointmentDetailModal({
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

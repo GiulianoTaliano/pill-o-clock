@@ -1,11 +1,11 @@
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, Modal,
-  Alert, Platform, KeyboardAvoidingView, useWindowDimensions,
+  Alert, Platform, KeyboardAvoidingView, useWindowDimensions, PanResponder, Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useFocusEffect } from "expo-router";
 import { format } from "date-fns";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -458,6 +458,13 @@ export default function HealthScreen() {
     }));
   };
 
+  const measurementPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setAddModalVisible(false); },
+    })
+  ).current;
+
   const handleReminderChange = async (_: DateTimePickerEvent, date?: Date) => {
     setShowReminderPicker(Platform.OS === "ios");
     if (!date) return;
@@ -710,9 +717,9 @@ export default function HealthScreen() {
           className="flex-1"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-3xl">
-              <View className="items-center pt-3 pb-1">
+          <Pressable className="flex-1 justify-end bg-black/50" onPress={() => setAddModalVisible(false)}>
+          <Pressable onPress={() => {}} className="bg-background rounded-t-3xl">
+              <View className="items-center pt-3 pb-1" {...measurementPan.panHandlers}>
                 <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
               </View>
               <ScrollView
@@ -836,8 +843,8 @@ export default function HealthScreen() {
                   </TouchableOpacity>
                 </View>
               </ScrollView>
-            </View>
-          </View>
+            </Pressable>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
 

@@ -1,9 +1,9 @@
 import {
   Modal, View, Text, TouchableOpacity, TextInput,
-  ScrollView, KeyboardAvoidingView, Platform,
+  ScrollView, KeyboardAvoidingView, Platform, PanResponder, Pressable,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "../src/i18n";
 import { useAppStore } from "../src/store";
 import { DailyCheckin } from "../src/types";
@@ -73,6 +73,13 @@ export function CheckinModal({ visible, onClose, existing }: CheckinModalProps) 
     }
   };
 
+  const dismissPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderRelease: (_, { dy }) => { if (dy > 50) onClose(); },
+    })
+  ).current;
+
   return (
     <Modal
       visible={visible}
@@ -84,10 +91,10 @@ export function CheckinModal({ visible, onClose, existing }: CheckinModalProps) 
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-3xl max-h-[90%]">
+        <Pressable className="flex-1 justify-end bg-black/50" onPress={onClose}>
+          <Pressable onPress={() => {}} className="bg-background rounded-t-3xl max-h-[90%]">
             {/* Handle */}
-            <View className="items-center pt-3 pb-1">
+            <View className="items-center pt-3 pb-1" {...dismissPan.panHandlers}>
               <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
             </View>
 
@@ -177,8 +184,8 @@ export function CheckinModal({ visible, onClose, existing }: CheckinModalProps) 
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </KeyboardAvoidingView>
     </Modal>
   );

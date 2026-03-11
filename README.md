@@ -198,4 +198,4 @@ Full privacy policy: [giulianotaliano.github.io/pill-o-clock/privacy-policy.html
 
 ## License
 
-This project is currently not under an open-source license. All rights reserved © Giuliano Italiano.
+This project is currently not under an open-source license. All rights reserved © Giuliano Taliano.

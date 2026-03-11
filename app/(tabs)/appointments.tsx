@@ -1,6 +1,6 @@
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, Modal,
-  Alert, Platform, KeyboardAvoidingView,
+  Alert, Platform, KeyboardAvoidingView, PanResponder, Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -300,6 +300,13 @@ export default function AppointmentsScreen() {
     setLocationPickerVisible(false);
   };
 
+  const appointmentPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderRelease: (_, { dy }) => { if (dy > 50) closeModal(); },
+    })
+  ).current;
+
   const handleSave = async () => {
     if (!form.title.trim()) {
       Alert.alert(t("common.error"), t("appointments.errorTitleRequired"));
@@ -440,10 +447,10 @@ export default function AppointmentsScreen() {
           className="flex-1"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-3xl">
+          <Pressable className="flex-1 justify-end bg-black/50" onPress={closeModal}>
+            <Pressable onPress={() => {}} className="bg-background rounded-t-3xl">
               {/* Handle */}
-              <View className="items-center pt-3 pb-1">
+              <View className="items-center pt-3 pb-1" {...appointmentPan.panHandlers}>
                 <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
               </View>
 
@@ -610,8 +617,8 @@ export default function AppointmentsScreen() {
                   </TouchableOpacity>
                 </View>
               </ScrollView>
-            </View>
-          </View>
+            </Pressable>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
 
