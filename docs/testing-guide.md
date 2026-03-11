@@ -924,3 +924,211 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 ---
 
 > **Nota:** Esta guía cubre los flujos funcionales de la versión 1.3.0. Actualizar los módulos afectados ante cada nueva feature o cambio en el comportamiento de notificaciones.
+
+---
+
+## 22. Módulo 17 — Medicamentos PRN (a demanda)  *(nuevo en v1.3)*
+
+> **PRN** = *pro re nata* (en latín, "según sea necesario"). Son medicamentos sin horario fijo que el usuario se administra cuando lo necesita — analgésicos, antiácidos, medicación de rescate, etc.
+
+### Cómo activarlo
+
+Al crear o editar un medicamento, en la sección **Frecuencia**, activar el toggle **"On demand (PRN)"**. Al hacerlo, los campos de horario y días de semana desaparecen (no aplican) y el medicamento se guarda sin schedules.
+
+### TC-72-PRN · Crear un medicamento PRN
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Nuevo medicamento → nombre `[Ibuprofeno 400]` → activar toggle "On demand (PRN)" | ✅ Los campos de alarma y días desaparecen del formulario |
+| 2 | Guardar | ✅ El medicamento aparece en la lista de "Activos" sin horarios ni notificaciones programadas |
+| 3 | Verificar en la pantalla de "Hoy" | ✅ **No** aparece en las secciones Pendientes/Perdidas/Completadas |
+| 4 | Desplazarse en la pantalla "Hoy" hacia el final de la lista | ✅ Aparece la sección **"A demanda"** (separada con un divider) con la tarjeta del medicamento PRN |
+
+### TC-73-PRN · Registrar una dosis PRN
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | En la sección "A demanda" de Hoy, tocar el botón de la tarjeta PRN | ✅ Haptic feedback; se registra un log `taken` con la hora actual en la base de datos |
+| 2 | Verificar el contador en la tarjeta | ✅ Aparece debajo del nombre: `×1 tomada` (o `×1 taken` en inglés) |
+| 3 | Tocar el botón dos veces más | ✅ El contador pasa a `×3 tomada` |
+| 4 | Sin tomas del día | ✅ No se muestra ningún contador (el campo es invisible hasta la primera toma) |
+
+### TC-74-PRN · PRN en Historial
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Ir a Historial (↗ desde Hoy) tras registrar una dosis PRN | ✅ Aparece en el listado con estado `taken`, hora exacta de registro y nombre del medicamento |
+| 2 | Verificar el estado de la dosis PRN | ✅ Las dosis PRN se muestran siempre como `taken` — no existen estados `pending`, `skipped` ni `missed` para medicamentos PRN |
+
+### TC-75-PRN · PRN no genera notificaciones
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Crear un medicamento PRN | ✅ No se programa ninguna notificación en el sistema |
+| 2 | Esperar hasta media noche y revisar las notificaciones pendientes | ✅ No llega ningún aviso relacionado con el medicamento PRN |
+
+### TC-76-PRN · PRN no aparece en Agenda / Calendario
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Ir a la pestaña "Agenda" | ✅ El medicamento PRN no genera puntos de estado en ningún día del calendario (ya que no tiene schedules) |
+| 2 | Las tomas registradas SÍ aparecen en Historial (TC-74-PRN) | ✅ Solo el historial refleja las tomas PRN pasadas |
+
+---
+
+## 23. Módulo 18 — Foto del medicamento  *(nuevo en v1.3)*
+
+**Prerrequisitos:** Al menos un medicamento existente.
+
+### TC-72 · Adjuntar foto al crear un medicamento
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Formulario de nuevo medicamento → tocar el botón de cámara "Agregar foto" | ✅ Se solicita permiso de galería al sistema si es la primera vez |
+| 2 | Denegar el permiso | ✅ Toast de error `form.errorPhotoPermission` (ej: "Se necesita permiso para acceder a la galería") |
+| 3 | Conceder el permiso y repetir | ✅ Se abre el selector de imágenes del sistema con ratio 1:1 y recorte habilitado |
+| 4 | Seleccionar una foto | ✅ El modal se cierra; aparece una miniatura cuadrada de la foto junto a dos botones: "Cambiar" y "Quitar" |
+| 5 | Guardar el medicamento | ✅ La tarjeta en la lista muestra la foto como avatar circular en lugar del ícono de píldora |
+
+### TC-73 · Cambiar / quitar foto en un medicamento existente
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Editar un medicamento que tenga foto → tocar "Cambiar" | ✅ Se abre el selector; al confirmar reemplaza la miniatura |
+| 2 | Tocar "Quitar" | ✅ La miniatura desaparece; el botón de cámara vuelve a mostrarse |
+| 3 | Guardar con foto eliminada | ✅ La tarjeta vuelve a mostrar el ícono de píldora genérico |
+
+### TC-74 · Foto en tarjeta de dosis (DoseCard)
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Con un medicamento que tenga foto, abrir la pestaña "Hoy" | ✅ La `DoseCard` muestra la foto como miniatura circular en lugar del punto de color |
+| 2 | Con un medicamento sin foto | ✅ El punto de color original sigue visible |
+| 3 | Verificar en modo oscuro | ✅ La foto no tiene borde blanco forzado; se adapta al tema |
+
+---
+
+## 23. Módulo 18 — Prompt de valoración en la tienda  *(nuevo en v1.3)*
+
+> Este prompt se activa automáticamente. **No debe dispararse en entorno de desarrollo** (`enabled: false` en `StoreReview`).
+
+**Prerrequisitos:** Probar en build de producción (APK firmado / TestFlight).  
+**Condición de disparo:** ≥ 10 dosis marcadas como "tomada" Y ≥ 7 días desde la primera instalación.
+
+### TC-75 · Prompt no aparece antes del umbral
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Instalar la app por primera vez y marcar 9 dosis como tomadas | ✅ No aparece ningún diálogo de valoración |
+| 2 | Marcar la dosis número 10 el mismo día de la instalación | ✅ Tampoco aparece (faltan ≥ 7 días) |
+
+### TC-76 · Prompt aparece al cumplir ambas condiciones
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Simular que han pasado 7 días (avanzar la fecha del dispositivo o esperar) y marcar la dosis 10 | ✅ El SO muestra el sheet nativo de valoración (Play Store / App Store) |
+| 2 | Cerrar el sheet y marcar más dosis | ✅ El prompt **no** vuelve a aparecer (se guarda la marca `review_prompted` en AsyncStorage) |
+| 3 | Desinstalar, reinstalar y repetir en un dispositivo diferente | ✅ El prompt puede aparecer de nuevo (el estado es local a la instalación) |
+
+---
+
+## 24. Módulo 19 — Política de privacidad en Ajustes  *(nuevo en v1.3)*
+
+### TC-77 · Enlace a política de privacidad
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Ir a la pestaña Ajustes → sección "Acerca de" | ✅ Aparece una fila "Política de privacidad" con icono de escudo verde |
+| 2 | Tocar la fila | ✅ Se abre el navegador del sistema en `https://kegb.github.io/pill-o-clock/privacy-policy.html` |
+| 3 | Verificar en idioma inglés (cambiar idioma en Ajustes primero) | ✅ El texto de la fila traduce a "Privacy Policy" |
+| 4 | Volver a la app | ✅ La app sigue en la misma pantalla sin crash |
+
+---
+
+## 25. Módulo 20 — Seguimiento de errores (Sentry)  *(nuevo en v1.3)*
+
+> Sentry solo captura eventos en builds de **producción** (`enabled: process.env.NODE_ENV === 'production'`). En desarrollo local los errores se muestran en consola pero no se envían.
+
+### TC-78 · Sentry no reporta en desarrollo
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Ejecutar la app con `npx expo start` o `npx expo run:android` sin la variable `EXPO_PUBLIC_SENTRY_DSN` en `.env` | ✅ La app arranca sin crash; en consola aparece la advertencia de Sentry con DSN vacío |
+| 2 | Provocar una excepción controlada en `ErrorBoundary` (si se tienen herramientas de QA) | ✅ El error se muestra en la UI del ErrorBoundary pero **no** se envía a Sentry (sin DSN) |
+
+### TC-79 · Sentry captura en producción *(build firmado con DSN)*
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Generar un build de producción con `EXPO_PUBLIC_SENTRY_DSN` configurado en las variables de entorno de EAS | — |
+| 2 | Provocar un error no controlado (ingeniería inversa o módulo de prueba QA) | ✅ El evento aparece en el dashboard de Sentry con el stack trace completo y el `componentStack` del ErrorBoundary |
+| 3 | Verificar que el `tracesSampleRate = 0.2` (20 %) no satura el cupo gratuito | ✅ No todos los clics generan transacciones (solo ~20 % de las sesiones) |
+
+---
+
+## 26. Módulo 21 — Widget de pantalla de inicio (Android)  *(nuevo en v1.3)*
+
+> Solo aplica a **Android**. El widget es un appwidget estándar `2–3×1` (RemoteViews) sin Compose/Glance. Requiere dispositivo físico o emulador con paneles de acceso directo. El tamaño inicial puede variar entre launchers: en el Pixel Launcher con Android 12+ aparece como **3×1** (el launcher ajusta el mínimo de ancho al grid más cercano).
+
+### TC-80 · Agregar el widget en la pantalla de inicio
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Mantener pulsado en un espacio vacío de la pantalla de inicio | ✅ Aparece el menú contextual del launcher |
+| 2 | Tocar "Widgets" y buscar "Pill O-Clock" | ✅ Aparece un widget con el nombre de la app |
+| 3 | Arrastrar el widget a la pantalla de inicio | ✅ El widget se coloca (típicamente 3×1 en el Pixel Launcher) y muestra inmediatamente el estado actual de dosis |
+
+### TC-81 · Contenido del widget con dosis pendiente
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Tener una dosis pendiente para hoy | ✅ El widget muestra: `💊  [Nombre del medicamento]` en la primera línea y `Next: HH:mm` en la segunda |
+| 2 | Verificar en modo oscuro del sistema | ✅ El fondo del widget cambia a `#1E293B` y el texto a colores claros (`#F1F5F9`) |
+| 3 | Verificar en modo claro | ✅ El fondo es blanco y el texto es oscuro (`#0F172A`) |
+
+### TC-82 · Widget cuando todas las dosis están completadas
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Marcar todas las dosis del día como tomadas o saltadas | ✅ El widget actualiza automáticamente y muestra: `✔  All done` en color verde |
+| 2 | Sin medicamentos activos para hoy | ✅ El widget también muestra `✔  All done` |
+
+### TC-83 · Tap en el widget abre la app
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Tocar el widget desde la pantalla de inicio | ✅ La app se abre en la pantalla de "Hoy" (pantalla principal) |
+| 2 | Si la app ya está en segundo plano | ✅ La app pasa al primer plano sin crear una nueva instancia (`FLAG_ACTIVITY_NEW_TASK \| FLAG_ACTIVITY_CLEAR_TOP`) |
+
+### TC-84 · Actualización en tiempo real
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Volver a la pantalla de inicio y observar el widget | ✅ El widget muestra la dosis correcta desde el inicio |
+| 2 | Abrir la app, marcar una dosis, y volver a la pantalla de inicio | ✅ El widget actualiza el contenido en los segundos siguientes reflejando el nuevo estado |
+| 3 | Reiniciar el dispositivo | ✅ El widget sigue funcionando después del reinicio (SharedPreferences persiste entre reinicios) |
+
+---
+
+## Actualización del checklist de release (v1.3)
+
+Añadir los siguientes ítems al checklist de la sección 21:
+
+### Pre-release — Ambas plataformas (nuevos en v1.3)
+
+- [ ] TC-72 a TC-74 (Foto de medicamento: adjuntar, cambiar, quitar, DoseCard) pasan
+- [ ] TC-77 (Política de privacidad en Ajustes) pasa
+- [ ] TC-78 (Sentry deshabilitado en dev) verificado
+- [ ] TC-79 (Sentry captura en producción) verificado con build firmado
+
+### Pre-release — Android únicamente (nuevos en v1.3)
+
+- [ ] TC-80 (Widget se agrega al launcher sin crash)
+- [ ] TC-81 (Widget muestra dosis pendiente con colores correctos en claro y oscuro)
+- [ ] TC-82 (Widget muestra "All done" cuando no quedan pendientes)
+- [ ] TC-83 (Tap en widget abre la app)
+- [ ] TC-84 (Widget actualiza al volver de la app tras marcar dosis)
+
+### Pre-release — Producción únicamente (nuevos en v1.3)
+
+- [ ] TC-75 a TC-76 (Prompt de valoración se dispara solo una vez al cumplir condiciones)

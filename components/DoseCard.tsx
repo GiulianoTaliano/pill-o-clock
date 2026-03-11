@@ -1,8 +1,14 @@
-import { View, Text, TouchableOpacity, Modal, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, Modal, TextInput, Image } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useState } from "react";
-import { TodayDose } from "../src/types";
+import { TodayDose, SkipReason } from "../src/types";
 import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig } from "../src/utils";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -10,7 +16,7 @@ import { useAppTheme } from "../src/hooks/useAppTheme";
 interface DoseCardProps {
   dose: TodayDose;
   onTake: () => void;
-  onSkip: () => void;
+  onSkip: (reason?: SkipReason) => void;
   onSnooze: () => void;
   /** Optional — when provided, an undo button is shown on taken/skipped cards */
   onRevert?: () => void;
@@ -31,7 +37,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
   const { t } = useTranslation();
   const theme = useAppTheme();
   const colors = getColorConfig(dose.medication.color);
-  const statusTheme = theme.doseStatus[dose.status];
+  const statusTheme = theme.doseStatus[dose.status === "missed" ? "missed" : dose.status];
   const isPending = dose.status === "pending";
   const isMissed  = dose.status === "missed";
   const isSnoozed = !!dose.snoozedUntil;
@@ -39,6 +45,43 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
 
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [noteDraft, setNoteDraft] = useState(dose.notes ?? "");
+  const [skipReasonVisible, setSkipReasonVisible] = useState(false);
+
+  // Reanimated: flash + ring burst on take button
+  const takeScale   = useSharedValue(1);
+  const ringScale   = useSharedValue(0.4);
+  const ringOpacity = useSharedValue(0);
+
+  const takeAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: takeScale.value }],
+  }));
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
+    opacity: ringOpacity.value,
+  }));
+
+  function handleTakePress() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Action fires immediately — animation is purely cosmetic
+    onTake();
+    // Quick scale flash
+    takeScale.value = withSequence(
+      withTiming(1.06, { duration: 70 }),
+      withTiming(1,    { duration: 110 })
+    );
+    // Expanding ring (destello)
+    ringScale.value   = 0.4;
+    ringOpacity.value = 0.7;
+    ringScale.value   = withTiming(2.0, { duration: 380 });
+    ringOpacity.value = withTiming(0,   { duration: 380 });
+  }
+
+  const SKIP_REASONS: { key: SkipReason; icon: string; color: string }[] = [
+    { key: "forgot",      icon: "help-circle-outline",  color: "#f97316" },
+    { key: "side_effect", icon: "alert-circle-outline",  color: "#ef4444" },
+    { key: "no_stock",    icon: "cube-outline",          color: "#8b5cf6" },
+    { key: "other",       icon: "ellipsis-horizontal",   color: "#64748b" },
+  ];
 
   return (
   <>
@@ -49,13 +92,21 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
       {/* Header */}
       <View className="flex-row items-center justify-between mb-2">
         <View className="flex-row items-center gap-2">
-          {/* Pill color dot */}
-          <View
-            style={{ backgroundColor: colors.bg }}
-            className="w-10 h-10 rounded-full items-center justify-center"
-          >
-            <Ionicons name="medical" size={20} color="#fff" />
-          </View>
+          {/* Pill icon or photo */}
+          {dose.medication.photoUri ? (
+            <Image
+              source={{ uri: dose.medication.photoUri }}
+              className="w-10 h-10 rounded-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              style={{ backgroundColor: colors.bg }}
+              className="w-10 h-10 rounded-full items-center justify-center"
+            >
+              <Ionicons name="medical" size={20} color="#fff" />
+            </View>
+          )}
           <View>
             <Text className="text-base font-bold text-text">{dose.medication.name}</Text>
             <View className="flex-row items-center gap-1.5 mt-0.5">
@@ -173,7 +224,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
 
             {/* Skip */}
             <TouchableOpacity
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSkip(); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
               className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2"
             >
               <Ionicons name="close-outline" size={15} color="#ef4444" />
@@ -181,13 +232,30 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             </TouchableOpacity>
 
             {/* Take */}
-            <TouchableOpacity
-              onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); onTake(); }}
-              className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
-            >
-              <Ionicons name="checkmark" size={16} color="#fff" />
-              <Text className="text-white text-sm font-bold">{t('doseCard.take')}</Text>
-            </TouchableOpacity>
+            <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
+              <TouchableOpacity
+                onPress={handleTakePress}
+                className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
+              >
+                <Ionicons name="checkmark" size={16} color="#fff" />
+                <Text className="text-white text-sm font-bold">{t('doseCard.take')}</Text>
+              </TouchableOpacity>
+              {/* Destello ring — expands and fades on tap */}
+              <Animated.View
+                style={[
+                  ringStyle,
+                  {
+                    position: 'absolute',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    borderRadius: 12,
+                    borderWidth: 2.5,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'transparent',
+                    pointerEvents: 'none',
+                  } as any,
+                ]}
+              />
+            </Animated.View>
           </View>
 
           {/* Undo snooze — shown below the action row when the dose is snoozed */}
@@ -210,20 +278,22 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           </View>
 
           <TouchableOpacity
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSkip(); }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
             className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
           >
             <Ionicons name="close-outline" size={15} color="#64748b" />
             <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">{t('doseCard.skip')}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); onTake(); }}
-            className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
-          >
-            <Ionicons name="checkmark" size={16} color="#fff" />
-            <Text className="text-white text-sm font-bold">{t('doseCard.takeLate')}</Text>
-          </TouchableOpacity>
+          <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
+            <TouchableOpacity
+              onPress={handleTakePress}
+              className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
+            >
+              <Ionicons name="checkmark" size={16} color="#fff" />
+              <Text className="text-white text-sm font-bold">{t('doseCard.takeLate')}</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       )}
       </View>
@@ -239,6 +309,14 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             {dose.notes ? dose.notes : t('doseCard.addNote')}
           </Text>
         </TouchableOpacity>
+      )}
+
+      {/* Skip reason chip (skipped only) */}
+      {dose.status === "skipped" && dose.skipReason && (
+        <View className="flex-row items-center gap-1.5 mt-1 ml-12">
+          <Ionicons name="information-circle-outline" size={13} color="#94a3b8" />
+          <Text className="text-xs text-muted">{t(`doseCard.skipReason_${dose.skipReason}`)}</Text>
+        </View>
       )}
     </View>
 
@@ -281,6 +359,44 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               <Text className="text-white font-bold">{t('common.save')}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </View>
+    </Modal>
+
+    {/* Skip reason modal */}
+    <Modal
+      visible={skipReasonVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setSkipReasonVisible(false)}
+    >
+      <View className="flex-1 justify-end bg-black/40">
+        <View className="bg-card rounded-t-3xl px-5 pt-5 pb-8">
+          <Text className="text-base font-bold text-text mb-1">{t('doseCard.skipReasonTitle')}</Text>
+          <Text className="text-xs text-muted mb-4">{t('doseCard.skipReasonSubtitle')}</Text>
+          {SKIP_REASONS.map(({ key, icon, color }) => (
+            <TouchableOpacity
+              key={key}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSkipReasonVisible(false);
+                onSkip(key);
+              }}
+              className="flex-row items-center gap-3 py-3.5 border-b border-border"
+            >
+              <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: color + "18" }}>
+                <Ionicons name={icon as any} size={18} color={color} />
+              </View>
+              <Text className="text-sm font-semibold text-text flex-1">{t(`doseCard.skipReason_${key}`)}</Text>
+              <Ionicons name="chevron-forward" size={14} color="#94a3b8" />
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            onPress={() => { setSkipReasonVisible(false); onSkip(undefined); }}
+            className="mt-4 items-center py-3 bg-slate-100 dark:bg-slate-800 rounded-2xl"
+          >
+            <Text className="text-muted font-semibold text-sm">{t('common.cancel')}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>

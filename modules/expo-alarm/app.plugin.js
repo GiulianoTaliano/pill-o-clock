@@ -21,6 +21,20 @@ function ensurePermission(androidManifest, permissionName) {
   }
 }
 
+/**
+ * Idempotently ensures that a <uses-feature> entry with required="false" exists.
+ * This prevents Play Store from auto-excluding devices that lack the hardware
+ * implied by certain permissions (e.g. GPS implied by ACCESS_FINE_LOCATION).
+ */
+function ensureOptionalFeature(androidManifest, featureName) {
+  const features = androidManifest.manifest["uses-feature"] ?? [];
+  const exists = features.some((f) => f.$["android:name"] === featureName);
+  if (!exists) {
+    features.push({ $: { "android:name": featureName, "android:required": "false" } });
+    androidManifest.manifest["uses-feature"] = features;
+  }
+}
+
 const withExpoAlarm = (config) => {
   // Merge required permissions that some build environments may not pick up
   // from the module's own AndroidManifest.xml.
@@ -31,6 +45,12 @@ const withExpoAlarm = (config) => {
     ensurePermission(androidManifest, "android.permission.FOREGROUND_SERVICE");
     ensurePermission(androidManifest, "android.permission.FOREGROUND_SERVICE_ALARM");
     ensurePermission(androidManifest, "android.permission.USE_FULL_SCREEN_INTENT");
+
+    // Location permissions imply GPS/network hardware as required by default.
+    // Marking them optional ensures tablets and devices without GPS are not excluded.
+    ensureOptionalFeature(androidManifest, "android.hardware.location");
+    ensureOptionalFeature(androidManifest, "android.hardware.location.gps");
+    ensureOptionalFeature(androidManifest, "android.hardware.location.network");
 
     return modConfig;
   });

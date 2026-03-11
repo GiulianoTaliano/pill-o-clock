@@ -1,5 +1,16 @@
 import "../global.css";
+import * as Sentry from "@sentry/react-native";
 import { useEffect, useRef, useState } from "react";
+
+// Initialise Sentry as early as possible (before any other imports render).
+// Replace the DSN with your own from https://sentry.io — set it in EAS secrets
+// as SENTRY_DSN and read it via expo-constants extra for production.
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? "",
+  // Only enable Sentry in production builds to keep dev logs clean.
+  enabled: process.env.NODE_ENV === "production",
+  tracesSampleRate: 0.2,
+});
 import { SplashScreen, Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Alert, AppState, Linking, View, Text, LogBox, Platform, UIManager } from "react-native";
@@ -9,7 +20,7 @@ import { initDatabase } from "../src/db/database";
 import { setupNotifications, openExactAlarmSettings, rescheduleAllNotifications } from "../src/services/notifications";
 import { checkFullScreenIntentPermission, requestFullScreenIntentPermission } from "expo-alarm";
 // Side-effect import (registers TaskManager.defineTask) + named imports from same module.
-import { registerBackgroundFetch } from "../src/services/backgroundTask";
+import { registerBackgroundFetch, closeMissedDoses } from "../src/services/backgroundTask";
 import { useAppStore } from "../src/store";
 import { useNotificationResponseHandler } from "../src/hooks/useNotificationResponse";
 import { initI18n, useTranslation } from "../src/i18n";
@@ -84,6 +95,8 @@ export default function RootLayout() {
           const { needsExactAlarmPermission } = await setupNotifications();
           await loadAll();
           await registerBackgroundFetch();
+          // Close missed doses from previous days so history is accurate.
+          closeMissedDoses().catch((e) => console.warn("[closeMissedDoses]", e));
 
           if (needsExactAlarmPermission) {
             const alreadyPrompted = await AsyncStorage.getItem(

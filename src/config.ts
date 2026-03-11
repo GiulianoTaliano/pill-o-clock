@@ -20,4 +20,6 @@
  * ⚠️  Do NOT commit a production key to public source control.
  *     For open-source projects use an environment variable instead.
  */
-export const GOOGLE_MAPS_API_KEY = "AIzaSyBerHuVkW3DcTFtA1by3hH96voGthL7o3o";
+// Baked into the JS bundle at build time by Metro (Expo reads EXPO_PUBLIC_* from .env.local).
+// For CI/EAS builds, set this as an EAS Secret in the Expo dashboard.
+export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";

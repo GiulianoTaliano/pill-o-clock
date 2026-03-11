@@ -1,8 +1,8 @@
-import { View, Text, TouchableOpacity, Switch } from "react-native";
+import { View, Text, TouchableOpacity, Switch, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Medication, Schedule } from "../src/types";
-import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig } from "../src/utils";
+import { Medication, Schedule, DoseLog } from "../src/types";
+import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig, isScheduleActiveOnDate, toDateString } from "../src/utils";
 import { format } from "date-fns";
 import { useTranslation, getDateLocale } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -13,6 +13,8 @@ interface MedicationCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onToggleActive: (isActive: boolean) => void;
+  /** Today's dose logs — used to compute the "next dose" indicator. */
+  todayLogs?: DoseLog[];
 }
 
 export function MedicationCard({
@@ -21,6 +23,7 @@ export function MedicationCard({
   onEdit,
   onDelete,
   onToggleActive,
+  todayLogs = [],
 }: MedicationCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -36,6 +39,37 @@ export function MedicationCard({
     return `${dayStr} · ${s.time}`;
   }
 
+  // Compute next-dose indicator
+  const nextDoseLabel: string | null = (() => {
+    if (!medication.isActive) return null;
+    if (medication.isPRN) return t('medicationCard.nextDosePRN');
+
+    const now = new Date();
+    const todayStr = toDateString(now);
+    const nowHHmm = format(now, "HH:mm");
+    const todayDate = new Date(todayStr + "T12:00");
+
+    const activeToday = schedules.filter((s) => isScheduleActiveOnDate(s, todayDate, medication));
+    if (activeToday.length === 0) return null;
+
+    // Check which schedules already have a "taken" log today
+    const takenScheduleIds = new Set(
+      todayLogs
+        .filter((l) => l.medicationId === medication.id && l.scheduledDate === todayStr && l.status === "taken")
+        .map((l) => l.scheduleId)
+    );
+
+    const pending = activeToday
+      .filter((s) => !takenScheduleIds.has(s.id))
+      .sort((a, b) => a.time.localeCompare(b.time));
+
+    if (pending.length === 0) return t('medicationCard.todayComplete');
+
+    // Next upcoming time (could be future or already past but not yet taken)
+    const upcoming = pending.find((s) => s.time >= nowHHmm) ?? pending[0];
+    return t('medicationCard.nextDose', { time: upcoming.time });
+  })();
+
   return (
     <View
       style={{ borderLeftColor: colors.bg, backgroundColor: medication.isActive ? theme.card : theme.cardAlt }}
@@ -44,12 +78,20 @@ export function MedicationCard({
       {/* Header */}
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-3 flex-1">
-          <View
-            style={{ backgroundColor: colors.light }}
-            className="w-10 h-10 rounded-full items-center justify-center"
-          >
-            <Ionicons name="medical" size={20} color={colors.bg} />
-          </View>
+          {medication.photoUri ? (
+            <Image
+              source={{ uri: medication.photoUri }}
+              className="w-10 h-10 rounded-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              style={{ backgroundColor: colors.light }}
+              className="w-10 h-10 rounded-full items-center justify-center"
+            >
+              <Ionicons name="medical" size={20} color={colors.bg} />
+            </View>
+          )}
           <View className="flex-1">
             <View className="flex-row items-center gap-2 flex-wrap">
               <Text
@@ -148,6 +190,36 @@ export function MedicationCard({
               </Text>
             </View>
           ))}
+        </View>
+      )}
+
+      {/* PRN badge when no schedules */}
+      {medication.isPRN && schedules.length === 0 && (
+        <View
+          style={{ backgroundColor: colors.light }}
+          className="flex-row items-center gap-2 rounded-xl px-3 py-1.5 mt-3 self-start"
+        >
+          <Ionicons name="hand-left-outline" size={13} color={colors.text} />
+          <Text style={{ color: colors.text }} className="text-xs font-medium">
+            {t('medicationCard.nextDosePRN')}
+          </Text>
+        </View>
+      )}
+
+      {/* Next dose indicator */}
+      {nextDoseLabel && !medication.isPRN && (
+        <View className="flex-row items-center gap-1 mt-2 ml-0.5">
+          <Ionicons
+            name={nextDoseLabel === t('medicationCard.todayComplete') ? "checkmark-circle" : "time-outline"}
+            size={13}
+            color={nextDoseLabel === t('medicationCard.todayComplete') ? "#22c55e" : "#4f9cff"}
+          />
+          <Text
+            className="text-xs font-semibold"
+            style={{ color: nextDoseLabel === t('medicationCard.todayComplete') ? "#22c55e" : "#4f9cff" }}
+          >
+            {nextDoseLabel}
+          </Text>
         </View>
       )}
 

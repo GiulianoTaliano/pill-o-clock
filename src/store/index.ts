@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Appearance, LayoutAnimation, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Medication, Schedule, DoseLog, TodayDose, Appointment, HealthMeasurement, MeasurementType, DailyCheckin } from "../types";
+import { Medication, Schedule, DoseLog, TodayDose, Appointment, HealthMeasurement, MeasurementType, DailyCheckin, SkipReason } from "../types";
 import {
   getMedications,
   getSchedulesByMedication,
@@ -48,6 +48,7 @@ import {
   cancelAppointmentNotification,
 } from "../services/notifications";
 import { unregisterBackgroundFetch } from "../services/backgroundTask";
+import * as StoreReview from "expo-store-review";
 
 // ─── State ─────────────────────────────────────────────────────────────────
 
@@ -88,7 +89,8 @@ interface AppState {
   markDose: (
     dose: TodayDose,
     status: "taken" | "skipped",
-    notes?: string
+    notes?: string,
+    skipReason?: SkipReason
   ) => Promise<void>;
 
   /** Update the free-text note on an already-logged dose. */
@@ -133,7 +135,10 @@ interface AppState {
   selectedAppointmentId: string | null;
   setSelectedAppointmentId: (id: string | null) => void;  /** When set, the Appointments screen auto-opens the edit form for this ID. */
   pendingEditAppointmentId: string | null;
-  setPendingEditAppointmentId: (id: string | null) => void;}
+  setPendingEditAppointmentId: (id: string | null) => void;
+
+  /** Log an on-demand (PRN) dose for a medication that has no fixed schedule. */
+  logPRNDose: (medication: Medication) => Promise<void>;}
 
 // ─── Store ─────────────────────────────────────────────────────────────────
 
@@ -293,7 +298,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ── Mark dose (taken / skipped) ────────────────────────────────────────
 
-  async markDose(dose, status) {
+  async markDose(dose, status, notes, skipReason) {
     const now = new Date();
     const log: DoseLog = {
       id: generateId(),
@@ -305,6 +310,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       status,
       takenAt: status === "taken" ? toISOString(now) : undefined,
       createdAt: toISOString(now),
+      notes,
+      skipReason: status === "skipped" ? skipReason : undefined,
     };
 
     await upsertDoseLog(log);
@@ -337,10 +344,37 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
+    // ── Store-review prompt ─────────────────────────────────────────────────
+    if (status === "taken") {
+      const FIRST_LAUNCH_KEY = "@pilloclock/first_launch";
+      const DOSES_KEY = "@pilloclock/doses_taken_count";
+      const PROMPTED_KEY = "@pilloclock/review_prompted";
+
+      const prompted = await AsyncStorage.getItem(PROMPTED_KEY);
+      if (!prompted) {
+        // Record first launch date if not set
+        let firstLaunch = await AsyncStorage.getItem(FIRST_LAUNCH_KEY);
+        if (!firstLaunch) {
+          firstLaunch = new Date().toISOString();
+          await AsyncStorage.setItem(FIRST_LAUNCH_KEY, firstLaunch);
+        }
+
+        // Increment dose count
+        const prevCount = parseInt((await AsyncStorage.getItem(DOSES_KEY)) ?? "0", 10);
+        const newCount = prevCount + 1;
+        await AsyncStorage.setItem(DOSES_KEY, String(newCount));
+
+        // Check conditions: ≥7 days since first launch AND ≥10 doses taken
+        const daysSince = (Date.now() - new Date(firstLaunch).getTime()) / 86_400_000;
+        if (daysSince >= 7 && newCount >= 10 && (await StoreReview.isAvailableAsync())) {
+          await StoreReview.requestReview();
+          await AsyncStorage.setItem(PROMPTED_KEY, "1");
+        }
+      }
+    }
+
     await get().loadTodayLogs();
   },
-
-  // ── Update dose note ──────────────────────────────────────────────────────
 
   async updateDoseNote(scheduleId, scheduledDate, notes) {
     await updateDoseLogNotes(scheduleId, scheduledDate, notes);
@@ -553,6 +587,39 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setPendingEditAppointmentId(id) {
     set({ pendingEditAppointmentId: id });
+  },
+
+  // ── Log PRN (on-demand) dose ──────────────────────────────────────────────
+
+  async logPRNDose(medication) {
+    const now = new Date();
+    const log: DoseLog = {
+      id: generateId(),
+      medicationId: medication.id,
+      scheduleId: `prn-${medication.id}`,
+      scheduledDate: toDateString(now),
+      scheduledTime: format(now, "HH:mm"),
+      status: "taken",
+      takenAt: toISOString(now),
+      createdAt: toISOString(now),
+    };
+    await upsertDoseLog(log);
+
+    // Decrement stock
+    if (medication.stockQuantity != null && medication.stockQuantity > 0) {
+      const newQty = medication.stockQuantity - 1;
+      await updateMedicationStock(medication.id, newQty);
+      if (
+        medication.stockAlertThreshold != null &&
+        newQty < medication.stockAlertThreshold
+      ) {
+        await scheduleStockAlert({ ...medication, stockQuantity: newQty });
+      }
+      const allMeds = await getMedications();
+      set({ medications: allMeds });
+    }
+
+    await get().loadTodayLogs();
   },
 }));
 

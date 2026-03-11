@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget provider metadata.
+  targetCellWidth/Height (API 31+) and minWidth/Height (older devices).
+  updatePeriodMillis=0 → the app controls updates via ExpoWidgetModule.updateWidget().
+-->
+<appwidget-provider
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:minWidth="180dp"
+  android:minHeight="40dp"
+  android:targetCellWidth="2"
+  android:targetCellHeight="1"
+  android:updatePeriodMillis="0"
+  android:initialLayout="@layout/pill_widget"
+  android:resizeMode="horizontal"
+  android:widgetCategory="home_screen" />

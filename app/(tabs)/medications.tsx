@@ -14,6 +14,7 @@ export default function MedicationsScreen() {
   const { t } = useTranslation();
   const medications = useAppStore((s) => s.medications);
   const schedules = useAppStore((s) => s.schedules);
+  const todayLogs = useAppStore((s) => s.todayLogs);
   const deleteMedication = useAppStore((s) => s.deleteMedication);
   const toggleActive = useAppStore((s) => s.toggleMedicationActive);
   const loadAll = useAppStore((s) => s.loadAll);
@@ -108,6 +109,7 @@ export default function MedicationsScreen() {
                     key={med.id}
                     medication={med}
                     schedules={schedules.filter((s) => s.medicationId === med.id)}
+                    todayLogs={todayLogs}
                     onEdit={() => router.push(`/medication/${med.id}`)}
                     onDelete={() => handleDelete(med.id, med.name)}
                     onToggleActive={(val) => handleToggleActive(med.id, val)}
@@ -131,6 +133,7 @@ export default function MedicationsScreen() {
                     key={med.id}
                     medication={med}
                     schedules={schedules.filter((s) => s.medicationId === med.id)}
+                    todayLogs={todayLogs}
                     onEdit={() => router.push(`/medication/${med.id}`)}
                     onDelete={() => handleDelete(med.id, med.name)}
                     onToggleActive={(val) => handleToggleActive(med.id, val)}

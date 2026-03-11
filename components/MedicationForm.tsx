@@ -5,7 +5,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, {
@@ -188,6 +190,8 @@ export interface MedicationFormValues {
   schedules: ScheduleInput[];
   stockQuantity?: number;
   stockAlertThreshold?: number;
+  isPRN?: boolean;
+  photoUri?: string;
 }
 
 interface MedicationFormProps {
@@ -241,6 +245,24 @@ export function MedicationForm({
   const [stockThreshStr, setStockThreshStr] = useState(
     initialValues?.stockAlertThreshold != null ? String(initialValues.stockAlertThreshold) : ""
   );
+  const [photoUri, setPhotoUri] = useState<string | undefined>(initialValues?.photoUri);
+
+  const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      showToast(t('form.errorPhotoPermission'), "error");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      setPhotoUri(result.assets[0].uri);
+    }
+  };
 
   // ─ Frecuencia ────────────────────────────────────────────────────────────
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -248,8 +270,8 @@ export function MedicationForm({
   const isInitiallyOnce = !!(
     initialValues?.startDate && initialValues.startDate === initialValues.endDate
   );
-  const [repeatMode, setRepeatMode] = useState<"once" | "repeat">(
-    isInitiallyOnce ? "once" : "repeat"
+  const [repeatMode, setRepeatMode] = useState<"once" | "repeat" | "prn">(
+    initialValues?.isPRN ? "prn" : isInitiallyOnce ? "once" : "repeat"
   );
   const [onceDate, setOnceDate] = useState<string>(
     isInitiallyOnce ? (initialValues?.startDate ?? todayStr) : todayStr
@@ -273,7 +295,7 @@ export function MedicationForm({
       showToast(t('form.errorDoseRequiredMsg'), "error");
       return;
     }
-    if (schedules.length === 0) {
+    if (repeatMode !== "prn" && schedules.length === 0) {
       showToast(t('form.errorNoAlarmsMsg'), "error");
       return;
     }
@@ -290,13 +312,15 @@ export function MedicationForm({
       category,
       notes: notes.trim(),
       color,
-      startDate: repeatMode === "once" ? onceDate : startDate,
-      endDate:   repeatMode === "once" ? onceDate : endDate,
-      schedules: schedules.map((s) =>
+      startDate: repeatMode === "once" ? onceDate : repeatMode === "prn" ? undefined : startDate,
+      endDate:   repeatMode === "once" ? onceDate : repeatMode === "prn" ? undefined : endDate,
+      schedules: repeatMode === "prn" ? [] : schedules.map((s) =>
         repeatMode === "once" ? { ...s, days: [] } : s
       ),
       stockQuantity: stockQtyStr.trim() ? Math.max(0, parseInt(stockQtyStr, 10)) : undefined,
       stockAlertThreshold: stockThreshStr.trim() ? Math.max(0, parseInt(stockThreshStr, 10)) : undefined,
+      isPRN: repeatMode === "prn",
+      photoUri,
     });
   };
 
@@ -436,6 +460,46 @@ export function MedicationForm({
           </View>
         </View>
 
+        {/* Section: Photo */}
+        <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
+          {t('form.sectionPhoto')}
+        </Text>
+        <View className="bg-card rounded-2xl border border-border p-4 mb-4 items-center">
+          {photoUri ? (
+            <View className="items-center gap-3">
+              <Image
+                source={{ uri: photoUri }}
+                className="w-24 h-24 rounded-2xl"
+                resizeMode="cover"
+              />
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={pickPhoto}
+                  className="flex-row items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2"
+                >
+                  <Ionicons name="image-outline" size={14} color="#3b82f6" />
+                  <Text className="text-blue-500 text-xs font-semibold">{t('form.changePhoto')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setPhotoUri(undefined)}
+                  className="flex-row items-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2"
+                >
+                  <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                  <Text className="text-red-500 text-xs font-semibold">{t('form.removePhoto')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={pickPhoto}
+              className="flex-row items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl px-6 py-4"
+            >
+              <Ionicons name="camera-outline" size={20} color="#94a3b8" />
+              <Text className="text-muted font-semibold">{t('form.addPhoto')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Section: Frecuencia */}
         <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
           {t('form.sectionFrequency')}
@@ -507,6 +571,38 @@ export function MedicationForm({
           </TouchableOpacity>
         </View>
 
+        {/* PRN row */}
+        <TouchableOpacity
+          onPress={() => setRepeatMode("prn")}
+          className={`flex-row items-center gap-2 rounded-2xl py-3 px-4 border mb-4 ${
+            repeatMode === "prn"
+              ? "bg-primary border-primary"
+              : "bg-card border-border"
+          }`}
+        >
+          <Ionicons
+            name="hand-left-outline"
+            size={16}
+            color={repeatMode === "prn" ? "#fff" : "#94a3b8"}
+          />
+          <View>
+            <Text
+              className={`text-sm font-bold ${
+                repeatMode === "prn" ? "text-white" : "text-text"
+              }`}
+            >
+              {t('form.modePRN')}
+            </Text>
+            <Text
+              className={`text-xs ${
+                repeatMode === "prn" ? "text-blue-100" : "text-muted"
+              }`}
+            >
+              {t('form.modePRNSub')}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
         {repeatMode === "once" ? (
           /* ── Única vez ──────────────────────────────────────────── */
           <>
@@ -530,6 +626,9 @@ export function MedicationForm({
               />
             ))}
           </>
+        ) : repeatMode === "prn" ? (
+          /* ── A demanda (PRN) ────────────────────────────────────── */
+          null
         ) : (
           /* ── Repetir ───────────────────────────────────────────── */
           <>

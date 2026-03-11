@@ -60,6 +60,7 @@ const en: TranslationShape = {
     sectionPending: "Pending",
     sectionMissed: "Missed",
     sectionDone: "Completed",
+    sectionPRN: "On demand",
     chipPending_one: "{{count}} pending",
     chipPending_other: "{{count}} pending",
     chipTaken_one: "{{count}} taken",
@@ -71,6 +72,7 @@ const en: TranslationShape = {
     tipReschedule: "Tip: Tap the time badge on any pending dose to reschedule it today. Tap to dismiss.",
     streak_one: "🔥 {{count}} day streak",
     streak_other: "🔥 {{count}} day streak",
+    prnLogDose: "Log dose",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
@@ -101,6 +103,9 @@ const en: TranslationShape = {
     total: "Total",
     noLogs: "No records",
     noLogsSubtitle: "No doses recorded in this period",
+    viewWeek: "Week",
+    viewMonth: "Month",
+    missed: "Missed",
   },
 
   // ─── Calendar screen ──────────────────────────────────────────────────────
@@ -144,6 +149,8 @@ const en: TranslationShape = {
     modeOnceSub: "Single day",
     modeRepeat: "Recurring",
     modeRepeatSub: "Multiple days",
+    modePRN: "On demand (PRN)",
+    modePRNSub: "No fixed schedule",
     addAlarm: "Add",
     removeAlarm: "Remove alarm",
     errorNameRequired: "Name required",
@@ -163,6 +170,11 @@ const en: TranslationShape = {
     fieldStockThreshold: "Alert when below",
     fieldStockThresholdPlaceholder: "e.g. 5",
     fieldStockUnit: "units",
+    sectionPhoto: "Photo (optional)",
+    addPhoto: "Add photo",
+    changePhoto: "Change photo",
+    removePhoto: "Remove photo",
+    errorPhotoPermission: "Gallery access permission is required",
   },
 
   // ─── Alarm screen ─────────────────────────────────────────────────────────
@@ -191,12 +203,21 @@ const en: TranslationShape = {
     noteModalPlaceholder: "How did you feel? Any side effects?",
     noteSaved: "Note saved",
     revertSnooze: "Undo snooze",
+    skipReasonTitle: "Why are you skipping?",
+    skipReasonSubtitle: "This helps track your adherence patterns",
+    skipReason_forgot: "I forgot",
+    skipReason_side_effect: "Side effect",
+    skipReason_no_stock: "No stock",
+    skipReason_other: "Other reason",
   },
 
   // ─── Medication card ──────────────────────────────────────────────────────
   medicationCard: {
     deleteButton: "Delete",
     inactiveLabel: "Inactive",
+    nextDose: "Next: {{time}}",
+    nextDosePRN: "On demand",
+    todayComplete: "Completed today ✓",
   },
 
   // ─── Notifications ────────────────────────────────────────────────────────
@@ -443,6 +464,7 @@ const en: TranslationShape = {
     // About
     sectionAbout: "About",
     version: "Version",
+    privacyPolicy: "Privacy policy",
     // Danger zone
     sectionDanger: "Danger zone",
     clearData: "Delete all data",

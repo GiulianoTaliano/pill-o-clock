@@ -28,6 +28,8 @@ export default function NewMedicationScreen() {
           endDate: values.endDate,
           stockQuantity: values.stockQuantity,
           stockAlertThreshold: values.stockAlertThreshold,
+          isPRN: values.isPRN,
+          photoUri: values.photoUri,
         },
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );

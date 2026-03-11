@@ -12,11 +12,12 @@ import { useAdherenceStreak } from "../../src/hooks/useAdherenceStreak";
 import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
 import { CheckinModal } from "../../components/CheckinModal";
-import { TodayDose } from "../../src/types";
-import { CATEGORY_CONFIG } from "../../src/utils";
+import { TodayDose, SkipReason } from "../../src/types";
+import { CATEGORY_CONFIG, getColorConfig } from "../../src/utils";
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useToast } from "../../src/context/ToastContext";
+import { updateWidget } from "expo-widget";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -31,6 +32,9 @@ export default function HomeScreen() {
   const updateDoseNote = useAppStore((s) => s.updateDoseNote);
   const dailyCheckins = useAppStore((s) => s.dailyCheckins);
   const loadDailyCheckins = useAppStore((s) => s.loadDailyCheckins);
+  const medications = useAppStore((s) => s.medications);
+  const todayLogs = useAppStore((s) => s.todayLogs);
+  const logPRNDose = useAppStore((s) => s.logPRNDose);
   const [refreshing, setRefreshing] = useState(false);
   const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(null);
   const [pickerDraft, setPickerDraft] = useState<Date>(new Date());
@@ -46,6 +50,17 @@ export default function HomeScreen() {
       if (!val) setTipSeen(false);
     });
   }, []);
+
+  // Keep the Android home-screen widget in sync with the current dose list.
+  useEffect(() => {
+    const nextPending = doses.find((d) => d.status === "pending");
+    const allDone = doses.length > 0 && doses.every((d) => d.status === "taken" || d.status === "skipped");
+    updateWidget({
+      name:    nextPending?.medication.name ?? null,
+      time:    nextPending?.scheduledTime  ?? null,
+      allDone,
+    });
+  }, [doses]);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,9 +98,11 @@ export default function HomeScreen() {
   const missed   = doses.filter((d) => d.status === "missed").sort(byPriorityThenTime);
   const done     = doses.filter((d) => d.status === "taken" || d.status === "skipped");
 
+  // PRN medications have no schedules; show them in a separate section
+  const prnMeds = medications.filter((m) => m.isPRN && m.isActive);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
   const today = format(new Date(), "PPP", { locale: getDateLocale() });
   const todayCap = today.charAt(0).toUpperCase() + today.slice(1);
-  const todayStr = format(new Date(), "yyyy-MM-dd");
   const todayCheckin = dailyCheckins.find((c) => c.date === todayStr);
   const showCheckinPrompt = !todayCheckin && !checkinDismissed;
 
@@ -96,9 +113,9 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const handleMarkDose = (dose: TodayDose, status: "taken" | "skipped") => {
+  const handleMarkDose = (dose: TodayDose, status: "taken" | "skipped", skipReason?: SkipReason) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    markDose(dose, status);
+    markDose(dose, status, undefined, skipReason);
   };
 
   const handleSnooze = (dose: TodayDose) => {
@@ -266,7 +283,7 @@ export default function HomeScreen() {
                     key={`${dose.schedule.id}-${dose.scheduledDate}`}
                     dose={dose}
                     onTake={() => handleMarkDose(dose, "taken")}
-                    onSkip={() => handleMarkDose(dose, "skipped")}
+                    onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
                     onSnooze={() => handleSnooze(dose)}
                     onReschedule={() => openReschedule(dose)}
                     onRevert={dose.snoozedUntil ? () => handleRevertSnooze(dose) : undefined}
@@ -291,7 +308,7 @@ export default function HomeScreen() {
                     key={`${dose.schedule.id}-${dose.scheduledDate}`}
                     dose={dose}
                     onTake={() => handleMarkDose(dose, "taken")}
-                    onSkip={() => handleMarkDose(dose, "skipped")}
+                    onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
                     onSnooze={() => handleSnooze(dose)}
                   />
                 ))}
@@ -314,12 +331,63 @@ export default function HomeScreen() {
                     key={`${dose.schedule.id}-${dose.scheduledDate}`}
                     dose={dose}
                     onTake={() => handleMarkDose(dose, "taken")}
-                    onSkip={() => handleMarkDose(dose, "skipped")}
+                    onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
                     onSnooze={() => handleSnooze(dose)}
                     onRevert={() => handleRevert(dose)}
                     onUpdateNote={(note) => handleUpdateNote(dose, note)}
                   />
                 ))}
+              </>
+            )}
+
+            {/* PRN (on-demand) medications */}
+            {prnMeds.length > 0 && (
+              <>
+                {(pending.length > 0 || missed.length > 0 || done.length > 0) && (
+                  <View className="h-px bg-border my-3" />
+                )}
+                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
+                  {t('home.sectionPRN')}
+                </Text>
+                {prnMeds.map((med) => {
+                  const colors = getColorConfig(med.color);
+                  const todayDoseCount = todayLogs.filter(
+                    (l) => l.medicationId === med.id && l.scheduledDate === todayStr && l.status === "taken"
+                  ).length;
+                  return (
+                    <View
+                      key={med.id}
+                      style={{ borderLeftColor: colors.bg }}
+                      className="flex-row items-center bg-card rounded-2xl border border-border border-l-4 px-4 py-3 mb-2 shadow-sm"
+                    >
+                      <View
+                        style={{ backgroundColor: colors.light }}
+                        className="w-9 h-9 rounded-full items-center justify-center mr-3"
+                      >
+                        <Ionicons name="medical" size={18} color={colors.bg} />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-sm font-bold text-text">{med.name}</Text>
+                        <Text className="text-xs text-muted">{med.dosage}</Text>
+                        {todayDoseCount > 0 && (
+                          <Text className="text-xs text-green-600 dark:text-green-400 mt-0.5 font-medium">
+                            ×{todayDoseCount} {t('status.taken').toLowerCase()}
+                          </Text>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          logPRNDose(med);
+                        }}
+                        style={{ backgroundColor: colors.bg }}
+                        className="rounded-xl px-3 py-2"
+                      >
+                        <Text className="text-white text-xs font-bold">{t('home.prnLogDose')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
               </>
             )}
             <View className="h-6" />

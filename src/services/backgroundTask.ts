@@ -1,8 +1,17 @@
 import { Platform } from "react-native";
 import * as BackgroundFetch from "expo-background-fetch";
 import * as TaskManager from "expo-task-manager";
-import { initDatabase } from "../db/database";
+import { addDays, format, subDays } from "date-fns";
+import {
+  initDatabase,
+  getMedications,
+  getAllSchedules,
+  getDoseLogsByDateRange,
+  upsertDoseLog,
+} from "../db/database";
 import { rescheduleAllNotifications } from "./notifications";
+import { DoseLog } from "../types";
+import { generateId, isScheduleActiveOnDate, toDateString, toISOString } from "../utils";
 
 // ─── Task name ─────────────────────────────────────────────────────────────
 
@@ -34,6 +43,7 @@ export const BG_TASK_NAME = "PILL_RESCHEDULE_NOTIFICATIONS";
 if (Platform.OS !== "web") TaskManager.defineTask(BG_TASK_NAME, async () => {
   try {
     await initDatabase();
+    await closeMissedDoses();
     await rescheduleAllNotifications();
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (e) {
@@ -80,5 +90,60 @@ export async function unregisterBackgroundFetch(): Promise<void> {
     }
   } catch {
     // Non-critical.
+  }
+}
+
+// ─── Close missed doses ───────────────────────────────────────────────────
+//
+// Looks back up to MISSED_LOOKBACK_DAYS days and upserts a "missed" log for
+// every (schedule, date) pair that had no log yet.  This ensures the History
+// screen shows consistent data even when the app wasn't open on a given day.
+
+const MISSED_LOOKBACK_DAYS = 30;
+
+export async function closeMissedDoses(): Promise<void> {
+  const now = new Date();
+  const todayStr = toDateString(now);
+  const cutoff = subDays(now, MISSED_LOOKBACK_DAYS);
+  const cutoffStr = toDateString(cutoff);
+  const yesterdayStr = toDateString(subDays(now, 1));
+
+  const [meds, schedules, existingLogs] = await Promise.all([
+    getMedications(),
+    getAllSchedules(),
+    getDoseLogsByDateRange(cutoffStr, yesterdayStr),
+  ]);
+
+  // Build a fast lookup set of already-logged (scheduleId, date) pairs
+  const logged = new Set(existingLogs.map((l) => `${l.scheduleId}|${l.scheduledDate}`));
+  const medMap = new Map(meds.map((m) => [m.id, m]));
+  const nowIso = toISOString(now);
+
+  // Iterate each day in the range [cutoff, yesterday]
+  let cursor = new Date(cutoff);
+  while (toDateString(cursor) <= yesterdayStr) {
+    const dateStr = toDateString(cursor);
+
+    for (const schedule of schedules) {
+      const med = medMap.get(schedule.medicationId);
+      if (!med) continue;
+      if (!isScheduleActiveOnDate(schedule, cursor, med)) continue;
+      if (logged.has(`${schedule.id}|${dateStr}`)) continue;
+
+      const missedLog: DoseLog = {
+        id: generateId(),
+        medicationId: med.id,
+        scheduleId: schedule.id,
+        scheduledDate: dateStr,
+        scheduledTime: schedule.time,
+        status: "missed",
+        createdAt: nowIso,
+      };
+      await upsertDoseLog(missedLog);
+      // Add to set so subsequent insertions in the same run don't duplicate
+      logged.add(`${schedule.id}|${dateStr}`);
+    }
+
+    cursor = addDays(cursor, 1);
   }
 }

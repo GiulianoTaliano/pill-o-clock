@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <application>
+
+    <!--
+      PillWidgetReceiver: handles ACTION_APPWIDGET_UPDATE and other system
+      widget lifecycle broadcasts.
+      exported=true is required — the Android home screen sends explicit
+      broadcasts to this component from outside the app process.
+    -->
+    <receiver
+      android:name="expo.modules.widget.PillWidgetProvider"
+      android:exported="true"
+      android:label="Pill O-Clock">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/pill_widget_info" />
+    </receiver>
+
+  </application>
+
+</manifest>

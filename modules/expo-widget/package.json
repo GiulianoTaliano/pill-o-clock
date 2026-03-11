@@ -1,0 +1,15 @@
+{
+  "name": "expo-widget",
+  "version": "1.0.0",
+  "description": "Android home-screen widget for Pill O-Clock. Shows the next pending dose and updates via SharedPreferences.",
+  "main": "src/index",
+  "types": "src/index",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react-native": "*"
+  }
+}

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform, Linking } from "react-native";
 import { useToast } from "../../src/context/ToastContext";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -342,6 +342,13 @@ export default function SettingsScreen() {
             iconColor="#94a3b8"
             title={t("settings.version")}
             value={appVersion}
+          />
+          <Divider />
+          <SettingRow
+            icon="shield-checkmark-outline"
+            iconColor="#22c55e"
+            title={t("settings.privacyPolicy")}
+            onPress={() => Linking.openURL("https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html")}
           />
         </View>
 

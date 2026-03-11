@@ -58,6 +58,7 @@ const es = {
     sectionPending: "Pendientes",
     sectionMissed: "No tomados",
     sectionDone: "Completados",
+    sectionPRN: "A demanda",
     chipPending_one: "{{count}} pendiente",
     chipPending_other: "{{count}} pendientes",
     chipTaken_one: "{{count}} tomado",
@@ -69,6 +70,7 @@ const es = {
     tipReschedule: "Tip: Tocá el horario de una dosis pendiente para reprogramarla hoy. Tocá para cerrar.",
     streak_one: "🔥 {{count}} día seguido",
     streak_other: "🔥 {{count}} días seguidos",
+    prnLogDose: "Registrar dosis",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
@@ -99,6 +101,9 @@ const es = {
     total: "Total",
     noLogs: "Sin registros",
     noLogsSubtitle: "No hay dosis registradas en este período",
+    viewWeek: "Semana",
+    viewMonth: "Mes",
+    missed: "No tomados",
   },
 
   // ─── Calendar screen ──────────────────────────────────────────────────────
@@ -142,6 +147,8 @@ const es = {
     modeOnceSub: "Solo un día",
     modeRepeat: "Repetir",
     modeRepeatSub: "Varios días",
+    modePRN: "A demanda (PRN)",
+    modePRNSub: "Sin horario fijo",
     addAlarm: "Agregar",
     removeAlarm: "Quitar alarma",
     errorNameRequired: "Nombre requerido",
@@ -161,6 +168,11 @@ const es = {
     fieldStockThreshold: "Alertar cuando queden menos de",
     fieldStockThresholdPlaceholder: "ej: 5",
     fieldStockUnit: "unidades",
+    sectionPhoto: "Foto (opcional)",
+    addPhoto: "Agregar foto",
+    changePhoto: "Cambiar foto",
+    removePhoto: "Quitar foto",
+    errorPhotoPermission: "Se necesita permiso para acceder a la galería",
   },
 
   // ─── Alarm screen ─────────────────────────────────────────────────────────
@@ -189,12 +201,21 @@ const es = {
     noteModalPlaceholder: "¿Cómo te sentiste? ¿Algún efecto secundario?",
     noteSaved: "Nota guardada",
     revertSnooze: "Deshacer postergación",
+    skipReasonTitle: "¿Por qué lo omitís?",
+    skipReasonSubtitle: "Ayuda a hacer seguimiento de tu adherencia",
+    skipReason_forgot: "Se me olvidó",
+    skipReason_side_effect: "Efecto secundario",
+    skipReason_no_stock: "Sin stock",
+    skipReason_other: "Otro motivo",
   },
 
   // ─── Medication card ──────────────────────────────────────────────────────
   medicationCard: {
     deleteButton: "Eliminar",
     inactiveLabel: "Inactivo",
+    nextDose: "Próxima: {{time}}",
+    nextDosePRN: "A demanda",
+    todayComplete: "Completado hoy ✓",
   },
 
   // ─── Notifications ────────────────────────────────────────────────────────
@@ -441,6 +462,7 @@ const es = {
     // About
     sectionAbout: "Información",
     version: "Versión",
+    privacyPolicy: "Política de privacidad",
     // Danger zone
     sectionDanger: "Zona de peligro",
     clearData: "Borrar todos los datos",

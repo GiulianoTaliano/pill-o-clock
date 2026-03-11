@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import { Medication, Schedule, DoseLog, DoseStatus, DosageUnit, MedicationCategory, Appointment, HealthMeasurement, MeasurementType, DailyCheckin } from "../types";
+import { Medication, Schedule, DoseLog, DoseStatus, DosageUnit, MedicationCategory, Appointment, HealthMeasurement, MeasurementType, DailyCheckin, SkipReason } from "../types";
 
 // ─── Open DB ───────────────────────────────────────────────────────────────
 
@@ -30,7 +30,11 @@ export async function initDatabase(): Promise<void> {
       start_date    TEXT,
       end_date      TEXT,
       is_active     INTEGER NOT NULL DEFAULT 1,
-      created_at    TEXT NOT NULL
+      created_at    TEXT NOT NULL,
+      stock_quantity INTEGER,
+      stock_alert_threshold INTEGER,
+      photo_uri     TEXT,
+      is_prn        INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -49,7 +53,9 @@ export async function initDatabase(): Promise<void> {
       scheduled_time  TEXT NOT NULL,
       status          TEXT NOT NULL DEFAULT 'pending',
       taken_at        TEXT,
-      created_at      TEXT NOT NULL
+      created_at      TEXT NOT NULL,
+      notes           TEXT,
+      skip_reason     TEXT
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_dose_unique
@@ -137,6 +143,21 @@ export async function initDatabase(): Promise<void> {
     }
     await db.execAsync("PRAGMA user_version = 5");
   }
+
+  if (user_version < 6) {
+    try { await db.execAsync("ALTER TABLE dose_logs ADD COLUMN skip_reason TEXT"); } catch { /* already exists */ }
+    await db.execAsync("PRAGMA user_version = 6");
+  }
+
+  if (user_version < 7) {
+    for (const sql of [
+      "ALTER TABLE medications ADD COLUMN photo_uri TEXT",
+      "ALTER TABLE medications ADD COLUMN is_prn INTEGER NOT NULL DEFAULT 0",
+    ]) {
+      try { await db.execAsync(sql); } catch { /* already exists */ }
+    }
+    await db.execAsync("PRAGMA user_version = 7");
+  }
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────
@@ -159,6 +180,8 @@ function rowToMedication(row: Record<string, unknown>): Medication {
     createdAt: row.created_at as string,
     stockQuantity: row.stock_quantity != null ? (row.stock_quantity as number) : undefined,
     stockAlertThreshold: row.stock_alert_threshold != null ? (row.stock_alert_threshold as number) : undefined,
+    photoUri: row.photo_uri as string | undefined,
+    isPRN: (row.is_prn as number) === 1,
   };
 }
 
@@ -183,8 +206,8 @@ export async function insertMedication(med: Medication): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO medications
-       (id, name, dosage, dosage_amount, dosage_unit, category, notes, color, start_date, end_date, is_active, created_at, stock_quantity, stock_alert_threshold)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, name, dosage, dosage_amount, dosage_unit, category, notes, color, start_date, end_date, is_active, created_at, stock_quantity, stock_alert_threshold, photo_uri, is_prn)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       med.id,
       med.name,
@@ -200,6 +223,8 @@ export async function insertMedication(med: Medication): Promise<void> {
       med.createdAt,
       med.stockQuantity ?? null,
       med.stockAlertThreshold ?? null,
+      med.photoUri ?? null,
+      med.isPRN ? 1 : 0,
     ]
   );
 }
@@ -210,7 +235,7 @@ export async function updateMedication(med: Medication): Promise<void> {
     `UPDATE medications
      SET name = ?, dosage = ?, dosage_amount = ?, dosage_unit = ?, category = ?,
          notes = ?, color = ?, start_date = ?, end_date = ?, is_active = ?,
-         stock_quantity = ?, stock_alert_threshold = ?
+         stock_quantity = ?, stock_alert_threshold = ?, photo_uri = ?, is_prn = ?
      WHERE id = ?`,
     [
       med.name,
@@ -225,6 +250,8 @@ export async function updateMedication(med: Medication): Promise<void> {
       med.isActive ? 1 : 0,
       med.stockQuantity ?? null,
       med.stockAlertThreshold ?? null,
+      med.photoUri ?? null,
+      med.isPRN ? 1 : 0,
       med.id,
     ]
   );
@@ -325,6 +352,7 @@ function rowToDoseLog(row: Record<string, unknown>): DoseLog {
     takenAt: row.taken_at as string | undefined,
     createdAt: row.created_at as string,
     notes: row.notes as string | undefined,
+    skipReason: row.skip_reason as SkipReason | undefined,
   };
 }
 
@@ -378,8 +406,8 @@ export async function upsertDoseLog(log: DoseLog): Promise<void> {
     [log.scheduleId, log.scheduledDate]
   );
   await db.runAsync(
-    `INSERT INTO dose_logs (id, medication_id, schedule_id, scheduled_date, scheduled_time, status, taken_at, created_at, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO dose_logs (id, medication_id, schedule_id, scheduled_date, scheduled_time, status, taken_at, created_at, notes, skip_reason)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       log.id,
       log.medicationId,
@@ -390,6 +418,7 @@ export async function upsertDoseLog(log: DoseLog): Promise<void> {
       log.takenAt ?? null,
       log.createdAt,
       log.notes ?? null,
+      log.skipReason ?? null,
     ]
   );
 }

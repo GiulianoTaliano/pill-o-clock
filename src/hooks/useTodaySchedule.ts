@@ -60,6 +60,7 @@ export function useTodaySchedule(dateStr?: string): TodayDose[] {
         status,
         takenAt: log?.takenAt,
         notes: log?.notes,
+        skipReason: log?.skipReason,
         snoozedUntil: isToday ? snoozedTimes[`${schedule.id}-${targetDate}`] : undefined,
       });
     }

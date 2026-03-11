@@ -20,6 +20,9 @@ export type DosageUnit =
   | "capsulas"
   | "UI";
 
+/** Reason the user gave for skipping a dose. */
+export type SkipReason = "forgot" | "side_effect" | "no_stock" | "other";
+
 export type MedicationCategory =
   | "antibiotico"
   | "analgesico"
@@ -50,6 +53,10 @@ export interface Medication {
   stockQuantity?: number;
   /** Fire a low-stock notification when stockQuantity drops to this value. */
   stockAlertThreshold?: number;
+  /** URI of a photo of the medication box/blister (from expo-image-picker). */
+  photoUri?: string;
+  /** If true, this medication has no fixed schedule — user logs it on demand. */
+  isPRN?: boolean;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────
@@ -70,10 +77,10 @@ export interface Schedule {
 
 // ─── Dose Log ──────────────────────────────────────────────────────────────
 
-export type DoseStatus = "pending" | "taken" | "skipped";
+export type DoseStatus = "pending" | "taken" | "skipped" | "missed";
 
-/** Extended status used only in the display layer (never persisted to DB). */
-export type TodayDoseStatus = DoseStatus | "missed";
+/** Alias kept for backward compatibility. */
+export type TodayDoseStatus = DoseStatus;
 
 export interface DoseLog {
   id: string;
@@ -89,6 +96,8 @@ export interface DoseLog {
   createdAt: string;
   /** Optional free-text note added by the user when logging the dose. */
   notes?: string;
+  /** Reason the user gave for skipping this dose (only set when status = 'skipped'). */
+  skipReason?: SkipReason;
 }
 
 // ─── Appointment ──────────────────────────────────────────────────────────
@@ -181,6 +190,8 @@ export interface TodayDose {
   takenAt?: string;
   /** Free-text note attached to the dose log (if any). */
   notes?: string;
+  /** Skip reason — only set when status is "skipped". */
+  skipReason?: SkipReason;
   /** HH:mm of the snoozed reminder — only set when the dose has been snoozed
    *  but the original scheduled time hasn't passed yet. */
   snoozedUntil?: string;
