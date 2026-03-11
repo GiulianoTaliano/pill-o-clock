@@ -1,11 +1,63 @@
 import { useState, useEffect } from "react";
-import { Alert, View, ActivityIndicator } from "react-native";
+import { Alert, View, ScrollView, Animated } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MedicationForm, MedicationFormValues } from "../../components/MedicationForm";
 import { useAppStore } from "../../src/store";
 import { getSchedulesByMedication } from "../../src/db/database";
 import { Schedule } from "../../src/types";
 import { useTranslation } from "../../src/i18n";
+import { useSkeletonAnimation, SkeletonBox } from "../../components/Skeleton";
+
+function MedicationFormSkeleton() {
+  const anim = useSkeletonAnimation();
+  const field = (widthPct = "100%") => (
+    <View style={{ marginBottom: 20 }}>
+      <SkeletonBox style={{ height: 12, width: "35%", borderRadius: 6, marginBottom: 8 }} />
+      <SkeletonBox style={{ height: 44, width: widthPct, borderRadius: 12 }} />
+    </View>
+  );
+  return (
+    <Animated.View style={[anim, { flex: 1 }]}>
+      <ScrollView
+        className="flex-1 bg-background"
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        scrollEnabled={false}
+      >
+        {/* Photo placeholder */}
+        <View style={{ alignItems: "center", marginBottom: 24 }}>
+          <SkeletonBox style={{ width: 80, height: 80, borderRadius: 40 }} />
+        </View>
+        {field()}
+        {field()}
+        {/* Category chips row */}
+        <View style={{ marginBottom: 20 }}>
+          <SkeletonBox style={{ height: 12, width: "30%", borderRadius: 6, marginBottom: 10 }} />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonBox key={i} style={{ flex: 1, height: 34, borderRadius: 20 }} />
+            ))}
+          </View>
+        </View>
+        {field()}
+        {/* Color swatches row */}
+        <View style={{ marginBottom: 20 }}>
+          <SkeletonBox style={{ height: 12, width: "25%", borderRadius: 6, marginBottom: 10 }} />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonBox key={i} style={{ width: 32, height: 32, borderRadius: 16 }} />
+            ))}
+          </View>
+        </View>
+        {field()}
+        {field()}
+        {/* Schedule block */}
+        <SkeletonBox style={{ height: 100, borderRadius: 16, marginBottom: 20 }} />
+        {/* Submit button */}
+        <SkeletonBox style={{ height: 50, borderRadius: 14, marginTop: 8 }} />
+      </ScrollView>
+    </Animated.View>
+  );
+}
 
 export default function EditMedicationScreen() {
   const router = useRouter();
@@ -30,11 +82,7 @@ export default function EditMedicationScreen() {
   }, [id]);
 
   if (loading || !medication) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color="#4f9cff" />
-      </View>
-    );
+    return <MedicationFormSkeleton />;
   }
 
   const initialValues: MedicationFormValues = {

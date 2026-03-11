@@ -3,13 +3,14 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useState, useEffect, useCallback } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useSkeletonAnimation, SkeletonBox } from "../../components/Skeleton";
 import {
   format,
   startOfMonth,
@@ -34,6 +35,26 @@ import {
 } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
+
+// ─── Calendar grid skeleton ───────────────────────────────────────────────
+
+function CalendarGridSkeleton({ rows }: { rows: number }) {
+  const anim = useSkeletonAnimation();
+  return (
+    <Animated.View style={anim}>
+      {Array.from({ length: rows }).map((_, row) => (
+        <View key={row} className="flex-row mb-1">
+          {Array.from({ length: 7 }).map((_, col) => (
+            <SkeletonBox
+              key={col}
+              style={{ flex: 1, height: 42, marginHorizontal: 2, borderRadius: 12 }}
+            />
+          ))}
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
 
 // ─── Status badge ──────────────────────────────────────────────────────────
 
@@ -300,9 +321,7 @@ export default function CalendarScreen() {
       {/* Calendar grid */}
       <View className="px-3 mb-2">
         {loading ? (
-          <View className="h-44 items-center justify-center">
-            <ActivityIndicator color="#4f9cff" />
-          </View>
+          <CalendarGridSkeleton rows={cells.length / 7} />
         ) : (
           Array.from({ length: cells.length / 7 }, (_, row) => (
             <View key={row} className="flex-row mb-1">

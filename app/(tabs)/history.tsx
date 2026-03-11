@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
@@ -12,6 +12,7 @@ import { DoseLog, Medication } from "../../src/types";
 import { getColorConfig, toDateString } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
+import { useSkeletonAnimation, SkeletonBox } from "../../components/Skeleton";
 
 const STATUS_ICONS = {
   taken:   "checkmark-circle" as const,
@@ -32,7 +33,65 @@ function dayAdherenceColor(dayLogs: DoseLog[] | undefined): string {
   if (pct >= 0.5) return "#f97316"; // partial → orange
   return "#ef4444";                  // mostly missed/skipped → red
 }
+// ─── Skeleton components ─────────────────────────────────────────────────────────────
 
+function HistoryStatsSkeleton() {
+  const anim = useSkeletonAnimation();
+  return (
+    <Animated.View style={[anim, { flexDirection: "row", paddingHorizontal: 20, gap: 8, marginBottom: 12 }]}>
+      <SkeletonBox style={{ flex: 1, height: 72, borderRadius: 16 }} />
+      <SkeletonBox style={{ flex: 1, height: 72, borderRadius: 16 }} />
+      <SkeletonBox style={{ flex: 1, height: 72, borderRadius: 16 }} />
+    </Animated.View>
+  );
+}
+
+function HistoryHeatmapSkeleton({ rows, dayHeaders }: { rows: number; dayHeaders: string[] }) {
+  const anim = useSkeletonAnimation();
+  return (
+    <View className="bg-card border border-border rounded-2xl p-4 mb-3 mx-5">
+      <View className="flex-row mb-1">
+        {dayHeaders.map((h, i) => (
+          <Text key={i} className="flex-1 text-center text-xs text-muted font-semibold">{h}</Text>
+        ))}
+      </View>
+      <Animated.View style={anim}>
+        {Array.from({ length: rows }).map((_, rowIdx) => (
+          <View key={rowIdx} className="flex-row mb-1">
+            {Array.from({ length: 7 }).map((_, colIdx) => (
+              <SkeletonBox key={colIdx} style={{ flex: 1, aspectRatio: 1, margin: 2, borderRadius: 8 }} />
+            ))}
+          </View>
+        ))}
+      </Animated.View>
+      <View className="flex-row gap-3 mt-2 justify-center">
+        {[{ color: "#22c55e", label: "100%" }, { color: "#f97316", label: "≥50%" }, { color: "#ef4444", label: "<50%" }]
+          .map(({ color, label }) => (
+            <View key={label} className="flex-row items-center gap-1">
+              <View className="w-3 h-3 rounded-sm" style={{ backgroundColor: color + "cc" }} />
+              <Text className="text-xs text-muted">{label}</Text>
+            </View>
+          ))}
+      </View>
+    </View>
+  );
+}
+
+function HistoryLogRowSkeleton() {
+  const anim = useSkeletonAnimation();
+  return (
+    <Animated.View style={anim}>
+      <View className="flex-row items-center bg-card rounded-2xl border border-border px-4 py-3 mb-2">
+        <SkeletonBox style={{ width: 36, height: 36, borderRadius: 18, marginRight: 12 }} />
+        <View style={{ flex: 1, gap: 6 }}>
+          <SkeletonBox style={{ height: 13, width: "60%", borderRadius: 6 }} />
+          <SkeletonBox style={{ height: 11, width: "40%", borderRadius: 6 }} />
+        </View>
+        <SkeletonBox style={{ width: 56, height: 24, borderRadius: 10 }} />
+      </View>
+    </Animated.View>
+  );
+}
 // ─── Screen ────────────────────────────────────────────────────────────────
 
 export default function HistoryScreen() {
@@ -41,6 +100,7 @@ export default function HistoryScreen() {
   const medications = useAppStore((s) => s.medications);
   const getHistoryLogs = useAppStore((s) => s.getHistoryLogs);
   const [logs, setLogs] = useState<DoseLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
   const [offset, setOffset] = useState(0); // weeks (week view) or months (month view) back
 
@@ -63,7 +123,8 @@ export default function HistoryScreen() {
   const toStr    = toDateString(toDate);
 
   const loadLogs = useCallback(() => {
-    getHistoryLogs(fromStr, toStr).then(setLogs);
+    setLoading(true);
+    getHistoryLogs(fromStr, toStr).then(setLogs).finally(() => setLoading(false));
   }, [fromStr, toStr, getHistoryLogs]);
 
   useEffect(() => { loadLogs(); }, [loadLogs]);
@@ -97,11 +158,15 @@ export default function HistoryScreen() {
   const counted      = logs.filter((l) => l.status !== "pending").length;
   const adherence    = counted > 0 ? Math.round((totalTaken / counted) * 100) : null;
 
-  // ── Labels ───────────────────────────────────────────────────────────────
+  // ── Labels ─────────────────────────────────────────────────────────────────
 
   const rangeLabel = viewMode === "week"
     ? `${format(fromDate, "d MMM", { locale: getDateLocale() })} – ${format(toDate, "d MMM yyyy", { locale: getDateLocale() })}`
     : format(monthStart, "MMMM yyyy", { locale: getDateLocale() }).replace(/^\w/, (c) => c.toUpperCase());
+
+  const DAY_HEADERS = t('calendar.dayHeaders', { returnObjects: true }) as string[];
+  // Row count for the month heatmap — derived from monthStart, always available before loading
+  const heatmapRowCount = Math.ceil((getDaysInMonth(monthStart) + (monthStart.getDay() + 6) % 7) / 7);
 
   // ── Month heatmap grid ────────────────────────────────────────────────────
 
@@ -118,7 +183,6 @@ export default function HistoryScreen() {
     // Pad to complete last row
     while (cells.length % 7 !== 0) cells.push(null);
 
-    const DAY_HEADERS = t('calendar.dayHeaders', { returnObjects: true }) as string[];
     const today = toDateString(new Date());
 
     return (
@@ -211,7 +275,7 @@ export default function HistoryScreen() {
 
         <View className="items-center">
           <Text className="text-sm font-bold text-text">{rangeLabel}</Text>
-          {adherence !== null && (
+          {!loading && adherence !== null && (
             <Text className="text-xs text-muted">{t('history.adherence', { value: adherence })}</Text>
           )}
         </View>
@@ -226,30 +290,44 @@ export default function HistoryScreen() {
       </View>
 
       {/* Stats row */}
-      <View className="flex-row px-5 gap-2 mb-3">
-        <View className="flex-1 bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-800/40 rounded-2xl p-3 items-center">
-          <Text className="text-2xl font-black text-green-600 dark:text-green-400">{totalTaken}</Text>
-          <Text className="text-xs text-green-700 dark:text-green-400 font-medium">{t('history.taken')}</Text>
-        </View>
-        <View className="flex-1 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-800/40 rounded-2xl p-3 items-center">
-          <Text className="text-2xl font-black text-red-500 dark:text-red-400">{totalSkipped + totalMissed}</Text>
-          <Text className="text-xs text-red-600 dark:text-red-400 font-medium">{t('history.missed')}</Text>
-        </View>
-        {adherence !== null && (
-          <View className="flex-1 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/40 rounded-2xl p-3 items-center">
-            <Text className="text-2xl font-black text-blue-500 dark:text-blue-400">{adherence}%</Text>
-            <Text className="text-xs text-blue-600 dark:text-blue-400 font-medium">{t('history.adherenceLabel')}</Text>
+      {loading ? (
+        <HistoryStatsSkeleton />
+      ) : (
+        <View className="flex-row px-5 gap-2 mb-3">
+          <View className="flex-1 bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-800/40 rounded-2xl p-3 items-center">
+            <Text className="text-2xl font-black text-green-600 dark:text-green-400">{totalTaken}</Text>
+            <Text className="text-xs text-green-700 dark:text-green-400 font-medium">{t('history.taken')}</Text>
           </View>
-        )}
-      </View>
+          <View className="flex-1 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-800/40 rounded-2xl p-3 items-center">
+            <Text className="text-2xl font-black text-red-500 dark:text-red-400">{totalSkipped + totalMissed}</Text>
+            <Text className="text-xs text-red-600 dark:text-red-400 font-medium">{t('history.missed')}</Text>
+          </View>
+          {adherence !== null && (
+            <View className="flex-1 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/40 rounded-2xl p-3 items-center">
+              <Text className="text-2xl font-black text-blue-500 dark:text-blue-400">{adherence}%</Text>
+              <Text className="text-xs text-blue-600 dark:text-blue-400 font-medium">{t('history.adherenceLabel')}</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Month heatmap */}
-        {viewMode === "month" && <MonthHeatmap />}
+        {viewMode === "month" && (
+          loading
+            ? <HistoryHeatmapSkeleton rows={heatmapRowCount} dayHeaders={DAY_HEADERS} />
+            : <MonthHeatmap />
+        )}
 
         {/* Log list */}
-        <View className="px-5">
-          {sortedDates.length === 0 ? (
+        {loading ? (
+          <View className="px-5">
+            {Array.from({ length: 4 }).map((_, i) => <HistoryLogRowSkeleton key={i} />)}
+            <View className="h-6" />
+          </View>
+        ) : (
+          <View className="px-5">
+            {sortedDates.length === 0 ? (
             <View className="py-12 items-center">
               <Ionicons name="calendar-outline" size={40} color="#cbd5e1" />
               <Text className="text-muted text-sm mt-3 text-center">
@@ -326,6 +404,7 @@ export default function HistoryScreen() {
           )}
           <View className="h-6" />
         </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
