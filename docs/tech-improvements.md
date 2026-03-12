@@ -64,7 +64,7 @@ Esto no es solo una mejora: la **App Store Review Guideline 5.1.4** requiere que
 
 ### A2 — `predictiveBackGestureEnabled: false` global en app.json
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [app.json](../app.json)
 - **Categoría:** Directrices de plataforma Android
 
@@ -910,7 +910,7 @@ closeMissedDoses().catch((e) => {
 | ID | Título | Prioridad | Estado |
 |---|---|---|---|
 | A1 | Accesibilidad: VoiceOver / TalkBack | 🔴 Alta | `[x]` |
-| A2 | `predictiveBackGestureEnabled: false` global | 🔴 Alta | `[ ]` |
+| A2 | `predictiveBackGestureEnabled: false` global | 🔴 Alta | `[x]` |
 | A3 | Notification map en AsyncStorage → SQLite | 🔴 Alta | `[ ]` |
 | M1 | AsyncStorage → react-native-mmkv para prefs | 🟡 Media | `[ ]` |
 | M2 | Drizzle ORM para expo-sqlite | 🟡 Media | `[ ]` |

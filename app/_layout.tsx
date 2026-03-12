@@ -219,6 +219,7 @@ export default function RootLayout() {
             options={{
               headerShown: false,
               presentation: "fullScreenModal",
+              gestureEnabled: false,
             }}
           />
         </Stack>

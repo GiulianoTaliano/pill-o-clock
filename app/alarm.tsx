@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Animated, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, Animated, TextInput, BackHandler } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -65,6 +65,15 @@ export default function AlarmScreen() {
     return () => {
       clearAlarmWindowFlags().catch(() => {});
     };
+  }, []);
+
+  // Block the hardware back button while the alarm screen is active.
+  // This also suppresses the Android 14+ predictive back gesture preview
+  // (via OnBackPressedDispatcher) so the user cannot accidentally dismiss
+  // the alarm screen without explicitly taking an action.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
   }, []);
 
   // Navigate back if data is unavailable — but only after the store has
