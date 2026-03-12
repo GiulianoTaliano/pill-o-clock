@@ -98,7 +98,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
 ### A3 — Mapa de notificaciones en AsyncStorage: frágil, puede perderse
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [src/services/notifications.ts](../src/services/notifications.ts)
 - **Categoría:** Fiabilidad crítica
 
@@ -911,7 +911,7 @@ closeMissedDoses().catch((e) => {
 |---|---|---|---|
 | A1 | Accesibilidad: VoiceOver / TalkBack | 🔴 Alta | `[x]` |
 | A2 | `predictiveBackGestureEnabled: false` global | 🔴 Alta | `[x]` |
-| A3 | Notification map en AsyncStorage → SQLite | 🔴 Alta | `[ ]` |
+| A3 | Notification map en AsyncStorage → SQLite | 🔴 Alta | `[x]` |
 | M1 | AsyncStorage → react-native-mmkv para prefs | 🟡 Media | `[ ]` |
 | M2 | Drizzle ORM para expo-sqlite | 🟡 Media | `[ ]` |
 | M3 | Zustand slices + separar UI state | 🟡 Media | `[ ]` |

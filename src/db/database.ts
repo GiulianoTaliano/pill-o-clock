@@ -158,6 +158,26 @@ export async function initDatabase(): Promise<void> {
     }
     await db.execAsync("PRAGMA user_version = 7");
   }
+
+  if (user_version < 8) {
+    // Move notification map from AsyncStorage to SQLite (A3).
+    // The old AsyncStorage key (@pilloclock/notif_map) is left in place and
+    // migrated on first call to setupNotifications() in notifications.ts.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS notification_map (
+        notif_id        TEXT PRIMARY KEY,
+        schedule_id     TEXT NOT NULL,
+        scheduled_date  TEXT NOT NULL,
+        scheduled_time  TEXT NOT NULL,
+        medication_id   TEXT NOT NULL,
+        dose_log_id     TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_notif_map_dose
+        ON notification_map(schedule_id, scheduled_date);
+    `);
+    await db.execAsync("PRAGMA user_version = 8");
+  }
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────

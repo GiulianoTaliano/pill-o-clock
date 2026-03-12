@@ -7,7 +7,7 @@ import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Schedule, Medication, NotificationMap, Appointment } from "../types";
 import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString } from "../utils";
 import i18n from "../i18n";
-import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange } from "../db/database";
+import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb } from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -101,7 +101,8 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
     return { granted: false, needsExactAlarmPermission: false };
   }
 
-  // Configure handler for foreground notifications
+  // One-time migration: move legacy AsyncStorage notification map to SQLite.
+  await migrateNotifMapFromAsyncStorage();
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -173,12 +174,63 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
   return { granted: status === "granted", needsExactAlarmPermission };
 }
 
-// ─── Notification Map helpers ──────────────────────────────────────────────
+// ─── Notification Map helpers (SQLite-backed) ─────────────────────────────
+
+type NotifMapRow = {
+  notif_id: string;
+  schedule_id: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  medication_id: string;
+  dose_log_id: string;
+};
+
+/**
+ * One-time migration: reads the legacy AsyncStorage notification map and
+ * inserts all entries into the SQLite `notification_map` table, then clears
+ * the old AsyncStorage key. Safe to call multiple times — a missing or empty
+ * key is handled silently.
+ */
+async function migrateNotifMapFromAsyncStorage(): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(NOTIF_MAP_KEY);
+    if (!raw) return;
+    const legacy: NotificationMap = JSON.parse(raw);
+    const entries = Object.entries(legacy);
+    if (entries.length > 0) {
+      const db = await getDb();
+      await db.withTransactionAsync(async () => {
+        for (const [notifId, data] of entries) {
+          await db.runAsync(
+            `INSERT OR IGNORE INTO notification_map
+               (notif_id, schedule_id, scheduled_date, scheduled_time, medication_id, dose_log_id)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [notifId, data.scheduleId, data.scheduledDate, data.scheduledTime, data.medicationId, data.doseLogId]
+          );
+        }
+      });
+    }
+    await AsyncStorage.removeItem(NOTIF_MAP_KEY);
+  } catch {
+    // Non-critical — old entries will be repopulated on next reschedule.
+  }
+}
 
 async function loadNotifMap(): Promise<NotificationMap> {
   try {
-    const raw = await AsyncStorage.getItem(NOTIF_MAP_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const db = await getDb();
+    const rows = await db.getAllAsync<NotifMapRow>("SELECT * FROM notification_map");
+    const map: NotificationMap = {};
+    for (const row of rows) {
+      map[row.notif_id] = {
+        doseLogId: row.dose_log_id,
+        medicationId: row.medication_id,
+        scheduleId: row.schedule_id,
+        scheduledDate: row.scheduled_date,
+        scheduledTime: row.scheduled_time,
+      };
+    }
+    return map;
   } catch {
     return {};
   }
@@ -186,18 +238,20 @@ async function loadNotifMap(): Promise<NotificationMap> {
 
 export { loadNotifMap };
 
-async function saveNotifMap(map: NotificationMap): Promise<void> {
-  await AsyncStorage.setItem(NOTIF_MAP_KEY, JSON.stringify(map));
-}
-
 export async function addNotifMapEntries(
   entries: { notifId: string; data: NotificationMap[string] }[]
 ): Promise<void> {
-  const map = await loadNotifMap();
-  for (const { notifId, data } of entries) {
-    map[notifId] = data;
-  }
-  await saveNotifMap(map);
+  const db = await getDb();
+  await db.withTransactionAsync(async () => {
+    for (const { notifId, data } of entries) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO notification_map
+           (notif_id, schedule_id, scheduled_date, scheduled_time, medication_id, dose_log_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [notifId, data.scheduleId, data.scheduledDate, data.scheduledTime, data.medicationId, data.doseLogId]
+      );
+    }
+  });
 }
 
 export async function removeNotifMapEntriesByDose(
@@ -210,22 +264,40 @@ export async function removeNotifMapEntriesByDose(
     await ExpoAlarm.cancelAlarm(scheduleId, scheduledDate);
   }
 
-  const map = await loadNotifMap();
-  for (const notifId of Object.keys(map)) {
-    const e = map[notifId];
-    if (e.scheduleId === scheduleId && e.scheduledDate === scheduledDate) {
-      delete map[notifId];
-      await Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
-    }
+  const db = await getDb();
+  const rows = await db.getAllAsync<NotifMapRow>(
+    "SELECT * FROM notification_map WHERE schedule_id = ? AND scheduled_date = ?",
+    [scheduleId, scheduledDate]
+  );
+  for (const row of rows) {
+    await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(() => {});
   }
-  await saveNotifMap(map);
+  await db.runAsync(
+    "DELETE FROM notification_map WHERE schedule_id = ? AND scheduled_date = ?",
+    [scheduleId, scheduledDate]
+  );
 }
 
 export async function getNotifMapEntry(
   notifId: string
 ): Promise<NotificationMap[string] | null> {
-  const map = await loadNotifMap();
-  return map[notifId] ?? null;
+  try {
+    const db = await getDb();
+    const row = await db.getFirstAsync<NotifMapRow>(
+      "SELECT * FROM notification_map WHERE notif_id = ?",
+      [notifId]
+    );
+    if (!row) return null;
+    return {
+      doseLogId: row.dose_log_id,
+      medicationId: row.medication_id,
+      scheduleId: row.schedule_id,
+      scheduledDate: row.scheduled_date,
+      scheduledTime: row.scheduled_time,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ─── Schedule a single notification ────────────────────────────────────────
@@ -471,7 +543,8 @@ export async function scheduleAllUpcoming(
 
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
-  await AsyncStorage.removeItem(NOTIF_MAP_KEY);
+  const db = await getDb();
+  await db.runAsync("DELETE FROM notification_map");
 }
 
 // ─── Stock-alert notification (immediate, informational) ────────────────────
@@ -643,13 +716,15 @@ export async function cancelHealthReminder(): Promise<void> {
 }
 
 export async function cancelScheduleNotifications(scheduleId: string): Promise<void> {
-  const map = await loadNotifMap();
-  const toCancel = Object.entries(map).filter(([, v]) => v.scheduleId === scheduleId);
-  for (const [notifId] of toCancel) {
-    await Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
-    delete map[notifId];
+  const db = await getDb();
+  const rows = await db.getAllAsync<NotifMapRow>(
+    "SELECT * FROM notification_map WHERE schedule_id = ?",
+    [scheduleId]
+  );
+  for (const row of rows) {
+    await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(() => {});
   }
-  await saveNotifMap(map);
+  await db.runAsync("DELETE FROM notification_map WHERE schedule_id = ?", [scheduleId]);
 }
 
 // ─── Cleanup expired NotificationMap entries ──────────────────────────────
@@ -663,13 +738,11 @@ export async function cleanupExpiredNotifMapEntries(): Promise<void> {
   if (Platform.OS === "web") return;
   try {
     const today = toDateString(new Date());
-    const map = await loadNotifMap();
-    const expired = Object.keys(map).filter((k) => map[k].scheduledDate < today);
-    if (expired.length === 0) return;
-    for (const notifId of expired) {
-      delete map[notifId];
-    }
-    await saveNotifMap(map);
+    const db = await getDb();
+    await db.runAsync(
+      "DELETE FROM notification_map WHERE scheduled_date < ?",
+      [today]
+    );
   } catch {
     // Non-critical — swallow so callers never fail due to this.
   }
@@ -691,15 +764,18 @@ export async function rescheduleAllNotifications(): Promise<void> {
   const todayStr = toDateString(now);
   const endStr   = toDateString(addDays(now, 7));
 
-  const [medications, schedules, map, logs] = await Promise.all([
+  const db = await getDb();
+  const [medications, schedules, mappedRows, logs] = await Promise.all([
     getMedications(),
     getAllActiveSchedules(),
-    loadNotifMap(),
+    db.getAllAsync<{ schedule_id: string; scheduled_date: string }>(
+      "SELECT DISTINCT schedule_id, scheduled_date FROM notification_map"
+    ),
     getDoseLogsByDateRange(todayStr, endStr),
   ]);
 
   const scheduledKeys = new Set(
-    Object.values(map).map((e) => `${e.scheduleId}:${e.scheduledDate}`)
+    mappedRows.map((r) => `${r.schedule_id}:${r.scheduled_date}`)
   );
 
   // Doses that are already resolved (taken / skipped / missed) must not be
