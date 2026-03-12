@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pill O-Clock",
     "slug": "pill-o-clock",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "scheme": "pilloclock",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

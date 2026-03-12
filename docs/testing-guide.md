@@ -1,6 +1,6 @@
 # Pill O-Clock — Guía de Testing
 
-> **Versión de referencia:** 1.2.0  
+> **Versión de referencia:** 1.4.0  
 > **Última actualización:** Marzo 2026  
 > **Plataformas:** Android (API 26+) · iOS (15+)
 
@@ -29,6 +29,14 @@
 19. [Módulo 16 — Reporte PDF](#19-módulo-16--reporte-pdf)
 20. [Casos de borde y regresiones](#20-casos-de-borde-y-regresiones)
 21. [Checklist de release](#21-checklist-de-release)
+22. [Módulo 17 — Medicamentos PRN](#22-módulo-17--medicamentos-prn-a-demanda)
+23. [Módulo 18 — Foto del medicamento](#23-módulo-18--foto-del-medicamento)
+24. [Módulo 18 — Prompt de valoración](#23-módulo-18--prompt-de-valoración-en-la-tienda)
+25. [Módulo 19 — Política de privacidad](#24-módulo-19--política-de-privacidad-en-ajustes)
+26. [Módulo 20 — Seguimiento de errores (Sentry)](#25-módulo-20--seguimiento-de-errores-sentry)
+27. [Módulo 21 — Widget Android](#26-módulo-21--widget-de-pantalla-de-inicio-android)
+28. [Módulo 22 — Tour guiado](#27-módulo-22--tour-guiado-primera-sesión)
+29. [Módulo 23 — Skeleton loading](#28-módulo-23--skeleton-loading-estados-de-carga)
 
 ---
 
@@ -116,7 +124,7 @@ La pantalla de alarma a pantalla completa (`app/alarm.tsx`) se abre mediante el 
 |---|------|--------------------|
 | 1 | Abrir la app por primera vez | ✅ Se muestra la pantalla de onboarding con el slide 1 (ícono de píldora) |
 | 2 | Deslizar hacia la derecha (o tocar "Siguiente") | ✅ Avanza al slide 2 (ícono de notificación) |
-| 3 | Continuar hasta el slide 4 (escudo) | ✅ Aparece el botón "Conceder permiso" y el indicador de puntos actualiza posición |
+| 3 | Continuar hasta el slide 5 (ícono de escudo) | ✅ Aparece el botón "Conceder permiso" y el indicador de puntos actualiza posición |
 | 4 | Tocar "Conceder permiso" | ✅ Se presenta el diálogo del sistema operativo solicitando permiso de notificaciones |
 | 5a 🤖 | Conceder el permiso en Android | ✅ El indicador cambia a verde; el botón "Empezar" se activa |
 | 5b 🍎 | Conceder el permiso en iOS | ✅ Igual que 5a |
@@ -911,7 +919,7 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 - [ ] El canal `pill-reminders` aparece en Ajustes → Notificaciones → Pill O-Clock
 - [ ] El canal `health-reminders` aparece en Ajustes → Notificaciones → Pill O-Clock
 - [ ] El sonido `alarm.wav` suena correctamente (no el sonido de sistema default)
-- [ ] La app no cierra con el gesto de retroceso predictivo (predictiveBackGestureEnabled: false)
+- [ ] La pantalla de alarma no puede cerrarse con el botón ni el gesto de retroceso de Android (`BackHandler` activo — la excepción es solo en `alarm.tsx`; el resto de la app sí permite el gesto predictivo de Android 14+)
 
 ### Pre-release — iOS únicamente
 
@@ -923,7 +931,7 @@ Ejecutar la siguiente lista antes de publicar cada build en las stores.
 
 ---
 
-> **Nota:** Esta guía cubre los flujos funcionales de la versión 1.3.0. Actualizar los módulos afectados ante cada nueva feature o cambio en el comportamiento de notificaciones.
+> **Nota:** Esta guía cubre los flujos funcionales de la versión 1.4.0. Actualizar los módulos afectados ante cada nueva feature o cambio en el comportamiento de notificaciones.
 
 ---
 
@@ -1132,3 +1140,84 @@ Añadir los siguientes ítems al checklist de la sección 21:
 ### Pre-release — Producción únicamente (nuevos en v1.3)
 
 - [ ] TC-75 a TC-76 (Prompt de valoración se dispara solo una vez al cumplir condiciones)
+
+---
+
+## 27. Módulo 22 — Tour guiado (primera sesión)  *(nuevo en v1.4)*
+
+> El tour se dispara **una sola vez** al entrar a la pantalla Hoy por primera vez tras el onboarding. Un overlay oscurecido con un spotlight animado va resaltando elementos de la UI acompañados de un tooltip. Una vez completado (o si el usuario ya lo vio), no vuelve a aparecer.
+
+**Prerrequisitos:** App recién instalada (sin la clave `@pilloclock/tour_done` en AsyncStorage).
+
+### TC-85 · Aparición automática del tour
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Completar el onboarding y llegar al Home por primera vez | ✅ Tras ~650 ms, aparece un overlay oscurecido con un spotlight redondeado sobre el botón `+` de agregar medicamento |
+| 2 | Verificar el tooltip del paso 1 | ✅ Aparece una tarjeta con título y descripción del paso posicionada **debajo** del spotlight |
+| 3 | Tocar "Siguiente" | ✅ El spotlight se desplaza con animación hacia el ícono de la pestaña **Agenda** en la barra inferior |
+| 4 | Tocar "Siguiente" | ✅ El spotlight cubre la pestaña **Salud** |
+| 5 | Tocar "Siguiente" | ✅ El spotlight cubre la pestaña **Ajustes** |
+| 6 | En el último paso el botón cambia a "Entendido" — tocarlo | ✅ El overlay hace fade-out y desaparece; el Home queda completamente usable |
+
+### TC-86 · El tour no se repite
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Completar el tour (TC-85) y cerrar la app completamente | — |
+| 2 | Reabrir la app y navegar al Home | ✅ El overlay del tour **no** vuelve a aparecer |
+| 3 | Verificar AsyncStorage | ✅ La clave `@pilloclock/tour_done` contiene `"1"` |
+
+### TC-87 · El spotlight no bloquea la interacción del elemento resaltado
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Con el tour activo en el paso 1 (spotlight sobre `+`), tocar directamente el botón `+` | ✅ El toque pasa a través del spotlight; el tour se cierra (se persiste `tour_done`) y la acción del botón se ejecuta normalmente |
+
+---
+
+## 28. Módulo 23 — Skeleton loading (estados de carga)  *(nuevo en v1.4)*
+
+> Los skeletons reemplazan los spinners (`ActivityIndicator`) en tres pantallas durante la carga asíncrona desde SQLite. Son bloques con opacidad que pulsa (fade-in / fade-out cíclico) para indicar visualmente que el contenido está llegando.
+
+### TC-88 · Skeleton en Historial
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Abrir el Historial por primera vez (o tras borrar datos) | ✅ Mientras se cargan los logs se muestran bloques pulsantes: bloque de estadísticas, bloque de heatmap y filas de log — sin ningún spinner |
+| 2 | Esperar a que carguen los datos | ✅ Los skeletons desaparecen y son reemplazados por el contenido real sin parpadeo brusco |
+| 3 | Navegar a una semana anterior | ✅ Los skeletons reaparecen brevemente mientras se cargan los logs del período |
+
+### TC-89 · Skeleton en Agenda (calendario mensual)
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Abrir la pestaña Agenda o cambiar de mes | ✅ Mientras se carga la grilla mensual aparecen celdas de skeleton en lugar del `ActivityIndicator` anterior |
+| 2 | Esperar la carga | ✅ El calendario real reemplaza los skeletons sin salto visual |
+
+### TC-90 · Skeleton en formulario de medicamento (edición)
+
+| # | Paso | Resultado esperado |
+|---|------|---------------------|
+| 1 | Tocar "Editar" en cualquier medicamento | ✅ Mientras se cargan los datos del medicamento y sus horarios se muestra el `MedicationFormSkeleton` (filas de placeholder pulsantes) en lugar del `ActivityIndicator` |
+| 2 | Datos cargados | ✅ El formulario prellenado reemplaza el skeleton sin cambio de altura apreciable |
+
+---
+
+## Actualización del checklist de release (v1.4)
+
+Añadir los siguientes ítems al checklist de la sección 21:
+
+### Pre-release — Ambas plataformas (nuevos en v1.4)
+
+- [ ] TC-85 a TC-87 (Tour guiado: aparición, no repetición, toque en spotlight) pasan
+- [ ] TC-88 a TC-89 (Skeleton en Historial y Agenda) pasan
+- [ ] TC-90 (Skeleton en formulario de edición de medicamento) pasa
+- [ ] Verificar que el swipe-down-to-dismiss cierra correctamente todos los modal sheets: citas, mediciones de salud, reschedule, check-in, nota de dosis y motivo de omisión
+- [ ] TC-01 (Onboarding) pasa con los **5 slides** actualizados
+
+### Pre-release — Android únicamente (nuevos en v1.4)
+
+- [ ] La pantalla de alarma no puede cerrarse con el botón ni el gesto de retroceso de Android (`BackHandler` activo en `alarm.tsx`)
+- [ ] El resto de la app sí responde al gesto de retroceso predictivo de Android 14+ (el `predictiveBackGestureEnabled: false` global fue eliminado)
+- [ ] TalkBack activado: los botones de Tomar / Omitir / Posponer en `DoseCard` y pantalla de alarma anuncian etiquetas descriptivas (nombre del medicamento + hora + acción)

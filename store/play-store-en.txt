@@ -55,6 +55,14 @@ Follows your system's light/dark theme automatically. Clean, readable typography
 
 ── WHAT'S NEW / RELEASE NOTES (max 500 characters) ─────
 
+v1.4.0
+• Guided tour — interactive spotlight walkthrough on your first session
+• Skeleton loading screens — smooth animated placeholders instead of spinners
+• Swipe down to dismiss any modal sheet
+• Full accessibility support — VoiceOver (iOS) & TalkBack (Android) labels on all interactive elements
+• Improved alarm reliability — schedule stored in secure local database (SQLite)
+• Android 14+: predictive back gesture re-enabled app-wide
+
 v1.3.0
 • Home screen widget — next dose + Take button without opening the app
 • Monthly adherence heatmap in History tab

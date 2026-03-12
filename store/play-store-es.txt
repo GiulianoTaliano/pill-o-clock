@@ -55,6 +55,14 @@ Sigue automáticamente el tema claro/oscuro del sistema. Tipografía clara y leg
 
 ── NOVEDADES / RELEASE NOTES (max 500 caracteres) ──────
 
+v1.4.0
+• Tour guiado — recorrido interactivo con spotlight en la primera sesión
+• Skeleton loading — placeholders animados en lugar de spinners en Historial, Agenda y formularios
+• Deslizá hacia abajo para cerrar cualquier panel modal
+• Accesibilidad completa — etiquetas VoiceOver (iOS) y TalkBack (Android) en todos los elementos interactivos
+• Mayor confiabilidad de alarmas — programación guardada en base de datos local segura (SQLite)
+• Android 14+: gesto de retroceso predictivo reactivado en toda la app
+
 v1.3.0
 • Widget en pantalla de inicio — próxima dosis + botón Tomé
 • Mapa de calor de adherencia mensual en Historial

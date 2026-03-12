@@ -1,6 +1,6 @@
 # Pill O-Clock — Roadmap v1.3 → v2.0
 
-> Fecha de revisión: marzo 2026 · Versión actual en producción: **1.3.0 (Android)**
+> Fecha de revisión: marzo 2026 · Versión actual en producción: **1.4.0 (Android)**
 
 ---
 
@@ -208,14 +208,14 @@
 
 | # | Tarea | Urgencia |
 |---|---|---|
-| T1 | Configurar Sentry (o similiar) para captura de errores en producción | Alta |
+| T1 | Configurar Sentry (o similiar) para captura de errores en producción | ~~Alta~~ ✅ Completo (v1.3) |
 | T2 | Tests de integración para el store (markDose, backup, notificaciones) con Jest | Media |
 | T3 | Migración automatizada de DB con versioning (actualmente la DB se crea de cero) | Alta |
 | T4 | Agregar `eslint-plugin-react-hooks` y sanear todos los hooks de dependencias | Media |
 | T5 | Métricas de uso básicas y anónimas (PostHog self-hosted) para validar qué features se usan | Media |
-| T6 | Revisar el budget de 64 notificaciones en iOS al agregar perfiles múltiples | Alta (para v1.4+) |
+| T6 | Revisar el budget de 64 notificaciones en iOS al agregar perfiles múltiples | Alta (para v1.5+) |
 | T7 | Internacionalización: agregar portugués (Brasil) — tercer mercado más grande de la región | Media |
-| T8 | Accesibilidad: labels `accessibilityLabel` en todos los botones de acción táctil | Media |
+| T8 | Accesibilidad: labels `accessibilityLabel` en todos los botones de acción táctil | ~~Media~~ ✅ Completo (v1.4) |
 
 ---
 
@@ -235,17 +235,15 @@
 ## Resumen de prioridades visuales
 
 ```
-Q2 2026 (v1.3)
-├── ✅ Lanzamiento iOS (App Store)
-├── ✅ Backup completo (incluir appointments + health)
-├── ✅ Widget Android
-├── ✅ Animación de confirmación de toma
-├── ✅ Vista mensual historial (heatmap)
-├── ✅ Foto del medicamento
-├── ✅ Prompt de valoración
-└── ✅ Acciones notificación iOS
+Q1 2026 (v1.4 — calidad y accesibilidad)
+├── ✅ Skeleton loading (Historial, Agenda, formulario de medicamento)
+├── ✅ Tour guiado en el Home (spotlight + tooltip, una sola vez)
+├── ✅ Swipe-to-dismiss en todos los modal sheets
+├── ✅ Accesibilidad completa (VoiceOver / TalkBack) en componentes interactivos
+├── ✅ Predictive back gesture rehabilitado globalmente (bloqueado solo en pantalla de alarma)
+└── ✅ Notification map migrado a SQLite (fiabilidad ACID)
 
-Q3 2026 (v1.4)
+Q3 2026 (v1.5)
 ├── Perfiles múltiples
 ├── Apple Health / Google Fit
 ├── Recordatorio de reposición predictivo

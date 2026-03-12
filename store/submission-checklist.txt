@@ -1,6 +1,6 @@
 ══════════════════════════════════════════════════════════════
  PILL O-CLOCK — INTERNAL TRACK SUBMISSION CHECKLIST
- VERSION 1.3.0
+ VERSION 1.4.0
 ══════════════════════════════════════════════════════════════
 
 Before running any command, verify each item is ✅.
@@ -115,8 +115,10 @@ STEP 5 — PLAY CONSOLE — COMPLETE BEFORE REVIEW
     "Does your app provide health or medical related content?"  → Yes
     "Does your app allow users to track health measurements?"   → Yes
     Add disclaimer (already in-app and in store description)
-    Note: v1.3.0 adds home screen widget, medication photos, PRN medications
-    and monthly history heatmap; update store screenshots accordingly.
+    Note: v1.4.0 adds guided in-app tour, skeleton loading screens, swipe-to-dismiss
+    modals, full VoiceOver/TalkBack accessibility labels, predictive back gesture
+    re-enabled (Android 14+), and notification map migrated to SQLite for improved
+    alarm reliability. Update release notes in store/play-store-*.txt accordingly.
 
 [ ] App content → App access:
     "All or most functionality is available without special access" → select that option
