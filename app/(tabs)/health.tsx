@@ -134,6 +134,8 @@ function MeasurementListItem({
         ) : null}
       </View>
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={`${tDyn('common.delete')} ${formatValue(m)} ${typeUnit(m.type)}`}
         onPress={onDelete}
         className="p-2"
       >

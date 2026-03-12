@@ -201,6 +201,8 @@ export default function AlarmScreen() {
 
         {/* Optional note input — hidden until the user taps the toggle */}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={showNote ? t('common.cancel') : t('doseCard.addNote')}
           onPress={() => setShowNote((v) => !v)}
           className="mt-4 flex-row items-center gap-1 self-center"
           activeOpacity={0.7}
@@ -233,6 +235,8 @@ export default function AlarmScreen() {
       <View className="w-full gap-3">
         {/* Take */}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('alarm.takeMed')}
           onPress={handleTake}
           style={{ backgroundColor: colors.bg }}
           className="rounded-2xl py-4 items-center flex-row justify-center gap-3 shadow"
@@ -243,6 +247,8 @@ export default function AlarmScreen() {
 
         {/* Snooze */}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('alarm.snooze', { minutes: SNOOZE_MINUTES })}
           onPress={handleSnooze}
           className="rounded-2xl py-3 items-center flex-row justify-center gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700"
         >
@@ -254,6 +260,8 @@ export default function AlarmScreen() {
 
         {/* Skip */}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('alarm.skip')}
           onPress={handleSkip}
           className="rounded-2xl py-3 items-center flex-row justify-center gap-2"
         >

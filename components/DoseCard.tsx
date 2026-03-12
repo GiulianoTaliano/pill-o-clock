@@ -143,6 +143,9 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
 
         {/* Time badge — tappable when pending + onReschedule provided */}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={displayTime}
+          accessibilityHint={isPending && onReschedule ? t('doseCard.rescheduleTitle') : undefined}
           activeOpacity={isPending && onReschedule ? 0.6 : 1}
           onPress={() => {
             if (isPending && onReschedule) {
@@ -214,6 +217,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           </View>
           {onRevert && (
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('doseCard.revert')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
               className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5"
             >
@@ -229,6 +234,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           <View className="flex-row gap-2 mt-2">
             {/* Snooze */}
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('doseCard.snooze')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSnooze(); }}
               className="flex-row items-center gap-1 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-2"
             >
@@ -238,6 +245,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
 
             {/* Skip */}
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('doseCard.skip')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
               className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2"
             >
@@ -248,6 +257,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             {/* Take */}
             <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t('doseCard.take')}
                 onPress={handleTakePress}
                 className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
               >
@@ -275,6 +286,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           {/* Undo snooze — shown below the action row when the dose is snoozed */}
           {isSnoozed && onRevert && (
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('doseCard.revertSnooze')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
               className="flex-row items-center gap-1 mt-2 ml-12"
             >
@@ -292,6 +305,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           </View>
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('doseCard.skip')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
             className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
           >
@@ -301,6 +316,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
 
           <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('doseCard.takeLate')}
               onPress={handleTakePress}
               className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
             >
@@ -315,6 +332,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
       {/* Note chip (taken/skipped only) */}
       {!isPending && !isMissed && onUpdateNote && (
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('doseCard.addNote')}
           onPress={() => { setNoteDraft(dose.notes ?? ""); setNoteModalVisible(true); }}
           className="flex-row items-center gap-1.5 mt-2 ml-12"
         >
@@ -361,12 +380,16 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           />
           <View className="flex-row gap-3">
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
               onPress={() => setNoteModalVisible(false)}
               className="flex-1 rounded-2xl py-3 items-center bg-slate-100 dark:bg-slate-800"
             >
               <Text className="text-muted font-semibold">{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('common.save')}
               onPress={() => {
                 onUpdateNote?.(noteDraft.trim());
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -400,6 +423,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           {SKIP_REASONS.map(({ key, icon, color }) => (
             <TouchableOpacity
               key={key}
+              accessibilityRole="button"
+              accessibilityLabel={t(`doseCard.skipReason_${key}`)}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setSkipReasonVisible(false);
@@ -415,6 +440,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             </TouchableOpacity>
           ))}
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('common.cancel')}
             onPress={() => { setSkipReasonVisible(false); onSkip(undefined); }}
             className="mt-4 items-center py-3 bg-slate-100 dark:bg-slate-800 rounded-2xl"
           >

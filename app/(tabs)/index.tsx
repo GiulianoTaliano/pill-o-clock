@@ -261,6 +261,8 @@ export default function HomeScreen() {
         </View>
         <View className="flex-row gap-2 items-center">
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('history.title')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/history"); }}
             className="bg-card border border-border w-10 h-10 rounded-full items-center justify-center shadow-sm"
           >
@@ -268,6 +270,8 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <View ref={addButtonRef} onLayout={onAddButtonLayout}>
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('form.addButton')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
               className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
             >

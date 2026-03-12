@@ -94,6 +94,8 @@ function AppointmentCard({
     <TouchableOpacity
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`${appt.title}${appt.time ? `, ${appt.time}` : ""}`}
       className={`bg-card rounded-2xl border border-border p-4 mb-3 shadow-sm ${isPast ? "opacity-60" : ""}`}
     >
       <View className="flex-row items-start justify-between">
@@ -150,12 +152,16 @@ function AppointmentCard({
         {/* Actions */}
         <View className="flex-row gap-2 ml-2">
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${t('common.edit')} ${appt.title}`}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(); }}
             className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl"
           >
             <Ionicons name="pencil-outline" size={15} color="#3b82f6" />
           </TouchableOpacity>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${t('common.delete')} ${appt.title}`}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
             className="p-2 bg-red-50 dark:bg-red-950/30 rounded-xl"
           >
@@ -388,6 +394,8 @@ export default function AppointmentsScreen() {
       <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
         <Text className="text-2xl font-black text-text">{t("appointments.title")}</Text>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("appointments.newTitle")}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openNew(); }}
           className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
         >

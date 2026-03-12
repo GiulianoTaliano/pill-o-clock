@@ -20,7 +20,7 @@
 
 ### A1 — Accesibilidad: VoiceOver / TalkBack
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** Todos los componentes y pantallas (impacta globalmente)
 - **Categoría:** Directrices de plataforma · Requisito de tiendas
 
@@ -909,7 +909,7 @@ closeMissedDoses().catch((e) => {
 
 | ID | Título | Prioridad | Estado |
 |---|---|---|---|
-| A1 | Accesibilidad: VoiceOver / TalkBack | 🔴 Alta | `[ ]` |
+| A1 | Accesibilidad: VoiceOver / TalkBack | 🔴 Alta | `[x]` |
 | A2 | `predictiveBackGestureEnabled: false` global | 🔴 Alta | `[ ]` |
 | A3 | Notification map en AsyncStorage → SQLite | 🔴 Alta | `[ ]` |
 | M1 | AsyncStorage → react-native-mmkv para prefs | 🟡 Media | `[ ]` |

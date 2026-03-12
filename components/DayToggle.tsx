@@ -36,6 +36,9 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
       <View className="flex-row gap-1.5 flex-wrap">
         {/* "Todos" shortcut chip */}
         <TouchableOpacity
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isAllSelected }}
+          accessibilityLabel="Todos"
           onPress={toggleAll}
           className={`rounded-full px-3 py-1.5 ${
             isAllSelected ? "bg-primary" : "bg-slate-100 dark:bg-slate-700"
@@ -57,6 +60,9 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
           return (
             <TouchableOpacity
               key={idx}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: active }}
+              accessibilityLabel={label}
               onPress={() => toggle(idx)}
               className={`rounded-full px-3 py-1.5 ${
                 active ? "bg-primary/20" : "bg-slate-100 dark:bg-slate-700"

@@ -77,6 +77,8 @@ export default function MedicationsScreen() {
           <Text className="text-sm text-muted">{t('medications.subtitle', { count: medications.length })}</Text>
         </View>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('form.addButton')}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
           className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
         >

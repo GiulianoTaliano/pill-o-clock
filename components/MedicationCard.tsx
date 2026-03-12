@@ -226,6 +226,8 @@ export function MedicationCard({
       {/* Actions */}
       <View className="flex-row justify-end gap-3 mt-3">
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`${t('common.edit')} ${medication.name}`}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(); }}
           className="flex-row items-center gap-1 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-1.5"
         >
@@ -233,6 +235,8 @@ export function MedicationCard({
           <Text className="text-blue-500 text-xs font-semibold">{t('common.edit')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`${t('common.delete')} ${medication.name}`}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
           className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-1.5"
         >
