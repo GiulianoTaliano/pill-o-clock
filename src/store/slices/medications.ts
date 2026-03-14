@@ -303,10 +303,12 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
 
   async logPRNDose(medication) {
     const now = new Date();
+    // Each PRN log gets a unique scheduleId so that multiple doses on the
+    // same day are tracked as separate entries (not overwritten by upsert).
     const log: DoseLog = {
       id: generateId(),
       medicationId: medication.id,
-      scheduleId: `prn-${medication.id}`,
+      scheduleId: `prn-${medication.id}-${generateId().slice(0, 8)}`,
       scheduledDate: toDateString(now),
       scheduledTime: format(now, "HH:mm"),
       status: "taken",

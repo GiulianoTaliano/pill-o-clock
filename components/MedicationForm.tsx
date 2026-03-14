@@ -21,9 +21,16 @@ import { DOSAGE_UNITS, CATEGORY_CONFIG, getCategoryLabel, getDosageLabel } from 
 import { useTranslation } from "../src/i18n";
 import * as Haptics from "expo-haptics";
 import { useToast } from "../src/context/ToastContext";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { medicationFormSchema, type MedicationFormData } from "../src/schemas/medication";
+
+// ─── Inline error ──────────────────────────────────────────────────────────
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <Text className="text-danger text-xs mt-1">{message}</Text>;
+}
 
 // ─── Schedule row ──────────────────────────────────────────────────────────
 
@@ -251,15 +258,16 @@ export function MedicationForm({
     },
   });
 
-  const name = watch("name");
-  const dosageAmountStr = watch("dosageAmount");
+  const { fields: scheduleFields, append: appendSchedule, remove: removeScheduleAt } = useFieldArray({
+    control,
+    name: "schedules",
+  });
+
   const dosageUnit = watch("dosageUnit");
   const category = watch("category");
-  const notes = watch("notes");
   const color = watch("color");
   const startDate = watch("startDate");
   const endDate = watch("endDate");
-  const schedules = watch("schedules");
   const stockQtyStr = watch("stockQtyStr");
   const stockThreshStr = watch("stockThreshStr");
   const photoUri = watch("photoUri");
@@ -314,7 +322,7 @@ export function MedicationForm({
   };
 
   const handleValidationError = () => {
-    // Show the first error as a toast
+    // Show the first error as a toast for visibility
     const firstError = Object.values(errors)[0];
     if (firstError?.message) {
       showToast(t(firstError.message as any), "error");
@@ -322,17 +330,15 @@ export function MedicationForm({
   };
 
   const updateSchedule = (idx: number, s: ScheduleInput) => {
-    const prev = watch("schedules");
-    setValue("schedules", prev.map((p, i) => (i === idx ? s : p)));
+    setValue(`schedules.${idx}`, s);
   };
 
   const removeSchedule = (idx: number) => {
-    const prev = watch("schedules");
-    if (prev.length === 1) {
+    if (scheduleFields.length === 1) {
       showToast(t('form.errorNoAlarmsMsg'), "error");
       return;
     }
-    setValue("schedules", prev.filter((_, i) => i !== idx));
+    removeScheduleAt(idx);
   };
 
   return (
@@ -364,6 +370,7 @@ export function MedicationForm({
                 />
               )}
             />
+            <FieldError message={errors.name?.message ? t(errors.name.message as any) : undefined} />
           </View>
 
           {/* Dosage */}
@@ -389,6 +396,7 @@ export function MedicationForm({
               />
               <Text className="text-muted text-sm">{t('form.fieldDoseAmountLabel')}</Text>
             </View>
+            <FieldError message={errors.dosageAmount?.message ? t(errors.dosageAmount.message as any) : undefined} />
             {/* Unit chips */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="flex-row gap-2 pb-1">
@@ -633,10 +641,10 @@ export function MedicationForm({
             <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
               {t('form.sectionAlarm')}
             </Text>
-            {schedules.slice(0, 1).map((s, idx) => (
+            {scheduleFields.slice(0, 1).map((field, idx) => (
               <ScheduleRow
-                key={s.id}
-                schedule={s}
+                key={field.id}
+                schedule={field}
                 showDays={false}
                 onChange={(updated) => updateSchedule(idx, updated)}
                 onRemove={() => removeSchedule(idx)}
@@ -670,24 +678,25 @@ export function MedicationForm({
                 onChange={(v) => setValue("endDate", v)}
                 minimumDate={startDate ? new Date(startDate + "T12:00") : undefined}
               />
+              <FieldError message={errors.endDate?.message ? t(errors.endDate.message as any) : undefined} />
             </View>
 
             <View className="flex-row items-center justify-between mb-3">
               <Text className="text-xs font-bold text-muted uppercase tracking-widest">
-                {t('form.sectionAlarms', { count: schedules.length })}
+                {t('form.sectionAlarms', { count: scheduleFields.length })}
               </Text>
               <TouchableOpacity
-                onPress={() => setValue("schedules", [...schedules, newSchedule()])}
+                onPress={() => appendSchedule(newSchedule())}
                 className="flex-row items-center gap-1 bg-blue-50 rounded-xl px-3 py-1.5"
               >
                 <Ionicons name="add" size={14} color="#3b82f6" />
                 <Text className="text-blue-500 text-xs font-bold">{t('form.addAlarm')}</Text>
               </TouchableOpacity>
             </View>
-            {schedules.map((s, idx) => (
+            {scheduleFields.map((field, idx) => (
               <ScheduleRow
-                key={s.id}
-                schedule={s}
+                key={field.id}
+                schedule={field}
                 onChange={(updated) => updateSchedule(idx, updated)}
                 onRemove={() => removeSchedule(idx)}
               />

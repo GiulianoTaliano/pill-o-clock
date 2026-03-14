@@ -763,7 +763,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
 
   const now = new Date();
   const todayStr = toDateString(now);
-  const endStr   = toDateString(addDays(now, 7));
+  const endStr   = toDateString(addDays(now, DAYS_AHEAD));
 
   const db = await getDb();
   const [medications, schedules, mappedRows, logs] = await Promise.all([
@@ -793,7 +793,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
     const med = medications.find((m) => m.id === sched.medicationId);
     if (!med || !med.isActive) continue;
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < DAYS_AHEAD; i++) {
       const date = addDays(startOfDay(now), i);
       if (!isScheduleActiveOnDate(sched, date, med)) continue;
 

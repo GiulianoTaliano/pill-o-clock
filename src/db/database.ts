@@ -53,11 +53,18 @@ function toMedication(row: typeof schema.medications.$inferSelect): Medication {
 }
 
 function toSchedule(row: typeof schema.schedules.$inferSelect): Schedule {
+  let days: number[] = [];
+  try {
+    days = JSON.parse(row.days) as number[];
+  } catch {
+    // Malformed JSON — treat as daily schedule (empty = every day)
+    days = [];
+  }
   return {
     id: row.id,
     medicationId: row.medicationId,
     time: row.time,
-    days: JSON.parse(row.days) as number[],
+    days,
     isActive: row.isActive,
   };
 }
@@ -109,11 +116,18 @@ function toHealthMeasurement(row: typeof schema.healthMeasurements.$inferSelect)
 }
 
 function toDailyCheckin(row: typeof schema.dailyCheckins.$inferSelect): DailyCheckin {
+  let symptoms: string[] = [];
+  try {
+    symptoms = JSON.parse(row.symptoms) as string[];
+  } catch {
+    // Malformed JSON — default to no symptoms
+    symptoms = [];
+  }
   return {
     id: row.id,
     date: row.date,
     mood: row.mood as 1 | 2 | 3 | 4 | 5,
-    symptoms: JSON.parse(row.symptoms) as string[],
+    symptoms,
     notes: row.notes ?? undefined,
     createdAt: row.createdAt,
   };
@@ -439,21 +453,45 @@ export async function getDoseLogByScheduleAndDate(
 }
 
 export async function upsertDoseLog(log: DoseLog): Promise<void> {
-  db.delete(schema.doseLogs).where(
-    and(eq(schema.doseLogs.scheduleId, log.scheduleId), eq(schema.doseLogs.scheduledDate, log.scheduledDate))
-  ).run();
-  db.insert(schema.doseLogs).values({
-    id: log.id,
-    medicationId: log.medicationId,
-    scheduleId: log.scheduleId,
-    scheduledDate: log.scheduledDate,
-    scheduledTime: log.scheduledTime,
-    status: log.status,
-    takenAt: log.takenAt ?? null,
-    createdAt: log.createdAt,
-    notes: log.notes ?? null,
-    skipReason: log.skipReason ?? null,
-  }).run();
+  // Wrapped in a transaction so that if the app crashes between the DELETE
+  // and INSERT, the dose log is never left in a partially-written state.
+  db.transaction((tx) => {
+    tx.delete(schema.doseLogs).where(
+      and(eq(schema.doseLogs.scheduleId, log.scheduleId), eq(schema.doseLogs.scheduledDate, log.scheduledDate))
+    ).run();
+    tx.insert(schema.doseLogs).values({
+      id: log.id,
+      medicationId: log.medicationId,
+      scheduleId: log.scheduleId,
+      scheduledDate: log.scheduledDate,
+      scheduledTime: log.scheduledTime,
+      status: log.status,
+      takenAt: log.takenAt ?? null,
+      createdAt: log.createdAt,
+      notes: log.notes ?? null,
+      skipReason: log.skipReason ?? null,
+    }).run();
+  });
+}
+
+/**
+ * Inserts a "missed" dose log only when no log already exists for
+ * (scheduleId, scheduledDate). Uses INSERT OR IGNORE so it never overwrites
+ * an existing "taken" or "skipped" log — safe to call from the background
+ * task without race-condition risk.
+ */
+export async function insertMissedDoseLogSafe(log: DoseLog): Promise<void> {
+  expoDb.runSync(
+    `INSERT OR IGNORE INTO dose_logs
+       (id, medication_id, schedule_id, scheduled_date, scheduled_time,
+        status, taken_at, created_at, notes, skip_reason)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      log.id, log.medicationId, log.scheduleId, log.scheduledDate,
+      log.scheduledTime, log.status, log.takenAt ?? null, log.createdAt,
+      log.notes ?? null, log.skipReason ?? null,
+    ]
+  );
 }
 
 export async function updateDoseLogStatus(

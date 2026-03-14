@@ -46,3 +46,6 @@ google-service-account.json
 
 # Gradle caches (modules)
 **/.gradle/
+
+# Vision UI review screenshots (captured via scripts/capture-screenshots.ps1)
+screenshots/

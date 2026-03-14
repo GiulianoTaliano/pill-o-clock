@@ -8,7 +8,7 @@ import {
   getMedications,
   getAllSchedules,
   getDoseLogsByDateRange,
-  upsertDoseLog,
+  insertMissedDoseLogSafe,
 } from "../db/database";
 import { rescheduleAllNotifications } from "./notifications";
 import { DoseLog } from "../types";
@@ -142,7 +142,7 @@ export async function closeMissedDoses(): Promise<void> {
         status: "missed",
         createdAt: nowIso,
       };
-      await upsertDoseLog(missedLog);
+      await insertMissedDoseLogSafe(missedLog);
       // Add to set so subsequent insertions in the same run don't duplicate
       logged.add(`${schedule.id}|${dateStr}`);
     }
