@@ -18,12 +18,14 @@ import { TodayDose, SkipReason } from "../../src/types";
 import { CATEGORY_CONFIG, getColorConfig } from "../../src/utils";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation, getDateLocale } from "../../src/i18n";
+import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { useToast } from "../../src/context/ToastContext";
 import { updateWidget } from "expo-widget";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const { showToast } = useToast();
   const loadTodayLogs = useAppStore((s) => s.loadTodayLogs);
   const markDose = useAppStore((s) => s.markDose);
@@ -260,8 +262,8 @@ export default function HomeScreen() {
         )}
         {missed.length > 0 && (
           <View className="bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
-            <Ionicons name="alert-circle-outline" size={14} color="#64748b" />
-            <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">{t('home.chipMissed', { count: missed.length })}</Text>
+            <Ionicons name="alert-circle-outline" size={14} color={theme.muted} />
+            <Text className="text-muted text-xs font-bold">{t('home.chipMissed', { count: missed.length })}</Text>
           </View>
         )}
         {streak >= 1 && (

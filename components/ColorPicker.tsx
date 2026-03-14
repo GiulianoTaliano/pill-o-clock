@@ -123,7 +123,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           <Ionicons
             name="add"
             size={18}
-            color={theme.isDark ? "#94a3b8" : "#64748b"}
+            color={theme.muted}
           />
         </TouchableOpacity>
       </View>

@@ -36,7 +36,7 @@ function DetailRow({
   icon,
   label,
   value,
-  color = "#94a3b8",
+  color = "#64748b",
 }: {
   icon: React.ComponentProps<typeof Ionicons>["name"];
   label: string;
@@ -228,7 +228,7 @@ export function AppointmentDetailModal({
                       paddingVertical: 2,
                     }}
                   >
-                    <Text style={{ color: "#94a3b8", fontSize: 11, fontWeight: "600" }}>
+                    <Text style={{ color: theme.muted, fontSize: 11, fontWeight: "600" }}>
                       Past
                     </Text>
                   </View>
@@ -245,7 +245,7 @@ export function AppointmentDetailModal({
                 <Ionicons
                   name="close"
                   size={18}
-                  color={theme.isDark ? "#94a3b8" : "#64748b"}
+                  color={theme.muted}
                 />
               </TouchableOpacity>
             </View>

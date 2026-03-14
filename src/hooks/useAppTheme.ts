@@ -18,6 +18,9 @@ export function useAppTheme() {
     card:    dark ? "#0f172a" : "#ffffff",   // bg-card
     cardAlt: dark ? "#1e293b" : "#f8fafc",  // inactive / secondary surface
 
+    // -- Muted text / icon color (matches --color-muted in global.css) --------
+    muted: dark ? "#94a3b8" : "#64748b",
+
     // ── Dose status card backgrounds + borders ────────────────────────────
     doseStatus: {
       pending: {

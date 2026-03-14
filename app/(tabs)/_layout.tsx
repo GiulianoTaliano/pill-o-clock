@@ -71,7 +71,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#4f9cff",
-        tabBarInactiveTintColor: theme.isDark ? "#64748b" : "#94a3b8",
+        tabBarInactiveTintColor: theme.muted,
         tabBarStyle: {
           backgroundColor: theme.card,
           borderTopColor: theme.isDark ? "#1e293b" : "#e2e8f0",

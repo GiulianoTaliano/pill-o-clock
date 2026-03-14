@@ -126,14 +126,14 @@ export function MedicationCard({
           value={medication.isActive}
           onValueChange={(v) => { Haptics.selectionAsync(); onToggleActive(v); }}
           trackColor={{ false: "#e2e8f0", true: colors.light }}
-          thumbColor={medication.isActive ? colors.bg : "#94a3b8"}
+          thumbColor={medication.isActive ? colors.bg : theme.muted}
         />
       </View>
 
       {/* Time-bound info */}
       {(medication.startDate || medication.endDate) && (
         <View className="flex-row items-center gap-1 mt-2 ml-12">
-          <Ionicons name="calendar-outline" size={13} color="#94a3b8" />
+          <Ionicons name="calendar-outline" size={13} color={theme.muted} />
           <Text className="text-xs text-muted">
             {medication.startDate
               ? format(new Date(medication.startDate + "T12:00"), "d MMM", { locale: getDateLocale() })

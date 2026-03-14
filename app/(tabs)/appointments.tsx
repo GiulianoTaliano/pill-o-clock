@@ -55,7 +55,7 @@ function AppointmentSubTabButton({
     >
       <Text
         className="text-sm font-bold"
-        style={{ color: active ? (theme.isDark ? "#f8fafc" : "#1e293b") : "#94a3b8" }}
+        style={{ color: active ? (theme.isDark ? "#f8fafc" : "#1e293b") : theme.muted }}
       >
         {label}
       </Text>
@@ -112,7 +112,7 @@ function AppointmentCard({
             </Text>
             {appt.doctor ? (
               <View className="flex-row items-center gap-1 mt-1">
-                <Ionicons name="person-outline" size={12} color="#94a3b8" />
+                <Ionicons name="person-outline" size={12} color={theme.muted} />
                 <Text className="text-xs text-muted">{appt.doctor}</Text>
               </View>
             ) : null}
@@ -121,7 +121,7 @@ function AppointmentCard({
                 <Ionicons
                   name={appt.locationCoords ? "location" : "location-outline"}
                   size={12}
-                  color={appt.locationCoords ? "#4f9cff" : "#94a3b8"}
+                  color={appt.locationCoords ? "#4f9cff" : theme.muted}
                 />
                 <Text className="text-xs text-muted" numberOfLines={1}>{appt.location}</Text>
               </View>
@@ -481,7 +481,7 @@ export default function AppointmentsScreen() {
                   value={form.title}
                   onChangeText={(v) => setForm((f) => ({ ...f, title: v }))}
                   placeholder={t("appointments.fieldTitlePlaceholder")}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextcolor={theme.muted}
                   className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
                   autoCapitalize="words"
                 />
@@ -492,7 +492,7 @@ export default function AppointmentsScreen() {
                   value={form.doctor}
                   onChangeText={(v) => setForm((f) => ({ ...f, doctor: v }))}
                   placeholder={t("appointments.fieldDoctorPlaceholder")}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextcolor={theme.muted}
                   className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
                   autoCapitalize="words"
                 />
@@ -519,7 +519,7 @@ export default function AppointmentsScreen() {
                       onPress={() => setForm((f) => ({ ...f, locationCoords: undefined, location: "" }))}
                       className="p-1"
                     >
-                      <Ionicons name="close-circle-outline" size={16} color="#94a3b8" />
+                      <Ionicons name="close-circle-outline" size={16} color={theme.muted} />
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -604,7 +604,7 @@ export default function AppointmentsScreen() {
                   value={form.notes}
                   onChangeText={(v) => setForm((f) => ({ ...f, notes: v }))}
                   placeholder={t("appointments.fieldNotesPlaceholder")}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextcolor={theme.muted}
                   className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
                   multiline
                   numberOfLines={3}

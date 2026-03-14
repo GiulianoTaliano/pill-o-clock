@@ -228,7 +228,7 @@ export default function HistoryScreen() {
                 >
                   <Text
                     className="text-xs font-medium"
-                    style={{ color: bg !== "transparent" ? "#fff" : "#94a3b8" }}
+                    style={{ color: bg !== "transparent" ? "#fff" : theme.muted }}
                   >
                     {day.getDate()}
                   </Text>
@@ -358,7 +358,7 @@ export default function HistoryScreen() {
                 </Text>
                 {log.notes ? (
                   <View className="flex-row items-center gap-1 mt-0.5">
-                    <Ionicons name="chatbubble-outline" size={11} color="#94a3b8" />
+                    <Ionicons name="chatbubble-outline" size={11} color={theme.muted} />
                     <Text className="text-xs text-muted italic flex-1" numberOfLines={1}>
                       {log.notes}
                     </Text>
@@ -366,7 +366,7 @@ export default function HistoryScreen() {
                 ) : null}
                 {log.skipReason ? (
                   <View className="flex-row items-center gap-1 mt-0.5">
-                    <Ionicons name="help-circle-outline" size={11} color="#94a3b8" />
+                    <Ionicons name="help-circle-outline" size={11} color={theme.muted} />
                     <Text className="text-xs text-muted flex-1" numberOfLines={1}>
                       {t(`doseCard.skipReason_${log.skipReason}` as any)}
                     </Text>

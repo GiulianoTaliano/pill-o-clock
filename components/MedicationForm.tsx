@@ -24,6 +24,7 @@ import { useToast } from "../src/context/ToastContext";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { medicationFormSchema, type MedicationFormData } from "../src/schemas/medication";
+import { useAppTheme } from "../src/hooks/useAppTheme";
 
 // ─── Inline error ──────────────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowPr
         <Text className="text-sm font-semibold text-text">{label}</Text>
         {value && (
           <TouchableOpacity onPress={() => { onChange(undefined); setShow(false); }} className="p-1">
-            <Ionicons name="close-circle" size={16} color="#94a3b8" />
+            <Ionicons name="close-circle" size={16} color={theme.muted} />
           </TouchableOpacity>
         )}
       </View>
@@ -230,6 +231,7 @@ export function MedicationForm({
   isSubmitting,
 }: MedicationFormProps) {
   const { t } = useTranslation();
+  const theme = useAppTheme();
 
   // ─ Frecuencia ────────────────────────────────────────────────────────────
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -364,7 +366,7 @@ export function MedicationForm({
                   value={value}
                   onChangeText={onChange}
                   placeholder={t('form.fieldNamePlaceholder')}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextcolor={theme.muted}
                   className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
                   autoCapitalize="words"
                 />
@@ -388,7 +390,7 @@ export function MedicationForm({
                     value={value}
                     onChangeText={onChange}
                     placeholder={t('form.fieldDoseAmountPlaceholder')}
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextcolor={theme.muted}
                     keyboardType="decimal-pad"
                     className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
                   />
@@ -441,7 +443,7 @@ export function MedicationForm({
                     <Ionicons
                       name={cfg.icon as any}
                       size={14}
-                      color={category === key ? "#4f9cff" : "#94a3b8"}
+                      color={category === key ? "#4f9cff" : theme.muted}
                     />
                     <Text
                       className={`text-xs font-semibold ${
@@ -469,7 +471,7 @@ export function MedicationForm({
                   value={value}
                   onChangeText={onChange}
                   placeholder={t('form.fieldNotesPlaceholder')}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextcolor={theme.muted}
                   className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
                   multiline
                   numberOfLines={2}
@@ -519,7 +521,7 @@ export function MedicationForm({
               onPress={pickPhoto}
               className="flex-row items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl px-6 py-4"
             >
-              <Ionicons name="camera-outline" size={20} color="#94a3b8" />
+              <Ionicons name="camera-outline" size={20} color={theme.muted} />
               <Text className="text-muted font-semibold">{t('form.addPhoto')}</Text>
             </TouchableOpacity>
           )}
@@ -543,7 +545,7 @@ export function MedicationForm({
             <Ionicons
               name="time-outline"
               size={16}
-              color={repeatMode === "once" ? "#fff" : "#94a3b8"}
+              color={repeatMode === "once" ? "#fff" : theme.muted}
             />
             <View>
               <Text
@@ -575,7 +577,7 @@ export function MedicationForm({
             <Ionicons
               name="repeat-outline"
               size={16}
-              color={repeatMode === "repeat" ? "#fff" : "#94a3b8"}
+              color={repeatMode === "repeat" ? "#fff" : theme.muted}
             />
             <View>
               <Text
@@ -608,7 +610,7 @@ export function MedicationForm({
           <Ionicons
             name="hand-left-outline"
             size={16}
-            color={repeatMode === "prn" ? "#fff" : "#94a3b8"}
+            color={repeatMode === "prn" ? "#fff" : theme.muted}
           />
           <View>
             <Text
@@ -716,7 +718,7 @@ export function MedicationForm({
                 value={stockQtyStr}
                 onChangeText={(v) => { setValue("stockQtyStr", v); if (!v.trim()) setValue("stockThreshStr", ""); }}
                 placeholder={t('form.fieldStockPlaceholder')}
-                placeholderTextColor="#94a3b8"
+                placeholderTextcolor={theme.muted}
                 keyboardType="number-pad"
                 className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
               />
@@ -731,7 +733,7 @@ export function MedicationForm({
                   value={stockThreshStr}
                   onChangeText={(v) => setValue("stockThreshStr", v)}
                   placeholder={t('form.fieldStockThresholdPlaceholder')}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextcolor={theme.muted}
                   keyboardType="number-pad"
                   className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
                 />

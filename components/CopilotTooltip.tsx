@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   },
   counter: {
     fontSize: 12,
-    color: "#94a3b8",
+    color: "#64748b",
     fontWeight: "600",
   },
   title: {
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   btnSkipText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#94a3b8",
+    color: "#64748b",
   },
   btnNext: {
     flex: 2,

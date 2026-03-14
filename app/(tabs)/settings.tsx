@@ -12,6 +12,7 @@ import { useAppStore, ThemeMode } from "../../src/store";
 import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
 import { generateAndShareReport } from "../../src/services/pdfReport";
 import { checkFullScreenIntentPermission, requestFullScreenIntentPermission } from "expo-alarm";
+import { useAppTheme } from "../../src/hooks/useAppTheme";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -105,6 +106,7 @@ function SettingRow({
 
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
+  const theme = useAppTheme();
   const resetAllData = useAppStore((s) => s.resetAllData);
   const loadAll = useAppStore((s) => s.loadAll);
   const themeMode = useAppStore((s) => s.themeMode);
@@ -310,7 +312,7 @@ export default function SettingsScreen() {
               {idx > 0 && <Divider />}
               <SettingRow
                 icon={currentLang === lang ? "radio-button-on" : "radio-button-off-outline"}
-                iconColor={currentLang === lang ? "#4f9cff" : "#94a3b8"}
+                iconColor={currentLang === lang ? "#4f9cff" : theme.muted}
                 title={lang === "es" ? t("settings.languageEs") : t("settings.languageEn")}
                 onPress={() => handleLanguage(lang)}
                 chevron={false}
@@ -331,7 +333,7 @@ export default function SettingsScreen() {
               {idx > 0 && <Divider />}
               <SettingRow
                 icon={themeMode === mode ? "radio-button-on" : "radio-button-off-outline"}
-                iconColor={themeMode === mode ? "#4f9cff" : "#94a3b8"}
+                iconColor={themeMode === mode ? "#4f9cff" : theme.muted}
                 title={label}
                 value={themeMode === mode ? undefined : undefined}
                 onPress={() => handleTheme(mode)}
@@ -346,7 +348,7 @@ export default function SettingsScreen() {
         <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
           <SettingRow
             icon="information-circle-outline"
-            iconColor="#94a3b8"
+            iconColor={theme.muted}
             title={t("settings.version")}
             value={appVersion}
           />

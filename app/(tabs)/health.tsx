@@ -210,7 +210,7 @@ function SubTabButton({
     >
       <Text
         className="text-sm font-bold"
-        style={{ color: active ? (theme.isDark ? "#f8fafc" : "#1e293b") : "#94a3b8" }}
+        style={{ color: active ? (theme.isDark ? "#f8fafc" : "#1e293b") : theme.muted }}
       >
         {label}
       </Text>
@@ -562,7 +562,7 @@ export default function HealthScreen() {
                       data={chartData1}
                       data2={chartData2}
                       color={meta!.color}
-                      color2="#94a3b8"
+                      color2={theme.muted}
                       width={width - 72}
                       height={120}
                     />
@@ -644,7 +644,7 @@ export default function HealthScreen() {
                       onPress={() => setShowReminderPicker(true)}
                       className="flex-row items-center gap-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3"
                     >
-                      <Ionicons name="time-outline" size={16} color="#94a3b8" />
+                      <Ionicons name="time-outline" size={16} color={theme.muted} />
                       <Text className="text-sm text-muted">{t("health.reminderNone")} · {t("health.reminderTapToConfigure")}</Text>
                     </TouchableOpacity>
                   )}
@@ -749,7 +749,7 @@ export default function HealthScreen() {
                         value={addForm.value1Str}
                         onChangeText={(v) => setAddForm((f) => ({ ...f, value1Str: v }))}
                         placeholder="120"
-                        placeholderTextColor="#94a3b8"
+                        placeholderTextcolor={theme.muted}
                         keyboardType="numeric"
                         className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card"
                       />
@@ -760,7 +760,7 @@ export default function HealthScreen() {
                         value={addForm.value2Str}
                         onChangeText={(v) => setAddForm((f) => ({ ...f, value2Str: v }))}
                         placeholder="80"
-                        placeholderTextColor="#94a3b8"
+                        placeholderTextcolor={theme.muted}
                         keyboardType="numeric"
                         className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card"
                       />
@@ -776,7 +776,7 @@ export default function HealthScreen() {
                       value={addForm.value1Str}
                       onChangeText={(v) => setAddForm((f) => ({ ...f, value1Str: v }))}
                       placeholder={selectedType === "weight" ? "70.5" : selectedType === "spo2" ? "98" : "100"}
-                      placeholderTextColor="#94a3b8"
+                      placeholderTextcolor={theme.muted}
                       keyboardType="numeric"
                       className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
                     />
@@ -830,7 +830,7 @@ export default function HealthScreen() {
                   value={addForm.notes}
                   onChangeText={(v) => setAddForm((f) => ({ ...f, notes: v }))}
                   placeholder={t("health.fieldNotesPlaceholder")}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextcolor={theme.muted}
                   className="border border-border rounded-2xl px-4 py-3 text-text text-sm bg-card mb-4"
                   multiline
                   numberOfLines={2}

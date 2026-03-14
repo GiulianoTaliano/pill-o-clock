@@ -165,5 +165,5 @@ export const CATEGORY_CONFIG: Record<
   antiinflamatorio: { label: "Antiinflamatorio",  icon: "flame-outline",        priority: 2, tint: "#f97316" },
   suplemento:       { label: "Suplemento",        icon: "leaf-outline",         priority: 3, tint: "#22c55e" },
   vitamina:         { label: "Vitamina",          icon: "sunny-outline",        priority: 3, tint: "#eab308" },
-  otro:             { label: "Otro",              icon: "medical-outline",      priority: 4, tint: "#94a3b8" },
+  otro:             { label: "Otro",              icon: "medical-outline",      priority: 4, tint: "#64748b" },
 };

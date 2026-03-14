@@ -160,9 +160,9 @@ function buildHtml(
          letter-spacing: 0.5px; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
     td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; vertical-align: top; }
     tr.date-header td { background: #e0f2fe; color: #0369a1; font-weight: bold; padding: 4px 8px; font-size: 11px; }
-    .empty { color: #94a3b8; font-style: italic; padding: 12px 0; }
+    .empty { color: #64748b; font-style: italic; padding: 12px 0; }
     .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e2e8f0;
-               color: #94a3b8; font-size: 10px; display: flex; justify-content: space-between; }
+               color: #64748b; font-size: 10px; display: flex; justify-content: space-between; }
   </style>
 </head>
 <body>

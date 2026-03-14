@@ -1,4 +1,4 @@
-﻿import React, {
+import React, {
   useState, useRef, useEffect, useCallback, Component,
 } from "react";
 import {
@@ -130,7 +130,7 @@ export function LocationPickerModal({ visible, initial, onConfirm, onClose }: Pr
     card: theme.card,
     border: theme.isDark ? "#1e293b" : "#e2e8f0",
     text: theme.isDark ? "#f8fafc" : "#1e293b",
-    muted: theme.isDark ? "#94a3b8" : "#64748b",
+    muted: theme.muted,
     inputBg: theme.isDark ? "#1e293b" : "#ffffff",
   };
 

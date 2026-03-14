@@ -1,4 +1,4 @@
-﻿import { View, Text, Modal, TextInput, Image, PanResponder, Pressable } from "react-native";
+import { View, Text, Modal, TextInput, Image, PanResponder, Pressable } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -95,7 +95,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
     { key: "forgot",      icon: "help-circle-outline",  color: "#f97316" },
     { key: "side_effect", icon: "alert-circle-outline",  color: "#ef4444" },
     { key: "no_stock",    icon: "cube-outline",          color: "#8b5cf6" },
-    { key: "other",       icon: "ellipsis-horizontal",   color: "#64748b" },
+    { key: "other",       icon: "ellipsis-horizontal",   color: theme.muted },
   ];
 
   return (
@@ -126,7 +126,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             <Text className="text-base font-bold text-text">{dose.medication.name}</Text>
             <View className="flex-row items-center gap-1.5 mt-0.5">
               <Text className="text-sm text-muted">{dose.medication.dosage}</Text>
-              <Text className="text-slate-300 dark:text-slate-600">Â·</Text>
+              <Text className="text-muted">Â·</Text>
               <Ionicons
                 name={CATEGORY_CONFIG[dose.medication.category].icon as any}
                 size={11}
@@ -223,8 +223,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
               className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5"
             >
-              <Ionicons name="arrow-undo-outline" size={13} color="#64748b" />
-              <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">
+              <Ionicons name="arrow-undo-outline" size={13} color={theme.muted} />
+              <Text className="text-muted text-xs font-semibold">
                 {t('doseCard.revert')}
               </Text>
             </AppPressable>
@@ -292,7 +292,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
               className="flex-row items-center gap-1 mt-2 ml-12"
             >
-              <Ionicons name="arrow-undo-outline" size={13} color="#94a3b8" />
+              <Ionicons name="arrow-undo-outline" size={13} color={theme.muted} />
               <Text className="text-xs text-muted">{t('doseCard.revertSnooze')}</Text>
             </AppPressable>
           )}
@@ -301,7 +301,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
         /* Missed: allow recording a late dose, but no snooze */
         <View className="flex-row gap-2 mt-2 items-center">
           <View className="flex-row items-center gap-1.5 mr-1">
-            <Ionicons name={STATUS_ICONS[dose.status]} size={14} color="#94a3b8" />
+            <Ionicons name={STATUS_ICONS[dose.status]} size={14} color={theme.muted} />
             <Text className="text-xs text-muted font-semibold">{t(`status.${dose.status}`)}</Text>
           </View>
 
@@ -311,8 +311,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
             className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
           >
-            <Ionicons name="close-outline" size={15} color="#64748b" />
-            <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">{t('doseCard.skip')}</Text>
+            <Ionicons name="close-outline" size={15} color={theme.muted} />
+            <Text className="text-muted text-xs font-semibold">{t('doseCard.skip')}</Text>
           </AppPressable>
 
           <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
@@ -338,7 +338,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           onPress={() => { setNoteDraft(dose.notes ?? ""); setNoteModalVisible(true); }}
           className="flex-row items-center gap-1.5 mt-2 ml-12"
         >
-          <Ionicons name={dose.notes ? "chatbubble-outline" : "add-circle-outline"} size={13} color="#94a3b8" />
+          <Ionicons name={dose.notes ? "chatbubble-outline" : "add-circle-outline"} size={13} color={theme.muted} />
           <Text className="text-xs text-muted">
             {dose.notes ? dose.notes : t('doseCard.addNote')}
           </Text>
@@ -348,7 +348,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
       {/* Skip reason chip (skipped only) */}
       {dose.status === "skipped" && dose.skipReason && (
         <View className="flex-row items-center gap-1.5 mt-1 ml-12">
-          <Ionicons name="information-circle-outline" size={13} color="#94a3b8" />
+          <Ionicons name="information-circle-outline" size={13} color={theme.muted} />
           <Text className="text-xs text-muted">{t(`doseCard.skipReason_${dose.skipReason}`)}</Text>
         </View>
       )}
@@ -372,7 +372,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             value={noteDraft}
             onChangeText={setNoteDraft}
             placeholder={t('doseCard.noteModalPlaceholder')}
-            placeholderTextColor="#94a3b8"
+            placeholderTextcolor={theme.muted}
             className="border border-border rounded-2xl px-4 py-3 text-text text-sm bg-slate-50 dark:bg-slate-800 mb-4"
             multiline
             numberOfLines={3}
@@ -437,7 +437,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
                 <Ionicons name={icon as any} size={18} color={color} />
               </View>
               <Text className="text-sm font-semibold text-text flex-1">{t(`doseCard.skipReason_${key}`)}</Text>
-              <Ionicons name="chevron-forward" size={14} color="#94a3b8" />
+              <Ionicons name="chevron-forward" size={14} color={theme.muted} />
             </AppPressable>
           ))}
           <AppPressable

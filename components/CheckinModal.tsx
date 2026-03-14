@@ -5,6 +5,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "../src/i18n";
+import { useAppTheme } from "../src/hooks/useAppTheme";
 import { useAppStore } from "../src/store";
 import { DailyCheckin } from "../src/types";
 import { today } from "../src/utils";
@@ -32,6 +33,7 @@ interface CheckinModalProps {
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export function CheckinModal({ visible, onClose, existing }: CheckinModalProps) {
+  const theme = useAppTheme();
   const { t } = useTranslation();
   const saveDailyCheckin = useAppStore((s) => s.saveDailyCheckin);
   const { showToast } = require("../src/context/ToastContext").useToast();
@@ -159,7 +161,7 @@ export function CheckinModal({ visible, onClose, existing }: CheckinModalProps) 
                 value={notes}
                 onChangeText={setNotes}
                 placeholder={t("checkin.fieldNotesPlaceholder")}
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={theme.muted}
                 className="border border-border rounded-2xl px-4 py-3 text-text text-sm bg-card mb-5"
                 multiline
                 numberOfLines={3}

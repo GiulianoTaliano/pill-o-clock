@@ -461,7 +461,7 @@ export default function CalendarScreen() {
                       className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
                     >
                       <Ionicons name="close-outline" size={14} color="#64748b" />
-                      <Text className="text-slate-500 text-xs font-semibold">
+                      <Text className="text-muted text-xs font-semibold">
                         {t('status.skipped')}
                       </Text>
                     </TouchableOpacity>

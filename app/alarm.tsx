@@ -9,6 +9,7 @@ import { SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
 import { AppPressable } from "../components/AppPressable";
+import { useAppTheme } from "../src/hooks/useAppTheme";
 
 /**
  * Fullscreen alarm screen.
@@ -37,6 +38,7 @@ import { AppPressable } from "../components/AppPressable";
 export default function AlarmScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const { scheduleId, date, action, time } = useLocalSearchParams<{
     scheduleId: string;
     date: string;
@@ -206,7 +208,7 @@ export default function AlarmScreen() {
           </Text>
         </View>
         {medication.notes ? (
-          <Text className="text-sm text-slate-500 mt-2 text-center">{medication.notes}</Text>
+          <Text className="text-sm text-muted mt-2 text-center">{medication.notes}</Text>
         ) : null}
 
         {/* Optional note input — hidden until the user taps the toggle */}
@@ -219,9 +221,9 @@ export default function AlarmScreen() {
           <Ionicons
             name={showNote ? "chevron-up" : "create-outline"}
             size={14}
-            color="#94a3b8"
+            color={theme.muted}
           />
-          <Text className="text-xs text-slate-400">
+          <Text className="text-xs text-muted">
             {showNote ? t('common.cancel') : t('doseCard.addNote')}
           </Text>
         </AppPressable>
@@ -230,7 +232,7 @@ export default function AlarmScreen() {
             value={noteText}
             onChangeText={setNoteText}
             placeholder={t('doseCard.noteModalPlaceholder')}
-            placeholderTextColor="rgba(100,116,139,0.6)"
+            placeholderTextColor={theme.muted}
             className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-slate-700 text-sm"
             multiline
             numberOfLines={2}
@@ -274,7 +276,7 @@ export default function AlarmScreen() {
           onPress={handleSkip}
           className="rounded-2xl py-3 items-center flex-row justify-center gap-2"
         >
-          <Ionicons name="close-outline" size={18} color="#94a3b8" />
+          <Ionicons name="close-outline" size={18} color={theme.muted} />
           <Text className="text-muted text-sm font-medium">{t('alarm.skip')}</Text>
         </AppPressable>
       </View>
