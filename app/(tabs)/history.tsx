@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import {
   addDays, addMonths, eachDayOfInterval, format, getDaysInMonth,
@@ -13,6 +13,7 @@ import { getColorConfig, toDateString } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { useSkeletonAnimation, SkeletonBox } from "../../components/Skeleton";
+import { FlashList } from "@shopify/flash-list";
 
 const STATUS_ICONS = {
   taken:   "checkmark-circle" as const,
@@ -152,6 +153,21 @@ export default function HistoryScreen() {
 
   const sortedDates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
 
+  // Flatten grouped logs into a list with section headers for FlashList
+  type HistoryRow = { type: "header"; date: string; label: string } | { type: "log"; log: DoseLog };
+  const flatData = useMemo<HistoryRow[]>(() => {
+    const rows: HistoryRow[] = [];
+    for (const date of sortedDates) {
+      const dateObj = new Date(date + "T12:00");
+      const dayLabel = format(dateObj, "PPP", { locale: getDateLocale() });
+      rows.push({ type: "header", date, label: dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1) });
+      for (const log of byDate.get(date)!) {
+        rows.push({ type: "log", log });
+      }
+    }
+    return rows;
+  }, [sortedDates, byDate]);
+
   const totalTaken   = logs.filter((l) => l.status === "taken").length;
   const totalSkipped = logs.filter((l) => l.status === "skipped").length;
   const totalMissed  = logs.filter((l) => l.status === "missed").length;
@@ -199,7 +215,7 @@ export default function HistoryScreen() {
         {Array.from({ length: cells.length / 7 }).map((_, rowIdx) => (
           <View key={rowIdx} className="flex-row mb-1">
             {cells.slice(rowIdx * 7, rowIdx * 7 + 7).map((day, colIdx) => {
-              if (!day) return <View key={colIdx} className="flex-1 aspect-square" />;
+              if (!day) return <View key={colIdx} className="flex-1 aspect-square m-0.5" />;
               const ds = toDateString(day);
               const dayLogs = byDate.get(ds);
               const bg = dayAdherenceColor(dayLogs);
@@ -311,101 +327,95 @@ export default function HistoryScreen() {
         </View>
       )}
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Month heatmap */}
-        {viewMode === "month" && (
-          loading
-            ? <HistoryHeatmapSkeleton rows={heatmapRowCount} dayHeaders={DAY_HEADERS} />
-            : <MonthHeatmap />
-        )}
-
-        {/* Log list */}
-        {loading ? (
-          <View className="px-5">
-            {Array.from({ length: 4 }).map((_, i) => <HistoryLogRowSkeleton key={i} />)}
-            <View className="h-6" />
-          </View>
-        ) : (
-          <View className="px-5">
-            {sortedDates.length === 0 ? (
+      <FlashList
+        data={loading ? [] : flatData}
+        renderItem={({ item }) => {
+          if (item.type === "header") {
+            return (
+              <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2 mt-4 px-5">
+                {item.label}
+              </Text>
+            );
+          }
+          const log = item.log;
+          const med = medMap.get(log.medicationId);
+          const colors = getColorConfig(med?.color ?? "blue");
+          const statusBadge = theme.statusBadge[log.status as keyof typeof theme.statusBadge];
+          return (
+            <View className="flex-row items-center bg-card rounded-2xl border border-border px-4 py-3 mb-2 mx-5 shadow-sm">
+              <View
+                style={{ backgroundColor: colors.light }}
+                className="w-9 h-9 rounded-full items-center justify-center mr-3"
+              >
+                <Ionicons name="medical" size={18} color={colors.bg} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-bold text-text">
+                  {med?.name ?? "Medicamento"}
+                </Text>
+                <Text className="text-xs text-muted">
+                  {log.scheduledTime} · {med?.dosage}
+                </Text>
+                {log.notes ? (
+                  <View className="flex-row items-center gap-1 mt-0.5">
+                    <Ionicons name="chatbubble-outline" size={11} color="#94a3b8" />
+                    <Text className="text-xs text-muted italic flex-1" numberOfLines={1}>
+                      {log.notes}
+                    </Text>
+                  </View>
+                ) : null}
+                {log.skipReason ? (
+                  <View className="flex-row items-center gap-1 mt-0.5">
+                    <Ionicons name="help-circle-outline" size={11} color="#94a3b8" />
+                    <Text className="text-xs text-muted flex-1" numberOfLines={1}>
+                      {t(`doseCard.skipReason_${log.skipReason}` as any)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <View
+                style={{ backgroundColor: statusBadge.bg }}
+                className="rounded-xl px-2 py-1 flex-row items-center gap-1"
+              >
+                <Ionicons name={STATUS_ICONS[log.status as keyof typeof STATUS_ICONS] ?? "time"} size={12} color={statusBadge.color} />
+                <Text style={{ color: statusBadge.color }} className="text-xs font-semibold">
+                  {t(`status.${log.status}`)}
+                </Text>
+              </View>
+            </View>
+          );
+        }}
+        keyExtractor={(item, index) => item.type === "header" ? `h-${item.date}` : item.log.id}
+        getItemType={(item) => item.type}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            {/* Month heatmap */}
+            {viewMode === "month" && (
+              loading
+                ? <HistoryHeatmapSkeleton rows={heatmapRowCount} dayHeaders={DAY_HEADERS} />
+                : <MonthHeatmap />
+            )}
+            {/* Loading skeleton */}
+            {loading && (
+              <View className="px-5">
+                {Array.from({ length: 4 }).map((_, i) => <HistoryLogRowSkeleton key={i} />)}
+              </View>
+            )}
+          </>
+        }
+        ListEmptyComponent={
+          !loading ? (
             <View className="py-12 items-center">
               <Ionicons name="calendar-outline" size={40} color="#cbd5e1" />
               <Text className="text-muted text-sm mt-3 text-center">
                 {t('history.noLogs')}
               </Text>
             </View>
-          ) : (
-            sortedDates.map((date) => {
-              const dayLogs = byDate.get(date)!;
-              const dateObj = new Date(date + "T12:00");
-              const dayLabel = format(dateObj, "PPP", { locale: getDateLocale() });
-              const dayLabelCap = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
-
-              return (
-                <View key={date} className="mb-4">
-                  <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
-                    {dayLabelCap}
-                  </Text>
-                  {dayLogs.map((log) => {
-                    const med = medMap.get(log.medicationId);
-                    const colors = getColorConfig(med?.color ?? "blue");
-                    const statusBadge = theme.statusBadge[log.status as keyof typeof theme.statusBadge];
-
-                    return (
-                      <View
-                        key={log.id}
-                        className="flex-row items-center bg-card rounded-2xl border border-border px-4 py-3 mb-2 shadow-sm"
-                      >
-                        <View
-                          style={{ backgroundColor: colors.light }}
-                          className="w-9 h-9 rounded-full items-center justify-center mr-3"
-                        >
-                          <Ionicons name="medical" size={18} color={colors.bg} />
-                        </View>
-                        <View className="flex-1">
-                          <Text className="text-sm font-bold text-text">
-                            {med?.name ?? "Medicamento"}
-                          </Text>
-                          <Text className="text-xs text-muted">
-                            {log.scheduledTime} · {med?.dosage}
-                          </Text>
-                          {log.notes ? (
-                            <View className="flex-row items-center gap-1 mt-0.5">
-                              <Ionicons name="chatbubble-outline" size={11} color="#94a3b8" />
-                              <Text className="text-xs text-muted italic flex-1" numberOfLines={1}>
-                                {log.notes}
-                              </Text>
-                            </View>
-                          ) : null}
-                          {log.skipReason ? (
-                            <View className="flex-row items-center gap-1 mt-0.5">
-                              <Ionicons name="help-circle-outline" size={11} color="#94a3b8" />
-                              <Text className="text-xs text-muted flex-1" numberOfLines={1}>
-                                {t(`doseCard.skipReason_${log.skipReason}` as any)}
-                              </Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        <View
-                          style={{ backgroundColor: statusBadge.bg }}
-                          className="rounded-xl px-2 py-1 flex-row items-center gap-1"
-                        >
-                          <Ionicons name={STATUS_ICONS[log.status as keyof typeof STATUS_ICONS] ?? "time"} size={12} color={statusBadge.color} />
-                          <Text style={{ color: statusBadge.color }} className="text-xs font-semibold">
-                            {t(`status.${log.status}`)}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              );
-            })
-          )}
-          <View className="h-6" />
-        </View>
-        )}
-      </ScrollView>
+          ) : null
+        }
+        ListFooterComponent={<View className="h-6" />}
+      />
     </SafeAreaView>
   );
 }

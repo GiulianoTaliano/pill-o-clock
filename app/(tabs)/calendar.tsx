@@ -326,7 +326,7 @@ export default function CalendarScreen() {
           Array.from({ length: cells.length / 7 }, (_, row) => (
             <View key={row} className="flex-row mb-1">
               {cells.slice(row * 7, row * 7 + 7).map((day, col) => {
-                if (!day) return <View key={col} className="flex-1" />;
+                if (!day) return <View key={col} className="flex-1 mx-0.5" />;
 
                 const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                 const isSelected  = dateStr === selectedDate;

@@ -17,6 +17,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { today } from "../../src/utils";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { LocationPickerModal } from "../../components/LocationPickerModal";
+import { FlashList } from "@shopify/flash-list";
 
 // ─── Sub-tab button ──────────────────────────────────────────────────────
 
@@ -415,26 +416,29 @@ export default function AppointmentsScreen() {
         ))}
       </View>
 
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
-        {list.length === 0 ? (
+      <FlashList
+        data={list}
+        renderItem={({ item: appt }) => (
+          <AppointmentCard
+            key={appt.id}
+            appt={appt}
+            onPress={() => setSelectedAppointmentId(appt.id)}
+            onEdit={() => openEdit(appt)}
+            onDelete={() => handleDelete(appt)}
+          />
+        )}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingHorizontal: 20 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
           <EmptyState
             icon="calendar-outline"
             title={t("appointments.noAppointments")}
             subtitle={tab === "upcoming" ? t("appointments.noAppointmentsSubtitle") : ""}
           />
-        ) : (
-          list.map((appt) => (
-            <AppointmentCard
-              key={appt.id}
-              appt={appt}
-              onPress={() => setSelectedAppointmentId(appt.id)}
-              onEdit={() => openEdit(appt)}
-              onDelete={() => handleDelete(appt)}
-            />
-          ))
-        )}
-        <View className="h-6" />
-      </ScrollView>
+        }
+        ListFooterComponent={<View className="h-6" />}
+      />
 
       {/* Add / Edit modal */}
       <Modal

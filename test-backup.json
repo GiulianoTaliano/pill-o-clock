@@ -1,0 +1,441 @@
+{
+  "version": 2,
+  "exportedAt": "2026-03-13T12:00:00.000Z",
+  "app": "pill-o-clock",
+  "data": {
+    "medications": [
+      {
+        "id": "med-001",
+        "name": "Ibuprofeno",
+        "dosageAmount": 400,
+        "dosageUnit": "mg",
+        "dosage": "400 mg",
+        "category": "antiinflamatorio",
+        "notes": "Tomar con comida para proteger el estómago",
+        "color": "orange",
+        "startDate": "2026-02-01",
+        "isActive": true,
+        "createdAt": "2026-02-01T08:00:00.000Z",
+        "stockQuantity": 20,
+        "stockAlertThreshold": 5
+      },
+      {
+        "id": "med-002",
+        "name": "Amoxicilina",
+        "dosageAmount": 500,
+        "dosageUnit": "mg",
+        "dosage": "500 mg",
+        "category": "antibiotico",
+        "notes": "Ciclo de 7 días",
+        "color": "red",
+        "startDate": "2026-03-07",
+        "endDate": "2026-03-14",
+        "isActive": true,
+        "createdAt": "2026-03-07T09:00:00.000Z",
+        "stockQuantity": 6,
+        "stockAlertThreshold": 2
+      },
+      {
+        "id": "med-003",
+        "name": "Vitamina D3",
+        "dosageAmount": 2000,
+        "dosageUnit": "UI",
+        "dosage": "2000 UI",
+        "category": "vitamina",
+        "color": "teal",
+        "startDate": "2026-01-15",
+        "isActive": true,
+        "createdAt": "2026-01-15T07:00:00.000Z",
+        "stockQuantity": 45,
+        "stockAlertThreshold": 10
+      },
+      {
+        "id": "med-004",
+        "name": "Omeprazol",
+        "dosageAmount": 20,
+        "dosageUnit": "mg",
+        "dosage": "20 mg",
+        "category": "otro",
+        "notes": "Tomar en ayunas, 30 min antes del desayuno",
+        "color": "purple",
+        "isActive": true,
+        "createdAt": "2026-01-01T06:00:00.000Z"
+      },
+      {
+        "id": "med-005",
+        "name": "Paracetamol",
+        "dosageAmount": 1,
+        "dosageUnit": "g",
+        "dosage": "1 g",
+        "category": "analgesico",
+        "color": "blue",
+        "isActive": true,
+        "createdAt": "2026-02-15T10:00:00.000Z",
+        "isPRN": true
+      },
+      {
+        "id": "med-006",
+        "name": "Magnesio",
+        "dosageAmount": 400,
+        "dosageUnit": "mg",
+        "dosage": "400 mg",
+        "category": "suplemento",
+        "notes": "Tomar antes de dormir",
+        "color": "green",
+        "isActive": true,
+        "createdAt": "2026-02-01T20:00:00.000Z",
+        "stockQuantity": 30,
+        "stockAlertThreshold": 8
+      },
+      {
+        "id": "med-007",
+        "name": "Gotas oftálmicas",
+        "dosageAmount": 2,
+        "dosageUnit": "gotas",
+        "dosage": "2 gotas",
+        "category": "otro",
+        "notes": "Ojo derecho solamente",
+        "color": "pink",
+        "isActive": false,
+        "createdAt": "2025-12-01T09:00:00.000Z",
+        "endDate": "2026-01-01"
+      }
+    ],
+    "schedules": [
+      {
+        "id": "sch-001",
+        "medicationId": "med-001",
+        "time": "08:00",
+        "days": [1, 2, 3, 4, 5],
+        "isActive": true
+      },
+      {
+        "id": "sch-002",
+        "medicationId": "med-001",
+        "time": "20:00",
+        "days": [1, 2, 3, 4, 5],
+        "isActive": true
+      },
+      {
+        "id": "sch-003",
+        "medicationId": "med-002",
+        "time": "08:00",
+        "days": [],
+        "isActive": true
+      },
+      {
+        "id": "sch-004",
+        "medicationId": "med-002",
+        "time": "16:00",
+        "days": [],
+        "isActive": true
+      },
+      {
+        "id": "sch-005",
+        "medicationId": "med-002",
+        "time": "00:00",
+        "days": [],
+        "isActive": true
+      },
+      {
+        "id": "sch-006",
+        "medicationId": "med-003",
+        "time": "09:00",
+        "days": [],
+        "isActive": true
+      },
+      {
+        "id": "sch-007",
+        "medicationId": "med-004",
+        "time": "06:30",
+        "days": [],
+        "isActive": true
+      },
+      {
+        "id": "sch-008",
+        "medicationId": "med-006",
+        "time": "22:00",
+        "days": [],
+        "isActive": true
+      }
+    ],
+    "doseLogs": [
+      {
+        "id": "log-001",
+        "medicationId": "med-001",
+        "scheduleId": "sch-001",
+        "scheduledDate": "2026-03-12",
+        "scheduledTime": "08:00",
+        "status": "taken",
+        "takenAt": "2026-03-12T08:05:00.000Z",
+        "createdAt": "2026-03-12T08:05:00.000Z"
+      },
+      {
+        "id": "log-002",
+        "medicationId": "med-001",
+        "scheduleId": "sch-002",
+        "scheduledDate": "2026-03-12",
+        "scheduledTime": "20:00",
+        "status": "taken",
+        "takenAt": "2026-03-12T20:12:00.000Z",
+        "createdAt": "2026-03-12T20:12:00.000Z"
+      },
+      {
+        "id": "log-003",
+        "medicationId": "med-002",
+        "scheduleId": "sch-003",
+        "scheduledDate": "2026-03-12",
+        "scheduledTime": "08:00",
+        "status": "taken",
+        "takenAt": "2026-03-12T08:10:00.000Z",
+        "createdAt": "2026-03-12T08:10:00.000Z"
+      },
+      {
+        "id": "log-004",
+        "medicationId": "med-002",
+        "scheduleId": "sch-004",
+        "scheduledDate": "2026-03-12",
+        "scheduledTime": "16:00",
+        "status": "skipped",
+        "createdAt": "2026-03-12T16:30:00.000Z",
+        "skipReason": "side_effect",
+        "notes": "Malestar estomacal"
+      },
+      {
+        "id": "log-005",
+        "medicationId": "med-003",
+        "scheduleId": "sch-006",
+        "scheduledDate": "2026-03-12",
+        "scheduledTime": "09:00",
+        "status": "taken",
+        "takenAt": "2026-03-12T09:01:00.000Z",
+        "createdAt": "2026-03-12T09:01:00.000Z"
+      },
+      {
+        "id": "log-006",
+        "medicationId": "med-004",
+        "scheduleId": "sch-007",
+        "scheduledDate": "2026-03-12",
+        "scheduledTime": "06:30",
+        "status": "taken",
+        "takenAt": "2026-03-12T06:32:00.000Z",
+        "createdAt": "2026-03-12T06:32:00.000Z"
+      },
+      {
+        "id": "log-007",
+        "medicationId": "med-006",
+        "scheduleId": "sch-008",
+        "scheduledDate": "2026-03-12",
+        "scheduledTime": "22:00",
+        "status": "missed",
+        "createdAt": "2026-03-13T00:00:00.000Z"
+      },
+      {
+        "id": "log-008",
+        "medicationId": "med-001",
+        "scheduleId": "sch-001",
+        "scheduledDate": "2026-03-11",
+        "scheduledTime": "08:00",
+        "status": "taken",
+        "takenAt": "2026-03-11T08:15:00.000Z",
+        "createdAt": "2026-03-11T08:15:00.000Z"
+      },
+      {
+        "id": "log-009",
+        "medicationId": "med-001",
+        "scheduleId": "sch-002",
+        "scheduledDate": "2026-03-11",
+        "scheduledTime": "20:00",
+        "status": "taken",
+        "takenAt": "2026-03-11T20:00:00.000Z",
+        "createdAt": "2026-03-11T20:00:00.000Z"
+      },
+      {
+        "id": "log-010",
+        "medicationId": "med-002",
+        "scheduleId": "sch-003",
+        "scheduledDate": "2026-03-11",
+        "scheduledTime": "08:00",
+        "status": "taken",
+        "takenAt": "2026-03-11T08:20:00.000Z",
+        "createdAt": "2026-03-11T08:20:00.000Z"
+      },
+      {
+        "id": "log-011",
+        "medicationId": "med-005",
+        "scheduleId": "prn",
+        "scheduledDate": "2026-03-11",
+        "scheduledTime": "14:00",
+        "status": "taken",
+        "takenAt": "2026-03-11T14:00:00.000Z",
+        "createdAt": "2026-03-11T14:00:00.000Z",
+        "notes": "Dolor de cabeza"
+      },
+      {
+        "id": "log-012",
+        "medicationId": "med-004",
+        "scheduleId": "sch-007",
+        "scheduledDate": "2026-03-10",
+        "scheduledTime": "06:30",
+        "status": "skipped",
+        "createdAt": "2026-03-10T07:00:00.000Z",
+        "skipReason": "forgot"
+      }
+    ],
+    "appointments": [
+      {
+        "id": "apt-001",
+        "title": "Control general",
+        "doctor": "Dra. García",
+        "location": "Hospital Central, Consultorio 205",
+        "locationCoords": { "latitude": -34.6037, "longitude": -58.3816 },
+        "notes": "Llevar análisis de sangre",
+        "date": "2026-03-20",
+        "time": "10:30",
+        "reminderMinutes": 60,
+        "createdAt": "2026-03-01T12:00:00.000Z"
+      },
+      {
+        "id": "apt-002",
+        "title": "Oftalmólogo",
+        "doctor": "Dr. Martínez",
+        "location": "Clínica de la Visión",
+        "date": "2026-04-05",
+        "time": "16:00",
+        "reminderMinutes": 30,
+        "createdAt": "2026-03-05T10:00:00.000Z"
+      },
+      {
+        "id": "apt-003",
+        "title": "Análisis de sangre",
+        "location": "Laboratorio CEMA",
+        "notes": "Ayuno de 12 horas. No tomar Omeprazol la noche anterior.",
+        "date": "2026-03-18",
+        "time": "07:00",
+        "reminderMinutes": 720,
+        "createdAt": "2026-03-10T15:00:00.000Z"
+      }
+    ],
+    "healthMeasurements": [
+      {
+        "id": "hm-001",
+        "type": "blood_pressure",
+        "value1": 125,
+        "value2": 82,
+        "measuredAt": "2026-03-12T08:00:00.000Z",
+        "createdAt": "2026-03-12T08:00:00.000Z"
+      },
+      {
+        "id": "hm-002",
+        "type": "blood_pressure",
+        "value1": 118,
+        "value2": 78,
+        "measuredAt": "2026-03-11T08:00:00.000Z",
+        "createdAt": "2026-03-11T08:00:00.000Z"
+      },
+      {
+        "id": "hm-003",
+        "type": "blood_pressure",
+        "value1": 130,
+        "value2": 85,
+        "measuredAt": "2026-03-10T08:00:00.000Z",
+        "notes": "Medición después de café",
+        "createdAt": "2026-03-10T08:00:00.000Z"
+      },
+      {
+        "id": "hm-004",
+        "type": "glucose",
+        "value1": 95,
+        "measuredAt": "2026-03-12T07:00:00.000Z",
+        "notes": "En ayunas",
+        "createdAt": "2026-03-12T07:00:00.000Z"
+      },
+      {
+        "id": "hm-005",
+        "type": "glucose",
+        "value1": 110,
+        "measuredAt": "2026-03-11T12:30:00.000Z",
+        "notes": "Post-almuerzo",
+        "createdAt": "2026-03-11T12:30:00.000Z"
+      },
+      {
+        "id": "hm-006",
+        "type": "weight",
+        "value1": 74.5,
+        "measuredAt": "2026-03-12T07:30:00.000Z",
+        "createdAt": "2026-03-12T07:30:00.000Z"
+      },
+      {
+        "id": "hm-007",
+        "type": "weight",
+        "value1": 74.8,
+        "measuredAt": "2026-03-05T07:30:00.000Z",
+        "createdAt": "2026-03-05T07:30:00.000Z"
+      },
+      {
+        "id": "hm-008",
+        "type": "heart_rate",
+        "value1": 72,
+        "measuredAt": "2026-03-12T08:05:00.000Z",
+        "notes": "En reposo",
+        "createdAt": "2026-03-12T08:05:00.000Z"
+      },
+      {
+        "id": "hm-009",
+        "type": "spo2",
+        "value1": 97,
+        "measuredAt": "2026-03-12T08:05:00.000Z",
+        "createdAt": "2026-03-12T08:05:00.000Z"
+      },
+      {
+        "id": "hm-010",
+        "type": "heart_rate",
+        "value1": 88,
+        "measuredAt": "2026-03-11T18:00:00.000Z",
+        "notes": "Después de caminar",
+        "createdAt": "2026-03-11T18:00:00.000Z"
+      }
+    ],
+    "dailyCheckins": [
+      {
+        "id": "chk-001",
+        "date": "2026-03-12",
+        "mood": 4,
+        "symptoms": ["fatiga"],
+        "notes": "Buen día en general, un poco cansado por la tarde",
+        "createdAt": "2026-03-12T22:00:00.000Z"
+      },
+      {
+        "id": "chk-002",
+        "date": "2026-03-11",
+        "mood": 3,
+        "symptoms": ["dolor_cabeza", "fatiga"],
+        "notes": "Dolor de cabeza a media tarde, tomé Paracetamol",
+        "createdAt": "2026-03-11T22:00:00.000Z"
+      },
+      {
+        "id": "chk-003",
+        "date": "2026-03-10",
+        "mood": 5,
+        "symptoms": [],
+        "notes": "Excelente día, sin molestias",
+        "createdAt": "2026-03-10T21:00:00.000Z"
+      },
+      {
+        "id": "chk-004",
+        "date": "2026-03-09",
+        "mood": 2,
+        "symptoms": ["nausea", "mareo", "fatiga"],
+        "notes": "Malestar general, posible efecto de Amoxicilina",
+        "createdAt": "2026-03-09T20:00:00.000Z"
+      },
+      {
+        "id": "chk-005",
+        "date": "2026-03-08",
+        "mood": 4,
+        "symptoms": [],
+        "createdAt": "2026-03-08T21:30:00.000Z"
+      }
+    ]
+  }
+}

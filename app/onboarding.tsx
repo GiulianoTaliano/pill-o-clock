@@ -12,14 +12,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "../src/storage";
+import { STORAGE_KEYS } from "../src/config";
 import * as IntentLauncher from "expo-intent-launcher";
 import { useTranslation } from "../src/i18n";
 import { setupNotifications, openExactAlarmSettings } from "../src/services/notifications";
 import { checkFullScreenIntentPermission } from "expo-alarm";
 import * as Haptics from "expo-haptics";
 
-export const ONBOARDING_DONE_KEY = "@pilloclock/onboarding_done";
+export const ONBOARDING_DONE_KEY = STORAGE_KEYS.ONBOARDING_DONE;
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -143,7 +144,7 @@ export default function OnboardingScreen() {
     if (permissionGranted === null) {
       await handleRequestPermission();
     }
-    await AsyncStorage.setItem(ONBOARDING_DONE_KEY, "1");
+    storage.set(ONBOARDING_DONE_KEY, "1");
     router.replace("/(tabs)");
   }
 
@@ -151,7 +152,7 @@ export default function OnboardingScreen() {
     // Request notification permission even when the user skips the onboarding
     // flow — otherwise alarms will never show without an explicit re-prompt.
     await setupNotifications().catch(() => {});
-    await AsyncStorage.setItem(ONBOARDING_DONE_KEY, "1");
+    storage.set(ONBOARDING_DONE_KEY, "1");
     router.replace("/(tabs)");
   }
 

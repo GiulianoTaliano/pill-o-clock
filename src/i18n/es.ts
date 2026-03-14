@@ -442,6 +442,7 @@ const es = {
     importError: "Error al importar",
     importErrorFormat: "El archivo no tiene el formato correcto de Pill O-Clock.",
     importErrorGeneric: "No se pudo importar el archivo. Intentá de nuevo.",
+    exportSuccess: "Copia de seguridad guardada correctamente.",
     exportError: "Error al exportar",
     exportErrorGeneric: "No se pudo exportar. Intentá de nuevo.",
     // Language

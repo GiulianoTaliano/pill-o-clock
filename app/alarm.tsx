@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Animated, TextInput, BackHandler } from "react-native";
+import { View, Text, Animated, TextInput, BackHandler } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -8,6 +8,7 @@ import { getColorConfig } from "../src/utils";
 import { SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
+import { AppPressable } from "../components/AppPressable";
 
 /**
  * Fullscreen alarm screen.
@@ -209,12 +210,11 @@ export default function AlarmScreen() {
         ) : null}
 
         {/* Optional note input — hidden until the user taps the toggle */}
-        <TouchableOpacity
+        <AppPressable
           accessibilityRole="button"
           accessibilityLabel={showNote ? t('common.cancel') : t('doseCard.addNote')}
           onPress={() => setShowNote((v) => !v)}
           className="mt-4 flex-row items-center gap-1 self-center"
-          activeOpacity={0.7}
         >
           <Ionicons
             name={showNote ? "chevron-up" : "create-outline"}
@@ -224,7 +224,7 @@ export default function AlarmScreen() {
           <Text className="text-xs text-slate-400">
             {showNote ? t('common.cancel') : t('doseCard.addNote')}
           </Text>
-        </TouchableOpacity>
+        </AppPressable>
         {showNote && (
           <TextInput
             value={noteText}
@@ -243,7 +243,7 @@ export default function AlarmScreen() {
       {/* Actions */}
       <View className="w-full gap-3">
         {/* Take */}
-        <TouchableOpacity
+        <AppPressable
           accessibilityRole="button"
           accessibilityLabel={t('alarm.takeMed')}
           onPress={handleTake}
@@ -252,10 +252,10 @@ export default function AlarmScreen() {
         >
           <Ionicons name="checkmark-circle" size={24} color="#fff" />
           <Text className="text-white text-lg font-black">{t('alarm.takeMed')}</Text>
-        </TouchableOpacity>
+        </AppPressable>
 
         {/* Snooze */}
-        <TouchableOpacity
+        <AppPressable
           accessibilityRole="button"
           accessibilityLabel={t('alarm.snooze', { minutes: SNOOZE_MINUTES })}
           onPress={handleSnooze}
@@ -265,10 +265,10 @@ export default function AlarmScreen() {
           <Text className="text-amber-700 text-base font-bold">
             {t('alarm.snooze', { minutes: SNOOZE_MINUTES })}
           </Text>
-        </TouchableOpacity>
+        </AppPressable>
 
         {/* Skip */}
-        <TouchableOpacity
+        <AppPressable
           accessibilityRole="button"
           accessibilityLabel={t('alarm.skip')}
           onPress={handleSkip}
@@ -276,7 +276,7 @@ export default function AlarmScreen() {
         >
           <Ionicons name="close-outline" size={18} color="#94a3b8" />
           <Text className="text-muted text-sm font-medium">{t('alarm.skip')}</Text>
-        </TouchableOpacity>
+        </AppPressable>
       </View>
     </SafeAreaView>
   );

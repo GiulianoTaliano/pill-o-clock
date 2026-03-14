@@ -22,10 +22,4 @@
     --color-muted:      #64748b;  /* slate-500 */
     --color-border:     #1e293b;  /* slate-800 */
   }
-
-  .bg-background { background-color: #020617; }
-  .bg-card       { background-color: #0f172a; }
-  .border-border { border-color:     #1e293b; }
-  .text-text     { color:            #f1f5f9; }
-  .text-muted    { color:            #64748b; }
 }

@@ -1,22 +1,22 @@
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation, Platform, Modal, PanResponder, Pressable } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "../../src/storage";
+import { STORAGE_KEYS } from "../../src/config";
 import { useAppStore } from "../../src/store";
 import { useTodaySchedule } from "../../src/hooks/useTodaySchedule";
 import { useAdherenceStreak } from "../../src/hooks/useAdherenceStreak";
 import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
 import { CheckinModal } from "../../components/CheckinModal";
-import { AppTour, TourStep } from "../../components/AppTour";
+import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { TodayDose, SkipReason } from "../../src/types";
 import { CATEGORY_CONFIG, getColorConfig } from "../../src/utils";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Dimensions } from "react-native";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useToast } from "../../src/context/ToastContext";
 import { updateWidget } from "expo-widget";
@@ -25,7 +25,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const loadAll = useAppStore((s) => s.loadAll);
+  const loadTodayLogs = useAppStore((s) => s.loadTodayLogs);
   const markDose = useAppStore((s) => s.markDose);
   const snoozeDose = useAppStore((s) => s.snoozeDose);
   const rescheduleOnce = useAppStore((s) => s.rescheduleOnce);
@@ -49,98 +49,55 @@ export default function HomeScreen() {
   const [pickerDraft, setPickerDraft] = useState<Date>(new Date());
   const [checkinVisible, setCheckinVisible] = useState(false);
   const [checkinDismissed, setCheckinDismissed] = useState(false);
-  // default true avoids a flash on first render; useEffect corrects it after AsyncStorage read
+  // default true avoids a flash on first render; useEffect corrects it after MMKV read
   const [tipSeen, setTipSeen] = useState(true);
   const doses = useTodaySchedule();
   const streak = useAdherenceStreak();
 
   // ── In-app tour ────────────────────────────────────────────────────────────
-  const TOUR_DONE_KEY = "@pilloclock/tour_done";
-  const addButtonRef = useRef<View>(null);
-  // Stores the + button’s physical-screen rect, updated via onLayout+measureInWindow.
-  // onLayout fires after each native layout pass — the rect is always fresh and accurate.
-  const [addBtnRect, setAddBtnRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const TOUR_DONE_KEY = STORAGE_KEYS.TOUR_DONE;
   const tourShownRef = useRef(false);
-  const [tourActive, setTourActive] = useState(false);
-  const { bottom: safeBottom } = useSafeAreaInsets();
+  const copilot = useCopilot();
 
-  const onAddButtonLayout = useCallback(() => {
-    addButtonRef.current?.measureInWindow((x, y, w, h) => {
-      if (w > 0) setAddBtnRect({ x, y, width: w, height: h });
-    });
-  }, []);
+  const WalkthroughableView = useRef(walkthroughable(View)).current;
 
-  // Compute the spotlight rect for a given visible tab index (0 = Today … 4 = Settings)
-  const getTabSpotlight = useCallback(
-    (tabIndex: number) => {
-      const screen = Dimensions.get("screen");
-      const TAB_BAR_HEIGHT = 65;
-      const TAB_COUNT = 5;
-      const tabW = screen.width / TAB_COUNT;
-      return {
-        x: tabIndex * tabW + 4,
-        y: screen.height - safeBottom - TAB_BAR_HEIGHT + 5,
-        width: tabW - 8,
-        height: TAB_BAR_HEIGHT - 8,
-      };
-    },
-    [safeBottom]
-  );
+  // Keep a ref to always access the latest copilot.start — the context value
+  // (and thus copilot.start) is recreated whenever CopilotStep components
+  // register, so a stale closure would call a `start` that sees zero steps.
+  const copilotRef = useRef(copilot);
+  useEffect(() => { copilotRef.current = copilot; }, [copilot]);
 
-  const tourSteps: TourStep[] = [
-    {
-      titleKey: "tour.step1Title",
-      descKey: "tour.step1Desc",
-      placement: "below",
-      // addBtnRect is populated by onLayout before the tour starts — no async work needed.
-      getTargetRect: async () => addBtnRect,
-    },
-    {
-      titleKey: "tour.step2Title",
-      descKey: "tour.step2Desc",
-      placement: "above",
-      // tabIndex 1 = Calendar
-      getTargetRect: async () => getTabSpotlight(1),
-    },
-    {
-      titleKey: "tour.step3Title",
-      descKey: "tour.step3Desc",
-      placement: "above",
-      // tabIndex 3 = Health
-      getTargetRect: async () => getTabSpotlight(3),
-    },
-    {
-      titleKey: "tour.step4Title",
-      descKey: "tour.step4Desc",
-      placement: "above",
-      // tabIndex 4 = Settings
-      getTargetRect: async () => getTabSpotlight(4),
-    },
-  ];
-
-  const handleTourDone = useCallback(async () => {
-    setTourActive(false);
-    await AsyncStorage.setItem(TOUR_DONE_KEY, "1");
-  }, []);
+  // Mark tour complete when copilot stops
+  useEffect(() => {
+    const handler = () => { storage.set(TOUR_DONE_KEY, "1"); };
+    copilot.copilotEvents.on("stop", handler);
+    return () => { copilot.copilotEvents.off("stop", handler); };
+  }, [copilot.copilotEvents]);
 
   // Trigger once, the first time this screen is focused after onboarding
   useFocusEffect(
     useCallback(() => {
       if (tourShownRef.current) return;
-      AsyncStorage.getItem(TOUR_DONE_KEY).then((val) => {
-        if (!val) {
-          tourShownRef.current = true;
-          // Delay so layout is complete and measureInWindow works reliably
-          setTimeout(() => setTourActive(true), 650);
-        }
-      });
+      // Only start the tour after onboarding is complete — the home screen
+      // mounts briefly before the redirect to onboarding, and starting the
+      // copilot there would leave it in a stale "active" state with no steps.
+      if (
+        !storage.getString(TOUR_DONE_KEY) &&
+        storage.getString(STORAGE_KEYS.ONBOARDING_DONE)
+      ) {
+        tourShownRef.current = true;
+        // Delay so layout is complete and CopilotStep refs are measured.
+        // Read from ref to get the latest `start` that knows about all
+        // registered steps (the context recreates start on each register).
+        setTimeout(() => {
+          copilotRef.current.start();
+        }, 800);
+      }
     }, [])
   );
 
   useEffect(() => {
-    AsyncStorage.getItem("@pilloclock/tip_reschedule_seen").then((val) => {
-      if (!val) setTipSeen(false);
-    });
+    if (!storage.getString(STORAGE_KEYS.TIP_RESCHEDULE_SEEN)) setTipSeen(false);
   }, []);
 
   // Keep the Android home-screen widget in sync with the current dose list.
@@ -158,9 +115,7 @@ export default function HomeScreen() {
     useCallback(() => {
       loadDailyCheckins();
       const todayKey = format(new Date(), "yyyy-MM-dd");
-      AsyncStorage.getItem("@pilloclock/checkin_dismissed_date").then((val) => {
-        setCheckinDismissed(val === todayKey);
-      });
+      setCheckinDismissed(storage.getString(STORAGE_KEYS.CHECKIN_DISMISSED_DATE) === todayKey);
     }, [loadDailyCheckins])
   );
 
@@ -173,9 +128,9 @@ export default function HomeScreen() {
     setRescheduleTarget(dose);
   };
 
-  const dismissTip = async () => {
+  const dismissTip = () => {
     setTipSeen(true);
-    await AsyncStorage.setItem("@pilloclock/tip_reschedule_seen", "1");
+    storage.set(STORAGE_KEYS.TIP_RESCHEDULE_SEEN, "1");
   };
 
   // Sort by category priority (ascending) then time within each group
@@ -201,7 +156,7 @@ export default function HomeScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    await loadAll();
+    await loadTodayLogs();
     setRefreshing(false);
   };
 
@@ -268,16 +223,22 @@ export default function HomeScreen() {
           >
             <Ionicons name="bar-chart-outline" size={20} color="#4f9cff" />
           </TouchableOpacity>
-          <View ref={addButtonRef} onLayout={onAddButtonLayout}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t('form.addButton')}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
-              className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
-            >
-              <Ionicons name="add" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          <CopilotStep
+            text="tour.step1Title||tour.step1Desc"
+            order={1}
+            name="addButton"
+          >
+            <WalkthroughableView>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t('form.addButton')}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
+                className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
+              >
+                <Ionicons name="add" size={24} color="#fff" />
+              </TouchableOpacity>
+            </WalkthroughableView>
+          </CopilotStep>
         </View>
       </View>
 
@@ -335,9 +296,9 @@ export default function HomeScreen() {
                 <Text className="text-white text-xs font-bold">{t("checkin.saveButton")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={async () => {
+                onPress={() => {
                   const todayKey = format(new Date(), "yyyy-MM-dd");
-                  await AsyncStorage.setItem("@pilloclock/checkin_dismissed_date", todayKey);
+                  storage.set(STORAGE_KEYS.CHECKIN_DISMISSED_DATE, todayKey);
                   setCheckinDismissed(true);
                 }}
                 className="p-1"
@@ -551,13 +512,6 @@ export default function HomeScreen() {
       <CheckinModal
         visible={checkinVisible}
         onClose={() => setCheckinVisible(false)}
-      />
-
-      {/* In-app walkthrough tour */}
-      <AppTour
-        steps={tourSteps}
-        visible={tourActive}
-        onDone={handleTourDone}
       />
     </SafeAreaView>
   );

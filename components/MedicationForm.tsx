@@ -21,6 +21,9 @@ import { DOSAGE_UNITS, CATEGORY_CONFIG, getCategoryLabel, getDosageLabel } from 
 import { useTranslation } from "../src/i18n";
 import * as Haptics from "expo-haptics";
 import { useToast } from "../src/context/ToastContext";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { medicationFormSchema, type MedicationFormData } from "../src/schemas/medication";
 
 // ─── Schedule row ──────────────────────────────────────────────────────────
 
@@ -220,32 +223,48 @@ export function MedicationForm({
   isSubmitting,
 }: MedicationFormProps) {
   const { t } = useTranslation();
-  const [name, setName] = useState(initialValues?.name ?? "");
-  const [dosageAmountStr, setDosageAmountStr] = useState(
-    initialValues?.dosageAmount != null ? String(initialValues.dosageAmount) : ""
+
+  // ─ Frecuencia ────────────────────────────────────────────────────────────
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  // Detect "once" mode from initial values (startDate === endDate, both set)
+  const isInitiallyOnce = !!(
+    initialValues?.startDate && initialValues.startDate === initialValues.endDate
   );
-  const [dosageUnit, setDosageUnit] = useState<DosageUnit>(
-    initialValues?.dosageUnit ?? "comprimidos"
-  );
-  const [category, setCategory] = useState<MedicationCategory>(
-    initialValues?.category ?? "otro"
-  );
-  const [notes, setNotes] = useState(initialValues?.notes ?? "");
-  const [color, setColor] = useState<Medication["color"]>(
-    initialValues?.color ?? "blue"
-  );
-  const [startDate, setStartDate] = useState(initialValues?.startDate);
-  const [endDate, setEndDate] = useState(initialValues?.endDate);
-  const [schedules, setSchedules] = useState<ScheduleInput[]>(
-    initialValues?.schedules?.length ? initialValues.schedules : [newSchedule()]
-  );
-  const [stockQtyStr, setStockQtyStr] = useState(
-    initialValues?.stockQuantity != null ? String(initialValues.stockQuantity) : ""
-  );
-  const [stockThreshStr, setStockThreshStr] = useState(
-    initialValues?.stockAlertThreshold != null ? String(initialValues.stockAlertThreshold) : ""
-  );
-  const [photoUri, setPhotoUri] = useState<string | undefined>(initialValues?.photoUri);
+
+  const { control, handleSubmit: rhfHandleSubmit, watch, setValue, formState: { errors } } = useForm<MedicationFormData>({
+    resolver: zodResolver(medicationFormSchema),
+    defaultValues: {
+      name: initialValues?.name ?? "",
+      dosageAmount: initialValues?.dosageAmount != null ? String(initialValues.dosageAmount) : "",
+      dosageUnit: initialValues?.dosageUnit ?? "comprimidos",
+      category: initialValues?.category ?? "otro",
+      notes: initialValues?.notes ?? "",
+      color: initialValues?.color ?? "blue",
+      repeatMode: initialValues?.isPRN ? "prn" : isInitiallyOnce ? "once" : "repeat",
+      onceDate: isInitiallyOnce ? (initialValues?.startDate ?? todayStr) : todayStr,
+      startDate: initialValues?.startDate,
+      endDate: initialValues?.endDate,
+      schedules: initialValues?.schedules?.length ? initialValues.schedules : [newSchedule()],
+      stockQtyStr: initialValues?.stockQuantity != null ? String(initialValues.stockQuantity) : "",
+      stockThreshStr: initialValues?.stockAlertThreshold != null ? String(initialValues.stockAlertThreshold) : "",
+      photoUri: initialValues?.photoUri,
+    },
+  });
+
+  const name = watch("name");
+  const dosageAmountStr = watch("dosageAmount");
+  const dosageUnit = watch("dosageUnit");
+  const category = watch("category");
+  const notes = watch("notes");
+  const color = watch("color");
+  const startDate = watch("startDate");
+  const endDate = watch("endDate");
+  const schedules = watch("schedules");
+  const stockQtyStr = watch("stockQtyStr");
+  const stockThreshStr = watch("stockThreshStr");
+  const photoUri = watch("photoUri");
+  const repeatMode = watch("repeatMode");
+  const onceDate = watch("onceDate");
 
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -260,80 +279,60 @@ export function MedicationForm({
       quality: 0.7,
     });
     if (!result.canceled && result.assets[0]?.uri) {
-      setPhotoUri(result.assets[0].uri);
+      setValue("photoUri", result.assets[0].uri);
     }
   };
-
-  // ─ Frecuencia ────────────────────────────────────────────────────────────
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  // Detect "once" mode from initial values (startDate === endDate, both set)
-  const isInitiallyOnce = !!(
-    initialValues?.startDate && initialValues.startDate === initialValues.endDate
-  );
-  const [repeatMode, setRepeatMode] = useState<"once" | "repeat" | "prn">(
-    initialValues?.isPRN ? "prn" : isInitiallyOnce ? "once" : "repeat"
-  );
-  const [onceDate, setOnceDate] = useState<string>(
-    isInitiallyOnce ? (initialValues?.startDate ?? todayStr) : todayStr
-  );
 
   const { showToast } = useToast();
 
-  const handleSubmit = async () => {
-    if (!name.trim()) {
-      showToast(t('form.errorNameRequiredMsg'), "error");
-      return;
-    }
+  const handleFormSubmit = async (data: MedicationFormData) => {
     // Duplicate-name check (case-insensitive)
-    const trimmedName = name.trim().toLowerCase();
+    const trimmedName = data.name.trim().toLowerCase();
     if (existingNames.some((n) => n.toLowerCase() === trimmedName)) {
-      showToast(t('form.errorDuplicateMsg', { name: name.trim() }), "error");
+      showToast(t('form.errorDuplicateMsg', { name: data.name.trim() }), "error");
       return;
     }
-    const parsedAmount = parseFloat(dosageAmountStr.replace(",", "."));
-    if (!dosageAmountStr.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
-      showToast(t('form.errorDoseRequiredMsg'), "error");
-      return;
-    }
-    if (repeatMode !== "prn" && schedules.length === 0) {
-      showToast(t('form.errorNoAlarmsMsg'), "error");
-      return;
-    }
-    // Date-range check (repeat mode only)
-    if (repeatMode === "repeat" && startDate && endDate && endDate < startDate) {
-      showToast(t('form.errorInvalidPeriodMsg'), "error");
-      return;
-    }
+    const parsedAmount = parseFloat(data.dosageAmount.replace(",", "."));
 
     await onSubmit({
-      name: name.trim(),
+      name: data.name.trim(),
       dosageAmount: parsedAmount,
-      dosageUnit,
-      category,
-      notes: notes.trim(),
-      color,
-      startDate: repeatMode === "once" ? onceDate : repeatMode === "prn" ? undefined : startDate,
-      endDate:   repeatMode === "once" ? onceDate : repeatMode === "prn" ? undefined : endDate,
-      schedules: repeatMode === "prn" ? [] : schedules.map((s) =>
-        repeatMode === "once" ? { ...s, days: [] } : s
+      dosageUnit: data.dosageUnit,
+      category: data.category,
+      notes: (data.notes ?? "").trim(),
+      color: data.color,
+      startDate: data.repeatMode === "once" ? data.onceDate : data.repeatMode === "prn" ? undefined : data.startDate,
+      endDate:   data.repeatMode === "once" ? data.onceDate : data.repeatMode === "prn" ? undefined : data.endDate,
+      schedules: data.repeatMode === "prn" ? [] : data.schedules.map((s) =>
+        data.repeatMode === "once" ? { ...s, days: [] } : s
       ),
-      stockQuantity: stockQtyStr.trim() ? Math.max(0, parseInt(stockQtyStr, 10)) : undefined,
-      stockAlertThreshold: stockThreshStr.trim() ? Math.max(0, parseInt(stockThreshStr, 10)) : undefined,
-      isPRN: repeatMode === "prn",
-      photoUri,
+      stockQuantity: data.stockQtyStr?.trim() ? Math.max(0, parseInt(data.stockQtyStr, 10)) : undefined,
+      stockAlertThreshold: data.stockThreshStr?.trim() ? Math.max(0, parseInt(data.stockThreshStr, 10)) : undefined,
+      isPRN: data.repeatMode === "prn",
+      photoUri: data.photoUri,
     });
   };
 
+  const handleValidationError = () => {
+    // Show the first error as a toast
+    const firstError = Object.values(errors)[0];
+    if (firstError?.message) {
+      showToast(t(firstError.message as any), "error");
+    }
+  };
+
   const updateSchedule = (idx: number, s: ScheduleInput) => {
-    setSchedules((prev) => prev.map((p, i) => (i === idx ? s : p)));
+    const prev = watch("schedules");
+    setValue("schedules", prev.map((p, i) => (i === idx ? s : p)));
   };
 
   const removeSchedule = (idx: number) => {
-    if (schedules.length === 1) {
+    const prev = watch("schedules");
+    if (prev.length === 1) {
       showToast(t('form.errorNoAlarmsMsg'), "error");
       return;
     }
-    setSchedules((prev) => prev.filter((_, i) => i !== idx));
+    setValue("schedules", prev.filter((_, i) => i !== idx));
   };
 
   return (
@@ -351,13 +350,19 @@ export function MedicationForm({
             <Text className="text-sm font-semibold text-text mb-1.5">
               {t('form.fieldName')} <Text className="text-danger">{t('common.required')}</Text>
             </Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder={t('form.fieldNamePlaceholder')}
-              placeholderTextColor="#94a3b8"
-              className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
-              autoCapitalize="words"
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder={t('form.fieldNamePlaceholder')}
+                  placeholderTextColor="#94a3b8"
+                  className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
+                  autoCapitalize="words"
+                />
+              )}
             />
           </View>
 
@@ -368,13 +373,19 @@ export function MedicationForm({
             </Text>
             {/* Amount row */}
             <View className="flex-row items-center gap-2 mb-2">
-              <TextInput
-                value={dosageAmountStr}
-                onChangeText={setDosageAmountStr}
-                placeholder={t('form.fieldDoseAmountPlaceholder')}
-                placeholderTextColor="#94a3b8"
-                keyboardType="decimal-pad"
-                className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
+              <Controller
+                control={control}
+                name="dosageAmount"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder={t('form.fieldDoseAmountPlaceholder')}
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="decimal-pad"
+                    className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
+                  />
+                )}
               />
               <Text className="text-muted text-sm">{t('form.fieldDoseAmountLabel')}</Text>
             </View>
@@ -384,7 +395,7 @@ export function MedicationForm({
                 {DOSAGE_UNITS.map((u) => (
                   <TouchableOpacity
                     key={u.value}
-                    onPress={() => setDosageUnit(u.value)}
+                    onPress={() => setValue("dosageUnit", u.value)}
                     className={`rounded-xl px-4 py-2 border ${
                       dosageUnit === u.value
                         ? "bg-primary border-primary"
@@ -412,7 +423,7 @@ export function MedicationForm({
                 ([key, cfg]) => (
                   <TouchableOpacity
                     key={key}
-                    onPress={() => setCategory(key)}
+                    onPress={() => setValue("category", key)}
                     className={`flex-row items-center gap-1.5 rounded-xl px-3 py-2 border ${
                       category === key
                         ? "border-primary bg-blue-50 dark:bg-blue-950/30"
@@ -442,21 +453,27 @@ export function MedicationForm({
             <Text className="text-sm font-semibold text-text mb-1.5">
               {t('form.fieldNotes')}
             </Text>
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder={t('form.fieldNotesPlaceholder')}
-              placeholderTextColor="#94a3b8"
-              className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
-              multiline
-              numberOfLines={2}
+            <Controller
+              control={control}
+              name="notes"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder={t('form.fieldNotesPlaceholder')}
+                  placeholderTextColor="#94a3b8"
+                  className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
+                  multiline
+                  numberOfLines={2}
+                />
+              )}
             />
           </View>
 
           {/* Color */}
           <View>
             <Text className="text-sm font-semibold text-text mb-2">{t('form.fieldColor')}</Text>
-            <ColorPicker value={color} onChange={setColor} />
+            <ColorPicker value={color} onChange={(c) => setValue("color", c)} />
           </View>
         </View>
 
@@ -481,7 +498,7 @@ export function MedicationForm({
                   <Text className="text-blue-500 text-xs font-semibold">{t('form.changePhoto')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setPhotoUri(undefined)}
+                  onPress={() => setValue("photoUri", undefined)}
                   className="flex-row items-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2"
                 >
                   <Ionicons name="trash-outline" size={14} color="#ef4444" />
@@ -508,7 +525,7 @@ export function MedicationForm({
         <View className="flex-row gap-2 mb-4">
           {/* Once */}
           <TouchableOpacity
-            onPress={() => setRepeatMode("once")}
+            onPress={() => setValue("repeatMode", "once")}
             className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3 border ${
               repeatMode === "once"
                 ? "bg-primary border-primary"
@@ -540,7 +557,7 @@ export function MedicationForm({
 
           {/* Repeat */}
           <TouchableOpacity
-            onPress={() => setRepeatMode("repeat")}
+            onPress={() => setValue("repeatMode", "repeat")}
             className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3 border ${
               repeatMode === "repeat"
                 ? "bg-primary border-primary"
@@ -573,7 +590,7 @@ export function MedicationForm({
 
         {/* PRN row */}
         <TouchableOpacity
-          onPress={() => setRepeatMode("prn")}
+          onPress={() => setValue("repeatMode", "prn")}
           className={`flex-row items-center gap-2 rounded-2xl py-3 px-4 border mb-4 ${
             repeatMode === "prn"
               ? "bg-primary border-primary"
@@ -610,7 +627,7 @@ export function MedicationForm({
               {t('form.sectionWhen')}
             </Text>
             <View className="bg-card rounded-2xl border border-border px-4 mb-4">
-              <DateRow label={t('form.fieldDate')} value={onceDate} onChange={(v) => v && setOnceDate(v)} />
+              <DateRow label={t('form.fieldDate')} value={onceDate} onChange={(v) => v && setValue("onceDate", v)} />
             </View>
 
             <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
@@ -640,9 +657,9 @@ export function MedicationForm({
                 label={t('form.fieldStartDate')}
                 value={startDate}
                 onChange={(v) => {
-                  setStartDate(v);
+                  setValue("startDate", v);
                   // If the current end date is now before the new start, clear it
-                  if (v && endDate && endDate < v) setEndDate(undefined);
+                  if (v && endDate && endDate < v) setValue("endDate", undefined);
                 }}
                 maximumDate={endDate ? new Date(endDate + "T12:00") : undefined}
               />
@@ -650,7 +667,7 @@ export function MedicationForm({
               <DateRow
                 label={t('form.fieldEndDate')}
                 value={endDate}
-                onChange={setEndDate}
+                onChange={(v) => setValue("endDate", v)}
                 minimumDate={startDate ? new Date(startDate + "T12:00") : undefined}
               />
             </View>
@@ -660,7 +677,7 @@ export function MedicationForm({
                 {t('form.sectionAlarms', { count: schedules.length })}
               </Text>
               <TouchableOpacity
-                onPress={() => setSchedules((prev) => [...prev, newSchedule()])}
+                onPress={() => setValue("schedules", [...schedules, newSchedule()])}
                 className="flex-row items-center gap-1 bg-blue-50 rounded-xl px-3 py-1.5"
               >
                 <Ionicons name="add" size={14} color="#3b82f6" />
@@ -688,7 +705,7 @@ export function MedicationForm({
             <View className="flex-row items-center gap-2">
               <TextInput
                 value={stockQtyStr}
-                onChangeText={(v) => { setStockQtyStr(v); if (!v.trim()) setStockThreshStr(""); }}
+                onChangeText={(v) => { setValue("stockQtyStr", v); if (!v.trim()) setValue("stockThreshStr", ""); }}
                 placeholder={t('form.fieldStockPlaceholder')}
                 placeholderTextColor="#94a3b8"
                 keyboardType="number-pad"
@@ -703,7 +720,7 @@ export function MedicationForm({
               <View className="flex-row items-center gap-2">
                 <TextInput
                   value={stockThreshStr}
-                  onChangeText={setStockThreshStr}
+                  onChangeText={(v) => setValue("stockThreshStr", v)}
                   placeholder={t('form.fieldStockThresholdPlaceholder')}
                   placeholderTextColor="#94a3b8"
                   keyboardType="number-pad"
@@ -717,7 +734,7 @@ export function MedicationForm({
 
         {/* Submit */}
         <TouchableOpacity
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSubmit(); }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); rhfHandleSubmit(handleFormSubmit, handleValidationError)(); }}
           disabled={isSubmitting}
           className={`rounded-2xl py-4 items-center mt-2 ${isSubmitting ? "bg-slate-300" : "bg-primary"}`}
         >

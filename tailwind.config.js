@@ -15,12 +15,12 @@ module.exports = {
         success:        "#22c55e",
         warning:        "#f59e0b",
         danger:         "#ef4444",
-        // ── Semantic tokens — light-mode defaults; dark overrides via dark: prefix ─
-        background: "#f0f6ff",
-        card:       "#ffffff",
-        text:       "#1e293b",
-        muted:      "#94a3b8",
-        border:     "#e2e8f0",
+        // ── Semantic tokens — driven by CSS custom properties in global.css ─
+        background: "var(--color-background)",
+        card:       "var(--color-card)",
+        text:       "var(--color-text)",
+        muted:      "var(--color-muted)",
+        border:     "var(--color-border)",
       },
     },
   },

@@ -444,6 +444,7 @@ const en: TranslationShape = {
     importError: "Import error",
     importErrorFormat: "The file is not a valid Pill O-Clock backup.",
     importErrorGeneric: "Could not import the file. Please try again.",
+    exportSuccess: "Backup saved successfully.",
     exportError: "Export error",
     exportErrorGeneric: "Could not export. Please try again.",
     // Language

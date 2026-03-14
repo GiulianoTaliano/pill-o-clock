@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "../src/storage";
+import { STORAGE_KEYS } from "../src/config";
 import * as Haptics from "expo-haptics";
 import { Medication } from "../src/types";
 import { getColorConfig } from "../src/utils";
@@ -9,7 +10,7 @@ import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { RGBPickerModal } from "./RGBPickerModal";
 
-const RECENT_COLORS_KEY = "custom_colors_recent";
+const RECENT_COLORS_KEY = STORAGE_KEYS.RECENT_COLORS;
 const MAX_RECENT = 5;
 
 interface ColorPickerProps {
@@ -21,19 +22,19 @@ const PRESET_ORDER: string[] = [
   "blue", "green", "purple", "orange", "red", "teal", "pink",
 ];
 
-async function loadRecentColors(): Promise<string[]> {
+function loadRecentColors(): string[] {
   try {
-    const raw = await AsyncStorage.getItem(RECENT_COLORS_KEY);
+    const raw = storage.getString(RECENT_COLORS_KEY);
     return raw ? (JSON.parse(raw) as string[]) : [];
   } catch {
     return [];
   }
 }
 
-async function saveRecentColor(hex: string): Promise<string[]> {
-  const current = await loadRecentColors();
+function saveRecentColor(hex: string): string[] {
+  const current = loadRecentColors();
   const updated = [hex, ...current.filter((c) => c !== hex)].slice(0, MAX_RECENT);
-  await AsyncStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(updated));
+  storage.set(RECENT_COLORS_KEY, JSON.stringify(updated));
   return updated;
 }
 
@@ -49,13 +50,13 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
   const modalInitial = isCustomSelected ? value : "#3b82f6";
 
   useEffect(() => {
-    loadRecentColors().then(setRecentColors);
+    setRecentColors(loadRecentColors());
   }, []);
 
-  const handleConfirm = useCallback(async (hex: string) => {
+  const handleConfirm = useCallback((hex: string) => {
     setModalVisible(false);
     Haptics.selectionAsync();
-    const updated = await saveRecentColor(hex);
+    const updated = saveRecentColor(hex);
     setRecentColors(updated);
     onChange(hex);
   }, [onChange]);

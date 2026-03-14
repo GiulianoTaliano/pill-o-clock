@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useFocusEffect } from "expo-router";
 import { format } from "date-fns";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -24,6 +24,7 @@ import {
   cancelHealthReminder,
   getHealthReminderTime,
 } from "../../src/services/notifications";
+import { FlashList } from "@shopify/flash-list";
 
 // ─── Metric config ─────────────────────────────────────────────────────────
 
@@ -588,17 +589,21 @@ export default function HealthScreen() {
                     subtitle={t("health.noMeasurementsSubtitle")}
                   />
                 ) : (
-                  typeItems.map((m) => (
-                    <MeasurementListItem
-                      key={m.id}
-                      m={m}
-                      meta={meta!}
-                      onDelete={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        handleDeleteMeasurement(m);
-                      }}
-                    />
-                  ))
+                  <FlashList
+                    data={typeItems}
+                    renderItem={({ item: m }) => (
+                      <MeasurementListItem
+                        key={m.id}
+                        m={m}
+                        meta={meta!}
+                        onDelete={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          handleDeleteMeasurement(m);
+                        }}
+                      />
+                    )}
+                    keyExtractor={(item) => item.id}
+                  />
                 )}
               </>
             ) : (
@@ -688,9 +693,9 @@ export default function HealthScreen() {
                 subtitle={t("checkin.noCheckinsSubtitle")}
               />
             ) : (
-              recentCheckins
-                .filter((c) => c.date !== todayStr)
-                .map((checkin) => (
+              <FlashList
+                data={recentCheckins.filter((c) => c.date !== todayStr)}
+                renderItem={({ item: checkin }) => (
                   <CheckinListItem
                     key={checkin.id}
                     checkin={checkin}
@@ -700,7 +705,9 @@ export default function HealthScreen() {
                       setCheckinVisible(true);
                     }}
                   />
-                ))
+                )}
+                keyExtractor={(item) => item.id}
+              />
             )}
           </>
         )}

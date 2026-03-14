@@ -3,7 +3,9 @@ import { useToast } from "../../src/context/ToastContext";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { AppState as RNAppState } from "react-native";
+import { useFocusEffect } from "expo-router";
 import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore, ThemeMode } from "../../src/store";
@@ -116,20 +118,23 @@ export default function SettingsScreen() {
   // Full-screen intent permission (Android 14+ only)
   const [hasFullScreenPerm, setHasFullScreenPerm] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => setHasFullScreenPerm(true));
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== "android") return;
 
-  // Re-check the permission every time the screen comes back into focus
-  // (user may have just granted it in Settings).
-  useEffect(() => {
-    if (Platform.OS !== "android" || hasFullScreenPerm === null) return;
-    const id = setInterval(() => {
-      checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => {});
-    }, 2000);
-    return () => clearInterval(id);
-  }, [hasFullScreenPerm]);
+      // Check on mount/focus
+      checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => setHasFullScreenPerm(true));
+
+      // Re-check when the user returns from system Settings
+      const sub = RNAppState.addEventListener("change", (nextState) => {
+        if (nextState === "active") {
+          checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => {});
+        }
+      });
+
+      return () => sub.remove();
+    }, [])
+  );
 
   // ─── Handlers ──────────────────────────────────────────────────────────
 
@@ -142,7 +147,9 @@ export default function SettingsScreen() {
     setExporting(true);
     try {
       await exportBackup();
-    } catch {
+      showToast(t("settings.exportSuccess"), "success");
+    } catch (e) {
+      if (e instanceof BackupCancelledError) return;
       showToast(t("settings.exportErrorGeneric"), "error");
     } finally {
       setExporting(false);

@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Modal, TextInput, Image, PanResponder, Pressable } from "react-native";
+﻿import { View, Text, Modal, TextInput, Image, PanResponder, Pressable } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,17 +12,18 @@ import { TodayDose, SkipReason } from "../src/types";
 import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig } from "../src/utils";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
+import { AppPressable } from "./AppPressable";
 
 interface DoseCardProps {
   dose: TodayDose;
   onTake: () => void;
   onSkip: (reason?: SkipReason) => void;
   onSnooze: () => void;
-  /** Optional — when provided, an undo button is shown on taken/skipped cards */
+  /** Optional â€” when provided, an undo button is shown on taken/skipped cards */
   onRevert?: () => void;
-  /** Optional — when provided, the time badge is tappable to pick a custom time */
+  /** Optional â€” when provided, the time badge is tappable to pick a custom time */
   onReschedule?: () => void;
-  /** Optional — when provided, a note chip is shown and tapping it saves the note */
+  /** Optional â€” when provided, a note chip is shown and tapping it saves the note */
   onUpdateNote?: (note: string) => void;
 }
 
@@ -76,7 +77,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
 
   function handleTakePress() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Action fires immediately — animation is purely cosmetic
+    // Action fires immediately â€” animation is purely cosmetic
     onTake();
     // Quick scale flash
     takeScale.value = withSequence(
@@ -125,7 +126,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             <Text className="text-base font-bold text-text">{dose.medication.name}</Text>
             <View className="flex-row items-center gap-1.5 mt-0.5">
               <Text className="text-sm text-muted">{dose.medication.dosage}</Text>
-              <Text className="text-slate-300 dark:text-slate-600">·</Text>
+              <Text className="text-slate-300 dark:text-slate-600">Â·</Text>
               <Ionicons
                 name={CATEGORY_CONFIG[dose.medication.category].icon as any}
                 size={11}
@@ -141,12 +142,12 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           </View>
         </View>
 
-        {/* Time badge — tappable when pending + onReschedule provided */}
-        <TouchableOpacity
+        {/* Time badge â€” tappable when pending + onReschedule provided */}
+        <AppPressable
           accessibilityRole="button"
           accessibilityLabel={displayTime}
           accessibilityHint={isPending && onReschedule ? t('doseCard.rescheduleTitle') : undefined}
-          activeOpacity={isPending && onReschedule ? 0.6 : 1}
+          
           onPress={() => {
             if (isPending && onReschedule) {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -184,7 +185,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               style={{ opacity: 0.6 }}
             />
           )}
-        </TouchableOpacity>
+        </AppPressable>
       </View>
 
       {/* Notes */}
@@ -192,7 +193,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
         <Text className="text-sm text-muted mb-2 ml-12">{dose.medication.notes}</Text>
       ) : null}
 
-      {/* Status or Actions — minHeight keeps the card from collapsing when switching between
+      {/* Status or Actions â€” minHeight keeps the card from collapsing when switching between
           the tall 'pending' button row and the compact 'taken/skipped' status line. */}
       <View style={{ minHeight: 40 }}>
       {(!isPending && !isMissed) ? (
@@ -216,7 +217,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             </Text>
           </View>
           {onRevert && (
-            <TouchableOpacity
+            <AppPressable
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.revert')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
@@ -226,14 +227,14 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">
                 {t('doseCard.revert')}
               </Text>
-            </TouchableOpacity>
+            </AppPressable>
           )}
         </View>
       ) : isPending ? (
         <>
           <View className="flex-row gap-2 mt-2">
             {/* Snooze */}
-            <TouchableOpacity
+            <AppPressable
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.snooze')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSnooze(); }}
@@ -241,10 +242,10 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             >
               <Ionicons name="alarm-outline" size={15} color="#d97706" />
               <Text className="text-amber-700 dark:text-amber-400 text-xs font-semibold">{t('doseCard.snooze')}</Text>
-            </TouchableOpacity>
+            </AppPressable>
 
             {/* Skip */}
-            <TouchableOpacity
+            <AppPressable
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.skip')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
@@ -252,11 +253,11 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             >
               <Ionicons name="close-outline" size={15} color="#ef4444" />
               <Text className="text-red-500 dark:text-red-400 text-xs font-semibold">{t('doseCard.skip')}</Text>
-            </TouchableOpacity>
+            </AppPressable>
 
             {/* Take */}
             <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
-              <TouchableOpacity
+              <AppPressable
                 accessibilityRole="button"
                 accessibilityLabel={t('doseCard.take')}
                 onPress={handleTakePress}
@@ -264,8 +265,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               >
                 <Ionicons name="checkmark" size={16} color="#fff" />
                 <Text className="text-white text-sm font-bold">{t('doseCard.take')}</Text>
-              </TouchableOpacity>
-              {/* Destello ring — expands and fades on tap */}
+              </AppPressable>
+              {/* Destello ring â€” expands and fades on tap */}
               <Animated.View
                 style={[
                   ringStyle,
@@ -283,9 +284,9 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             </Animated.View>
           </View>
 
-          {/* Undo snooze — shown below the action row when the dose is snoozed */}
+          {/* Undo snooze â€” shown below the action row when the dose is snoozed */}
           {isSnoozed && onRevert && (
-            <TouchableOpacity
+            <AppPressable
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.revertSnooze')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
@@ -293,7 +294,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             >
               <Ionicons name="arrow-undo-outline" size={13} color="#94a3b8" />
               <Text className="text-xs text-muted">{t('doseCard.revertSnooze')}</Text>
-            </TouchableOpacity>
+            </AppPressable>
           )}
         </>
       ) : (
@@ -304,7 +305,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             <Text className="text-xs text-muted font-semibold">{t(`status.${dose.status}`)}</Text>
           </View>
 
-          <TouchableOpacity
+          <AppPressable
             accessibilityRole="button"
             accessibilityLabel={t('doseCard.skip')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
@@ -312,10 +313,10 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           >
             <Ionicons name="close-outline" size={15} color="#64748b" />
             <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">{t('doseCard.skip')}</Text>
-          </TouchableOpacity>
+          </AppPressable>
 
           <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
-            <TouchableOpacity
+            <AppPressable
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.takeLate')}
               onPress={handleTakePress}
@@ -323,7 +324,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             >
               <Ionicons name="checkmark" size={16} color="#fff" />
               <Text className="text-white text-sm font-bold">{t('doseCard.takeLate')}</Text>
-            </TouchableOpacity>
+            </AppPressable>
           </Animated.View>
         </View>
       )}
@@ -331,7 +332,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
 
       {/* Note chip (taken/skipped only) */}
       {!isPending && !isMissed && onUpdateNote && (
-        <TouchableOpacity
+        <AppPressable
           accessibilityRole="button"
           accessibilityLabel={t('doseCard.addNote')}
           onPress={() => { setNoteDraft(dose.notes ?? ""); setNoteModalVisible(true); }}
@@ -341,7 +342,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           <Text className="text-xs text-muted">
             {dose.notes ? dose.notes : t('doseCard.addNote')}
           </Text>
-        </TouchableOpacity>
+        </AppPressable>
       )}
 
       {/* Skip reason chip (skipped only) */}
@@ -379,15 +380,15 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             autoFocus
           />
           <View className="flex-row gap-3">
-            <TouchableOpacity
+            <AppPressable
               accessibilityRole="button"
               accessibilityLabel={t('common.cancel')}
               onPress={() => setNoteModalVisible(false)}
               className="flex-1 rounded-2xl py-3 items-center bg-slate-100 dark:bg-slate-800"
             >
               <Text className="text-muted font-semibold">{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </AppPressable>
+            <AppPressable
               accessibilityRole="button"
               accessibilityLabel={t('common.save')}
               onPress={() => {
@@ -398,7 +399,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               className="flex-1 rounded-2xl py-3 items-center bg-primary"
             >
               <Text className="text-white font-bold">{t('common.save')}</Text>
-            </TouchableOpacity>
+            </AppPressable>
           </View>
           </View>
         </Pressable>
@@ -421,7 +422,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           <Text className="text-base font-bold text-text mb-1">{t('doseCard.skipReasonTitle')}</Text>
           <Text className="text-xs text-muted mb-4">{t('doseCard.skipReasonSubtitle')}</Text>
           {SKIP_REASONS.map(({ key, icon, color }) => (
-            <TouchableOpacity
+            <AppPressable
               key={key}
               accessibilityRole="button"
               accessibilityLabel={t(`doseCard.skipReason_${key}`)}
@@ -437,16 +438,16 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               </View>
               <Text className="text-sm font-semibold text-text flex-1">{t(`doseCard.skipReason_${key}`)}</Text>
               <Ionicons name="chevron-forward" size={14} color="#94a3b8" />
-            </TouchableOpacity>
+            </AppPressable>
           ))}
-          <TouchableOpacity
+          <AppPressable
             accessibilityRole="button"
             accessibilityLabel={t('common.cancel')}
             onPress={() => { setSkipReasonVisible(false); onSkip(undefined); }}
             className="mt-4 items-center py-3 bg-slate-100 dark:bg-slate-800 rounded-2xl"
           >
             <Text className="text-muted font-semibold text-sm">{t('common.cancel')}</Text>
-          </TouchableOpacity>
+          </AppPressable>
           </View>
         </Pressable>
       </Pressable>

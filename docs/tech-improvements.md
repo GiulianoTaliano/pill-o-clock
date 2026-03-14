@@ -137,7 +137,7 @@ Reemplazar `loadNotifMap()`, `saveNotifMap()`, `addNotifMapEntries()` y `removeN
 
 ### M1 — Reemplazar AsyncStorage por react-native-mmkv para preferencias
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [src/store/index.ts](../src/store/index.ts), [src/i18n/index.ts](../src/i18n/index.ts), [app/_layout.tsx](../app/_layout.tsx), [app/(tabs)/index.tsx](../app/(tabs)/index.tsx)
 - **Categoría:** Rendimiento · Arquitectura
 
@@ -208,8 +208,7 @@ Esto elimina toda la lógica manual de `loadThemeMode`/`setThemeMode`/`THEME_KEY
 
 ### M2 — Drizzle ORM para expo-sqlite
 
-- **Estado:** `[ ] Pendiente`
-- **Archivos afectados:** [src/db/database.ts](../src/db/database.ts), [src/store/index.ts](../src/store/index.ts)
+- **Estado:** `[x] Completo`
 - **Categoría:** Arquitectura · Mantenibilidad · Seguridad de tipos
 
 **Problema:**
@@ -287,8 +286,8 @@ Esto reemplaza el sistema manual de `PRAGMA user_version` + `ALTER TABLE` con tr
 
 ### M3 — Zustand: separar en slices y sacar estado de UI del store
 
-- **Estado:** `[ ] Pendiente`
-- **Archivos afectados:** [src/store/index.ts](../src/store/index.ts)
+- **Estado:** `[x] Completo`
+- **Archivos afectados:** [src/store/index.ts](../src/store/index.ts), [src/store/types.ts](../src/store/types.ts), [src/store/slices/](../src/store/slices/)
 - **Categoría:** Arquitectura · Mantenibilidad
 
 **Problema:**
@@ -336,7 +335,7 @@ export const useAppStore = create<AppState>()((...a) => ({
 
 ### M4 — `LayoutAnimation.configureNext()` dentro del store
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [src/store/index.ts](../src/store/index.ts)
 - **Categoría:** Arquitectura · Separación de responsabilidades
 
@@ -384,8 +383,8 @@ import { FadeIn, FadeOut, Layout } from 'react-native-reanimated'
 
 ### M5 — CSS variables en NativeWind v4 para dark mode semántico
 
-- **Estado:** `[ ] Pendiente`
-- **Archivos afectados:** [tailwind.config.js](../tailwind.config.js), [global.css](../global.css), múltiples componentes
+- **Estado:** `[x] Completo`
+- **Archivos afectados:** [tailwind.config.js](../tailwind.config.js), [global.css](../global.css)
 - **Categoría:** Directrices de plataforma · Dark mode
 
 **Problema:**
@@ -443,7 +442,7 @@ Con esto, `className="bg-background"` respeta automáticamente el dark mode sin 
 
 ### M6 — Colores hardcodeados en el tab bar sin respetar dark mode
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [app/(tabs)/_layout.tsx](../app/(tabs)/_layout.tsx)
 - **Categoría:** Dark mode · Directrices de plataforma
 
@@ -481,8 +480,8 @@ O idealmente, después de implementar M5, usar directamente los tokens de CSS.
 
 ### M7 — `TouchableOpacity` → `Pressable` con ripple de Material 3
 
-- **Estado:** `[ ] Pendiente`
-- **Archivos afectados:** Todos los componentes y pantallas
+- **Estado:** `[x] Completo (migración progresiva)`
+- **Archivos afectados:** [components/AppPressable.tsx](../components/AppPressable.tsx), [app/alarm.tsx](../app/alarm.tsx), [components/DoseCard.tsx](../components/DoseCard.tsx)
 - **Categoría:** Directrices de plataforma Android
 
 **Problema:**
@@ -506,8 +505,8 @@ La app usa `TouchableOpacity` en la gran mayoría de sus elementos interactivos.
 
 ### M8 — `setInterval` para verificar permiso en Settings → usar `AppState`
 
-- **Estado:** `[ ] Pendiente`
-- **Archivos afectados:** [app/(tabs)/settings.tsx](../app/(tabs)/settings.tsx#L128)
+- **Estado:** `[x] Completo`
+- **Archivos afectados:** [app/(tabs)/settings.tsx](../app/(tabs)/settings.tsx)
 - **Categoría:** Buenas prácticas de plataforma · Rendimiento
 
 **Problema:**
@@ -553,7 +552,7 @@ useFocusEffect(
 
 ### M9 — SQLite: habilitar WAL mode y agregar índices faltantes
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [src/db/database.ts](../src/db/database.ts)
 - **Categoría:** Rendimiento
 
@@ -595,7 +594,7 @@ Los índices se agregan como migración en `initDatabase()`.
 
 ### M10 — `importBackup()`: inserts sin transacción
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [src/services/backup.ts](../src/services/backup.ts)
 - **Categoría:** Fiabilidad · Rendimiento
 
@@ -631,7 +630,7 @@ Esto garantiza atomicidad: o se importa todo, o no se importa nada.
 
 ### M11 — Centralizar claves de AsyncStorage/MMKV en `config.ts`
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [src/config.ts](../src/config.ts), [src/store/index.ts](../src/store/index.ts), [src/i18n/index.ts](../src/i18n/index.ts), [app/_layout.tsx](../app/_layout.tsx), [app/(tabs)/index.tsx](../app/(tabs)/index.tsx)
 - **Categoría:** Mantenibilidad · Prevención de bugs
 
@@ -675,7 +674,7 @@ export const STORAGE_KEYS = {
 
 ### M12 — Validar backup importado con Zod
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [src/services/backup.ts](../src/services/backup.ts)
 - **Categoría:** Fiabilidad · Seguridad
 
@@ -733,7 +732,7 @@ El schema de Zod también sirve como documentación formal del formato de backup
 
 ### M13 — `loadAll()` llamado en exceso — optimizar la pantalla Today
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [app/(tabs)/index.tsx](../app/(tabs)/index.tsx)
 - **Categoría:** Rendimiento
 
@@ -764,7 +763,7 @@ useFocusEffect(
 
 ### B1 — React Hook Form en MedicationForm
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [components/MedicationForm.tsx](../components/MedicationForm.tsx)
 - **Categoría:** Mantenibilidad · Developer experience
 
@@ -791,7 +790,7 @@ La validación de fechas coherentes (startDate < endDate), dosis > 0, stock ≥ 
 
 ### B2 — FlashList para listas largas (historial, salud, citas)
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [app/(tabs)/history.tsx](../app/(tabs)/history.tsx), [app/(tabs)/health.tsx](../app/(tabs)/health.tsx), [app/(tabs)/appointments.tsx](../app/(tabs)/appointments.tsx)
 - **Categoría:** Rendimiento
 
@@ -824,7 +823,7 @@ import { FlashList } from '@shopify/flash-list'
 
 ### B3 — Tests automatizados: estrategia recomendada
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Categoría:** Calidad · CI/CD
 
 **La app actualmente no tiene ningún test.**
@@ -874,7 +873,7 @@ Maestro es el estándar actual para React Native E2E porque corre en el simulado
 
 ### B4 — Errores críticos silenciados en tasks de background
 
-- **Estado:** `[ ] Pendiente`
+- **Estado:** `[x] Completo`
 - **Archivos afectados:** [app/_layout.tsx](../app/_layout.tsx), [src/services/backgroundTask.ts](../src/services/backgroundTask.ts)
 - **Categoría:** Observabilidad
 
@@ -912,20 +911,20 @@ closeMissedDoses().catch((e) => {
 | A1 | Accesibilidad: VoiceOver / TalkBack | 🔴 Alta | `[x]` |
 | A2 | `predictiveBackGestureEnabled: false` global | 🔴 Alta | `[x]` |
 | A3 | Notification map en AsyncStorage → SQLite | 🔴 Alta | `[x]` |
-| M1 | AsyncStorage → react-native-mmkv para prefs | 🟡 Media | `[ ]` |
-| M2 | Drizzle ORM para expo-sqlite | 🟡 Media | `[ ]` |
-| M3 | Zustand slices + separar UI state | 🟡 Media | `[ ]` |
-| M4 | `LayoutAnimation` fuera del store | 🟡 Media | `[ ]` |
-| M5 | CSS variables en NativeWind para dark mode | 🟡 Media | `[ ]` |
-| M6 | Hardcoded colors en tab bar | 🟡 Media | `[ ]` |
-| M7 | `TouchableOpacity` → `Pressable` + ripple | 🟡 Media | `[ ]` |
-| M8 | `setInterval` → `AppState` en Settings | 🟡 Media | `[ ]` |
-| M9 | SQLite: WAL mode + índices faltantes | 🟡 Media | `[ ]` |
-| M10 | `importBackup()` sin transacción | 🟡 Media | `[ ]` |
-| M11 | Centralizar claves de storage en `config.ts` | 🟡 Media | `[ ]` |
-| M12 | Validar backup importado con Zod | 🟡 Media | `[ ]` |
-| M13 | `loadAll()` innecesario en focus de Today | 🟡 Media | `[ ]` |
-| B1 | React Hook Form en MedicationForm | 🟢 Baja | `[ ]` |
-| B2 | FlashList para listas largas | 🟢 Baja | `[ ]` |
-| B3 | Tests automatizados (Jest + Maestro) | 🟢 Baja | `[ ]` |
-| B4 | Errores de background task → Sentry | 🟢 Baja | `[ ]` |
+| M1 | AsyncStorage → react-native-mmkv para prefs | 🟡 Media | `[x]` |
+| M2 | Drizzle ORM para expo-sqlite | 🟡 Media | `[x]` |
+| M3 | Zustand slices + separar UI state | 🟡 Media | `[x]` |
+| M4 | `LayoutAnimation` fuera del store | 🟡 Media | `[x]` |
+| M5 | CSS variables en NativeWind para dark mode | 🟡 Media | `[x]` |
+| M6 | Hardcoded colors en tab bar | 🟡 Media | `[x]` |
+| M7 | `TouchableOpacity` → `Pressable` + ripple | 🟡 Media | `[x]` |
+| M8 | `setInterval` → `AppState` en Settings | 🟡 Media | `[x]` |
+| M9 | SQLite: WAL mode + índices faltantes | 🟡 Media | `[x]` |
+| M10 | `importBackup()` sin transacción | 🟡 Media | `[x]` |
+| M11 | Centralizar claves de storage en `config.ts` | 🟡 Media | `[x]` |
+| M12 | Validar backup importado con Zod | 🟡 Media | `[x]` |
+| M13 | `loadAll()` innecesario en focus de Today | 🟡 Media | `[x]` |
+| B1 | React Hook Form en MedicationForm | 🟢 Baja | `[x]` |
+| B2 | FlashList para listas largas | 🟢 Baja | `[x]` |
+| B3 | Tests automatizados (Jest + Maestro) | 🟢 Baja | `[x]` |
+| B4 | Errores de background task → Sentry | 🟢 Baja | `[x]` |

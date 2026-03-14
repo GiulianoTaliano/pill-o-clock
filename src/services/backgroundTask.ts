@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import * as Sentry from "@sentry/react-native";
 import * as BackgroundFetch from "expo-background-fetch";
 import * as TaskManager from "expo-task-manager";
 import { addDays, format, subDays } from "date-fns";
@@ -48,6 +49,7 @@ if (Platform.OS !== "web") TaskManager.defineTask(BG_TASK_NAME, async () => {
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (e) {
     console.warn("[BackgroundTask] reschedule failed:", e);
+    Sentry.captureException(e, { tags: { task: BG_TASK_NAME } });
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
@@ -77,6 +79,7 @@ export async function registerBackgroundFetch(): Promise<void> {
   } catch (e) {
     // Background fetch setup is non-critical; log but don't crash.
     console.warn("[BackgroundTask] registration failed:", e);
+    Sentry.captureException(e, { tags: { task: BG_TASK_NAME } });
   }
 }
 

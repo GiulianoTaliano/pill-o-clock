@@ -7,6 +7,7 @@ import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Schedule, Medication, NotificationMap, Appointment } from "../types";
 import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString } from "../utils";
 import i18n from "../i18n";
+import { STORAGE_KEYS } from "../config";
 import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb } from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ export const MAX_REPEATS = Platform.OS === "ios" ? 2 : 4;
  */
 const DAYS_AHEAD = Platform.OS === "ios" ? 3 : 7;
 
-const NOTIF_MAP_KEY = "@pilloclock/notif_map";
+const NOTIF_MAP_KEY = STORAGE_KEYS.NOTIF_MAP;
 
 // ─── Notification Actions ──────────────────────────────────────────────────
 
@@ -663,8 +664,8 @@ export async function cancelAppointmentNotification(notificationId: string): Pro
 // ─── Health measurement reminder ───────────────────────────────────────────────────
 
 export const HEALTH_CHANNEL_ID = "health-reminders";
-const HEALTH_NOTIF_ID_KEY = "@pilloclock/health_reminder_notif_id";
-const HEALTH_REMINDER_TIME_KEY = "@pilloclock/health_reminder_time";
+const HEALTH_NOTIF_ID_KEY = STORAGE_KEYS.HEALTH_NOTIF_ID;
+const HEALTH_REMINDER_TIME_KEY = STORAGE_KEYS.HEALTH_REMINDER_TIME;
 
 export async function setupHealthReminderChannel(): Promise<void> {
   if (Platform.OS !== "android") return;

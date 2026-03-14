@@ -1,12 +1,13 @@
 import i18n from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
 import * as Localization from "expo-localization";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "../storage";
+import { STORAGE_KEYS } from "../config";
 import { es as esDateLocale, enUS } from "date-fns/locale";
 import en from "./en";
 import es from "./es";
 
-export const LANGUAGE_KEY = "@pilloclock/language";
+export const LANGUAGE_KEY = STORAGE_KEYS.LANGUAGE;
 export const SUPPORTED_LANGUAGES = ["es", "en"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
@@ -24,7 +25,7 @@ export async function initI18n(): Promise<void> {
   // Try to load user override; fall back to device locale
   let lang: SupportedLanguage;
   try {
-    const stored = await AsyncStorage.getItem(LANGUAGE_KEY);
+    const stored = storage.getString(LANGUAGE_KEY);
     lang =
       stored && (SUPPORTED_LANGUAGES as readonly string[]).includes(stored)
         ? (stored as SupportedLanguage)
@@ -54,7 +55,7 @@ export async function initI18n(): Promise<void> {
 export async function changeLanguage(lang: SupportedLanguage): Promise<void> {
   // eslint-disable-next-line import/no-named-as-default-member
   await i18n.changeLanguage(lang);
-  await AsyncStorage.setItem(LANGUAGE_KEY, lang);
+  storage.set(LANGUAGE_KEY, lang);
 }
 
 // ─── date-fns locale helper ────────────────────────────────────────────────
