@@ -21,6 +21,14 @@ export function useAppTheme() {
     // -- Muted text / icon color (matches --color-muted in global.css) --------
     muted: dark ? "#94a3b8" : "#64748b",
 
+    // ── Accent / semantic colors (dark-adaptive for inline styles) ─────────
+    primary: dark ? "#60a5fa" : "#4f9cff",   // blue-400 / brand blue
+    danger:  dark ? "#f87171" : "#ef4444",   // red-400 / red-500
+    warning: dark ? "#fb923c" : "#f97316",   // orange-400 / orange-500
+    success: dark ? "#4ade80" : "#22c55e",   // green-400 / green-500
+    accent:  dark ? "#a78bfa" : "#8b5cf6",   // violet-400 / violet-500
+    amber:   dark ? "#fbbf24" : "#d97706",   // amber-400 / amber-600
+
     // ── Dose status card backgrounds + borders ────────────────────────────
     doseStatus: {
       pending: {

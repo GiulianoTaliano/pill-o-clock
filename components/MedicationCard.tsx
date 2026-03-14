@@ -162,10 +162,10 @@ export function MedicationCard({
             <Ionicons
               name="cube-outline"
               size={13}
-              color={isLow ? "#ef4444" : isWarning ? "#f97316" : "#22c55e"}
+              color={isLow ? theme.danger : isWarning ? theme.warning : theme.success}
             />
             <Text
-              style={{ color: isLow ? "#ef4444" : isWarning ? "#f97316" : "#22c55e" }}
+              style={{ color: isLow ? theme.danger : isWarning ? theme.warning : theme.success }}
               className="text-xs font-semibold"
             >
               {t('stock.badge', { count: qty })}
@@ -212,11 +212,11 @@ export function MedicationCard({
           <Ionicons
             name={nextDoseLabel === t('medicationCard.todayComplete') ? "checkmark-circle" : "time-outline"}
             size={13}
-            color={nextDoseLabel === t('medicationCard.todayComplete') ? "#22c55e" : "#4f9cff"}
+            color={nextDoseLabel === t('medicationCard.todayComplete') ? theme.success : theme.primary}
           />
           <Text
             className="text-xs font-semibold"
-            style={{ color: nextDoseLabel === t('medicationCard.todayComplete') ? "#22c55e" : "#4f9cff" }}
+            style={{ color: nextDoseLabel === t('medicationCard.todayComplete') ? theme.success : theme.primary }}
           >
             {nextDoseLabel}
           </Text>
@@ -240,7 +240,7 @@ export function MedicationCard({
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
           className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-1.5"
         >
-          <Ionicons name="trash-outline" size={14} color="#ef4444" />
+          <Ionicons name="trash-outline" size={14} color={theme.danger} />
           <Text className="text-red-500 text-xs font-semibold">{t('common.delete')}</Text>
         </TouchableOpacity>
       </View>

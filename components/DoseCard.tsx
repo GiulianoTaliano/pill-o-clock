@@ -92,9 +92,9 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
   }
 
   const SKIP_REASONS: { key: SkipReason; icon: string; color: string }[] = [
-    { key: "forgot",      icon: "help-circle-outline",  color: "#f97316" },
-    { key: "side_effect", icon: "alert-circle-outline",  color: "#ef4444" },
-    { key: "no_stock",    icon: "cube-outline",          color: "#8b5cf6" },
+    { key: "forgot",      icon: "help-circle-outline",  color: theme.warning },
+    { key: "side_effect", icon: "alert-circle-outline",  color: theme.danger },
+    { key: "no_stock",    icon: "cube-outline",          color: theme.accent },
     { key: "other",       icon: "ellipsis-horizontal",   color: theme.muted },
   ];
 
@@ -202,7 +202,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             <Ionicons
               name={STATUS_ICONS[dose.status]}
               size={16}
-              color={dose.status === "taken" ? "#22c55e" : "#ef4444"}
+              color={dose.status === "taken" ? theme.success : theme.danger}
             />
             <Text
               style={{ color: dose.status === "taken"

@@ -18,6 +18,7 @@ module.exports = {
         // ── Semantic tokens — driven by CSS custom properties in global.css ─
         background: "var(--color-background)",
         card:       "var(--color-card)",
+        "card-alt": "var(--color-card-alt)",
         text:       "var(--color-text)",
         muted:      "var(--color-muted)",
         border:     "var(--color-border)",

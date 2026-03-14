@@ -47,7 +47,7 @@ interface RowProps {
 
 function SettingRow({
   icon,
-  iconColor = "#4f9cff",
+  iconColor,
   title,
   subtitle,
   value,
@@ -56,6 +56,8 @@ function SettingRow({
   danger = false,
   chevron,
 }: RowProps) {
+  const theme = useAppTheme();
+  const resolvedIconColor = iconColor ?? theme.primary;
   const isInteractive = !!onPress;
   const showChevron = chevron ?? (isInteractive && !value);
 
@@ -64,16 +66,16 @@ function SettingRow({
       {/* icon pill */}
       <View
         className="w-9 h-9 rounded-xl items-center justify-center mr-4"
-        style={{ backgroundColor: iconColor + "18" }}
+        style={{ backgroundColor: resolvedIconColor + "18" }}
       >
-        <Ionicons name={icon} size={20} color={iconColor} />
+        <Ionicons name={icon} size={20} color={resolvedIconColor} />
       </View>
 
       {/* text */}
       <View className="flex-1">
         <Text
           className="text-sm font-semibold text-text"
-          style={danger ? { color: "#dc2626" } : undefined}
+          style={danger ? { color: theme.danger } : undefined}
         >
           {title}
         </Text>
@@ -84,11 +86,11 @@ function SettingRow({
 
       {/* right side */}
       {loading ? (
-        <ActivityIndicator size="small" color="#4f9cff" />
+        <ActivityIndicator size="small" color={theme.primary} />
       ) : value ? (
         <Text className="text-sm text-muted">{value}</Text>
       ) : showChevron ? (
-        <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+        <Ionicons name="chevron-forward" size={16} color={theme.muted} />
       ) : null}
     </View>
   );
@@ -255,7 +257,7 @@ export default function SettingsScreen() {
             <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
               <SettingRow
                 icon="notifications-outline"
-                iconColor={hasFullScreenPerm === false ? "#f59e0b" : "#4f9cff"}
+                iconColor={hasFullScreenPerm === false ? theme.warning : theme.primary}
                 title={t("settings.fullScreenPermission")}
                 subtitle={t("settings.fullScreenPermissionSubtitle")}
                 value={
@@ -278,7 +280,6 @@ export default function SettingsScreen() {
         <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
           <SettingRow
             icon="cloud-download-outline"
-            iconColor="#4f9cff"
             title={t("settings.exportButton")}
             subtitle={t("settings.exportSubtitle")}
             onPress={handleExport}
@@ -287,7 +288,6 @@ export default function SettingsScreen() {
           <Divider />
           <SettingRow
             icon="cloud-upload-outline"
-            iconColor="#4f9cff"
             title={t("settings.importButton")}
             subtitle={t("settings.importSubtitle")}
             onPress={handleImport}
@@ -296,7 +296,7 @@ export default function SettingsScreen() {
           <Divider />
           <SettingRow
             icon="document-text-outline"
-            iconColor="#8b5cf6"
+            iconColor={theme.accent}
             title={t("report.generate")}
             subtitle={t("report.generateSubtitle")}
             onPress={handleGeneratePdf}
@@ -312,7 +312,7 @@ export default function SettingsScreen() {
               {idx > 0 && <Divider />}
               <SettingRow
                 icon={currentLang === lang ? "radio-button-on" : "radio-button-off-outline"}
-                iconColor={currentLang === lang ? "#4f9cff" : theme.muted}
+                iconColor={currentLang === lang ? theme.primary : theme.muted}
                 title={lang === "es" ? t("settings.languageEs") : t("settings.languageEn")}
                 onPress={() => handleLanguage(lang)}
                 chevron={false}
@@ -333,7 +333,7 @@ export default function SettingsScreen() {
               {idx > 0 && <Divider />}
               <SettingRow
                 icon={themeMode === mode ? "radio-button-on" : "radio-button-off-outline"}
-                iconColor={themeMode === mode ? "#4f9cff" : theme.muted}
+                iconColor={themeMode === mode ? theme.primary : theme.muted}
                 title={label}
                 value={themeMode === mode ? undefined : undefined}
                 onPress={() => handleTheme(mode)}
@@ -355,7 +355,7 @@ export default function SettingsScreen() {
           <Divider />
           <SettingRow
             icon="shield-checkmark-outline"
-            iconColor="#22c55e"
+            iconColor={theme.success}
             title={t("settings.privacyPolicy")}
             onPress={() => Linking.openURL("https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html")}
           />

@@ -233,7 +233,7 @@ export default function AlarmScreen() {
             onChangeText={setNoteText}
             placeholder={t('doseCard.noteModalPlaceholder')}
             placeholderTextColor={theme.muted}
-            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-slate-700 text-sm"
+            className="mt-2 w-full rounded-2xl border border-border bg-card px-4 py-3 text-text text-sm"
             multiline
             numberOfLines={2}
             maxLength={200}
@@ -263,8 +263,8 @@ export default function AlarmScreen() {
           onPress={handleSnooze}
           className="rounded-2xl py-3 items-center flex-row justify-center gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700"
         >
-          <Ionicons name="alarm-outline" size={20} color="#d97706" />
-          <Text className="text-amber-700 text-base font-bold">
+          <Ionicons name="alarm-outline" size={20} color={theme.amber} />
+          <Text className="text-amber-700 dark:text-amber-400 text-base font-bold">
             {t('alarm.snooze', { minutes: SNOOZE_MINUTES })}
           </Text>
         </AppPressable>

@@ -51,6 +51,7 @@ interface ScheduleRowProps {
 
 function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: ScheduleRowProps) {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const [showPicker, setShowPicker] = useState(false);
 
   const timeDate = (() => {
@@ -68,15 +69,15 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
   };
 
   return (
-    <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 mb-3 border border-slate-100 dark:border-slate-700">
+    <View className="bg-card-alt rounded-2xl p-4 mb-3 border border-border">
       {/* Time */}
       <View className="flex-row items-center justify-between mb-3">
           <Text className="text-sm font-semibold text-text">{t('form.fieldTime')}</Text>
         <TouchableOpacity
           onPress={() => setShowPicker(true)}
-          className="flex-row items-center gap-2 bg-card border dark:border-slate-600 rounded-xl px-4 py-2"
+          className="flex-row items-center gap-2 bg-card border border-border rounded-xl px-4 py-2"
         >
-          <Ionicons name="alarm-outline" size={16} color="#4f9cff" />
+          <Ionicons name="alarm-outline" size={16} color={theme.primary} />
           <Text className="text-base font-bold text-primary">{schedule.time}</Text>
         </TouchableOpacity>
       </View>
@@ -107,8 +108,8 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
         onPress={onRemove}
         className="flex-row items-center gap-1 mt-3 self-end"
       >
-        <Ionicons name="trash-outline" size={14} color="#ef4444" />
-        <Text className="text-red-500 text-xs font-semibold">{t('form.removeAlarm')}</Text>
+        <Ionicons name="trash-outline" size={14} color={theme.danger} />
+        <Text className="text-red-500 dark:text-red-400 text-xs font-semibold">{t('form.removeAlarm')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -126,6 +127,7 @@ interface DateRowProps {
 
 function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowProps) {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const [show, setShow] = useState(false);
 
   const dateObj = value ? new Date(value + "T12:00") : (minimumDate ?? new Date());
@@ -164,9 +166,9 @@ function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowPr
       </View>
       <TouchableOpacity
         onPress={handleOpen}
-        className="flex-row items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5"
+        className="flex-row items-center gap-2 bg-card-alt border border-border rounded-xl px-3 py-2.5"
       >
-        <Ionicons name="calendar-outline" size={14} color="#4f9cff" />
+        <Ionicons name="calendar-outline" size={14} color={theme.primary} />
         <Text className={`text-sm font-semibold ${value ? "text-text" : "text-muted"}`}>
           {value
             ? format(new Date(value + "T12:00"), "dd/MM/yyyy")
@@ -367,7 +369,7 @@ export function MedicationForm({
                   onChangeText={onChange}
                   placeholder={t('form.fieldNamePlaceholder')}
                   placeholderTextcolor={theme.muted}
-                  className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
+                  className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
                   autoCapitalize="words"
                 />
               )}
@@ -392,7 +394,7 @@ export function MedicationForm({
                     placeholder={t('form.fieldDoseAmountPlaceholder')}
                     placeholderTextcolor={theme.muted}
                     keyboardType="decimal-pad"
-                    className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
+                    className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
                   />
                 )}
               />
@@ -409,7 +411,7 @@ export function MedicationForm({
                     className={`rounded-xl px-4 py-2 border ${
                       dosageUnit === u.value
                         ? "bg-primary border-primary"
-                        : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-600"
+                        : "bg-card-alt border-border"
                     }`}
                   >
                     <Text
@@ -437,13 +439,13 @@ export function MedicationForm({
                     className={`flex-row items-center gap-1.5 rounded-xl px-3 py-2 border ${
                       category === key
                         ? "border-primary bg-blue-50 dark:bg-blue-950/30"
-                        : "border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800"
+                        : "border-border bg-card-alt"
                     }`}
                   >
                     <Ionicons
                       name={cfg.icon as any}
                       size={14}
-                      color={category === key ? "#4f9cff" : theme.muted}
+                      color={category === key ? theme.primary : theme.muted}
                     />
                     <Text
                       className={`text-xs font-semibold ${
@@ -472,7 +474,7 @@ export function MedicationForm({
                   onChangeText={onChange}
                   placeholder={t('form.fieldNotesPlaceholder')}
                   placeholderTextcolor={theme.muted}
-                  className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800"
+                  className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
                   multiline
                   numberOfLines={2}
                 />
@@ -504,22 +506,22 @@ export function MedicationForm({
                   onPress={pickPhoto}
                   className="flex-row items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2"
                 >
-                  <Ionicons name="image-outline" size={14} color="#3b82f6" />
+                  <Ionicons name="image-outline" size={14} color={theme.primary} />
                   <Text className="text-blue-500 text-xs font-semibold">{t('form.changePhoto')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setValue("photoUri", undefined)}
                   className="flex-row items-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2"
                 >
-                  <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                  <Text className="text-red-500 text-xs font-semibold">{t('form.removePhoto')}</Text>
+                  <Ionicons name="trash-outline" size={14} color={theme.danger} />
+                  <Text className="text-red-500 dark:text-red-400 text-xs font-semibold">{t('form.removePhoto')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <TouchableOpacity
               onPress={pickPhoto}
-              className="flex-row items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl px-6 py-4"
+              className="flex-row items-center gap-2 bg-card-alt border border-dashed border-border rounded-2xl px-6 py-4"
             >
               <Ionicons name="camera-outline" size={20} color={theme.muted} />
               <Text className="text-muted font-semibold">{t('form.addPhoto')}</Text>
@@ -691,7 +693,7 @@ export function MedicationForm({
                 onPress={() => appendSchedule(newSchedule())}
                 className="flex-row items-center gap-1 bg-blue-50 rounded-xl px-3 py-1.5"
               >
-                <Ionicons name="add" size={14} color="#3b82f6" />
+                <Ionicons name="add" size={14} color={theme.primary} />
                 <Text className="text-blue-500 text-xs font-bold">{t('form.addAlarm')}</Text>
               </TouchableOpacity>
             </View>
@@ -720,7 +722,7 @@ export function MedicationForm({
                 placeholder={t('form.fieldStockPlaceholder')}
                 placeholderTextcolor={theme.muted}
                 keyboardType="number-pad"
-                className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
+                className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
               />
               <Text className="text-muted text-sm">{t('form.fieldStockUnit')}</Text>
             </View>
@@ -735,7 +737,7 @@ export function MedicationForm({
                   placeholder={t('form.fieldStockThresholdPlaceholder')}
                   placeholderTextcolor={theme.muted}
                   keyboardType="number-pad"
-                  className="border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-text text-base bg-slate-50 dark:bg-slate-800 w-28"
+                  className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
                 />
                 <Text className="text-muted text-sm">{t('form.fieldStockUnit')}</Text>
               </View>

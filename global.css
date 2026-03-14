@@ -6,6 +6,7 @@
 :root {
   --color-background: #f0f6ff;
   --color-card:       #ffffff;
+  --color-card-alt:   #f8fafc;  /* slate-50, input/secondary surface */
   --color-text:       #1e293b;
   --color-muted:      #64748b;  /* slate-500, 5.34:1 on light bg */
   --color-border:     #e2e8f0;
@@ -18,6 +19,7 @@
   :root {
     --color-background: #020617;  /* slate-950 */
     --color-card:       #0f172a;  /* slate-900 */
+    --color-card-alt:   #1e293b;  /* slate-800, input/secondary surface */
     --color-text:       #f1f5f9;  /* slate-100 */
     --color-muted:      #94a3b8;  /* slate-400, 6.11:1 on dark bg */
     --color-border:     #1e293b;  /* slate-800 */
