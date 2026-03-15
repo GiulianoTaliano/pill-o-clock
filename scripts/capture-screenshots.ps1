@@ -80,6 +80,16 @@ $SCREENS = @(
     @{ Name = "onboarding";        Path = "/onboarding";       Desc = "Onboarding slides" }
 )
 
+# Screens to capture in empty state (before seed data import)
+$EMPTY_SCREENS = @(
+    @{ Name = "home-empty";         Path = "/";              Desc = "Home (empty state)" }
+    @{ Name = "medications-empty";  Path = "/medications";   Desc = "Medications (empty)" }
+    @{ Name = "calendar-empty";     Path = "/calendar";      Desc = "Calendar (empty)" }
+    @{ Name = "health-empty";       Path = "/health";        Desc = "Health (empty)" }
+    @{ Name = "history-empty";      Path = "/history";       Desc = "History (empty)" }
+    @{ Name = "settings-empty";     Path = "/settings";      Desc = "Settings (empty)" }
+)
+
 # --- Helpers ---
 
 # Metro dev server port (must match the --port used when starting expo)
@@ -148,6 +158,22 @@ function Dismiss-DevWarnings {
     # This sends a tap to the top-center of the screen which is always safe.
     Invoke-Adb "shell", "input", "tap", "540", "300" | Out-Null
     Start-Sleep -Milliseconds 300
+}
+
+function Wait-AppForeground {
+    # Waits until Pill O-Clock is the top Activity.  Returns $true if it
+    # appears within the timeout, $false otherwise.  Used before each
+    # screenshot to avoid capturing the launcher or another app.
+    param([int]$MaxWaitSec = 10)
+    $elapsed = 0
+    while ($elapsed -lt $MaxWaitSec) {
+        $top = Invoke-Adb "shell", "dumpsys", "activity", "top" 2>$null |
+            Select-String "ACTIVITY $APP_PACKAGE" -SimpleMatch
+        if ($top) { return $true }
+        Start-Sleep -Seconds 1
+        $elapsed++
+    }
+    return $false
 }
 
 function Start-EmulatorIfNeeded {
@@ -232,6 +258,13 @@ function Test-AppInstalled {
         return $false
     }
     return $true
+}
+
+function Uninstall-App {
+    Write-Host "  Uninstalling existing app..." -ForegroundColor Cyan
+    Invoke-Adb "shell", "pm", "uninstall", $APP_PACKAGE | Out-Null
+    Start-Sleep -Seconds 2
+    Write-Host "  Uninstalled." -ForegroundColor Green
 }
 
 function Test-AppRunning {
@@ -336,7 +369,11 @@ function Invoke-DeepLink {
 
     $uri = "${DEEP_LINK_SCHEME}://${RoutePath}"
     Write-Host "    Navigating: $uri" -ForegroundColor DarkGray
-    Invoke-Adb "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", $uri, $APP_PACKAGE | Out-Null
+    # Use -n to force the intent to our Activity. Without it, a bare package
+    # name is silently ignored by newer Android versions and the system may
+    # resolve the VIEW intent to another app (e.g., Google Calendar for
+    # pilloclock:///calendar) when Pill O-Clock has crashed or isn't running.
+    Invoke-Adb "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", $uri, "-n", "$APP_PACKAGE/.MainActivity" | Out-Null
 }
 
 function Save-Screenshot {
@@ -376,6 +413,45 @@ function Invoke-CapturePass {
         Write-Host "  [$ThemeMode] $desc" -ForegroundColor Yellow
         Invoke-DeepLink -RoutePath $path
         Start-Sleep -Milliseconds $DelayMs
+        if (-not (Wait-AppForeground -MaxWaitSec 8)) {
+            Write-Warning "    App not in foreground, retrying deep link..."
+            Invoke-DeepLink -RoutePath $path
+            Start-Sleep -Milliseconds $DelayMs
+        }
+        Dismiss-DevWarnings
+
+        $fileName = "${ThemeMode}_${name}"
+        $result = Save-Screenshot -FileName $fileName -DestDir $passDir
+        if ($result) { $captured++ }
+    }
+
+    return $captured
+}
+
+# ─── Empty State Captures ────────────────────────────────────────
+
+function Invoke-EmptyCapturePass {
+    param([string]$ThemeMode, [string]$BaseDir)
+
+    $passDir = Join-Path $BaseDir $ThemeMode
+    New-Item -ItemType Directory -Path $passDir -Force | Out-Null
+
+    Set-ThemeMode -ThemeMode $ThemeMode
+    $captured = 0
+
+    foreach ($screen in $EMPTY_SCREENS) {
+        $name = $screen.Name
+        $path = $screen.Path
+        $desc = $screen.Desc
+
+        Write-Host "  [$ThemeMode] $desc" -ForegroundColor Yellow
+        Invoke-DeepLink -RoutePath $path
+        Start-Sleep -Milliseconds $DelayMs
+        if (-not (Wait-AppForeground -MaxWaitSec 8)) {
+            Write-Warning "    App not in foreground, retrying deep link..."
+            Invoke-DeepLink -RoutePath $path
+            Start-Sleep -Milliseconds $DelayMs
+        }
         Dismiss-DevWarnings
 
         $fileName = "${ThemeMode}_${name}"
@@ -518,9 +594,25 @@ function Install-AppBuild {
 
     # Always use --device when $Serial is available to prevent interactive
     # device-selection prompts that block non-interactive / background runs.
+    # Expo CLI expects the device *name* (e.g. AVD name), not the ADB serial.
     $deviceArgs = @()
     if (-not [string]::IsNullOrWhiteSpace($Serial)) {
-        $deviceArgs = @("--device", $Serial)
+        $deviceName = $null
+        # For emulators, query the AVD name via the emulator console
+        if ($Serial -match '^emulator-') {
+            $avdOutput = Invoke-Adb "emu", "avd", "name" 2>$null
+            if ($avdOutput) {
+                # The command returns the AVD name on the first line, "OK" on the second
+                $deviceName = ($avdOutput | Select-Object -First 1).Trim()
+            }
+        }
+        # Fallback: use the product model name (physical devices / older emulators)
+        if ([string]::IsNullOrWhiteSpace($deviceName)) {
+            $deviceName = (Invoke-Adb "shell", "getprop", "ro.product.model" 2>$null | Out-String).Trim()
+        }
+        if (-not [string]::IsNullOrWhiteSpace($deviceName)) {
+            $deviceArgs = @("--device", $deviceName)
+        }
     }
 
     Write-Host "  Running 'npx expo run:android --no-bundler $deviceArgs' ..." -ForegroundColor DarkGray
@@ -575,9 +667,9 @@ function Import-SeedData {
 
 # --- Main ---
 
-$totalSteps = 9
+$totalSteps = 12
 if ($SkipBuild) { $totalSteps-- }
-if ($SkipSeed) { $totalSteps-- }
+if ($SkipSeed) { $totalSteps -= 2 }  # skip both empty-state capture and seed import
 
 Write-Host ""
 Write-Host "=======================================================" -ForegroundColor Cyan
@@ -610,22 +702,36 @@ $step++
 Write-Host "[$step/$totalSteps] Checking Metro dev server..." -ForegroundColor White
 if (-not (Start-MetroIfNeeded)) { exit 1 }
 
-# Step: Build and install the app
+# Step: Check app installation and build/install as needed
+$step++
+Write-Host "[$step/$totalSteps] Checking app installation..." -ForegroundColor White
+$appInstalled = (Invoke-Adb "shell", "pm", "list", "packages" | Select-String $APP_PACKAGE) -ne $null
+
 if (-not $SkipBuild) {
+    if ($appInstalled) {
+        Write-Host "  App is installed. Uninstalling for a clean install..." -ForegroundColor Yellow
+        Uninstall-App
+    } else {
+        Write-Host "  App not installed. Will build and install fresh." -ForegroundColor Yellow
+    }
+
     $step++
     Write-Host "[$step/$totalSteps] Building and installing app..." -ForegroundColor White
     if (-not (Install-AppBuild)) {
-        Write-Warning "Build failed. Checking if app is already installed..."
-        if (-not (Test-AppInstalled)) { exit 1 }
-        Write-Host "  Using existing installation." -ForegroundColor Yellow
+        Write-Error "Build and install failed."
+        exit 1
     }
 } else {
     Write-Host "  Skipping build (using existing installation)" -ForegroundColor DarkGray
+    if (-not $appInstalled) {
+        Write-Error "App '$APP_PACKAGE' is not installed and -SkipBuild was specified. Install the app first or remove -SkipBuild."
+        exit 1
+    }
 }
 
 # Step: Validate app is installed
 $step++
-Write-Host "[$step/$totalSteps] Checking app..." -ForegroundColor White
+Write-Host "[$step/$totalSteps] Validating app is installed..." -ForegroundColor White
 if (-not (Test-AppInstalled)) { exit 1 }
 
 # Step: Set up output directory
@@ -639,11 +745,13 @@ Write-Host "[$step/$totalSteps] Output directory: $OutputDir" -ForegroundColor W
 
 # Step: Pre-warm the app and import seed data
 $step++
-Write-Host "[$step/$totalSteps] Preparing app (pre-warm + seed data)..." -ForegroundColor White
+Write-Host "[$step/$totalSteps] Preparing app (pre-warm)..." -ForegroundColor White
 
 # Keep screen on during capture to prevent black screenshots
 Invoke-Adb "shell", "svc", "power", "stayon", "usb" | Out-Null
 Invoke-Adb "shell", "input", "keyevent", "KEYCODE_WAKEUP" | Out-Null
+
+$totalCaptured = 0
 
 # Pre-warm: launch the app once so Metro caches the JS bundle.
 # Without this, the first cold start takes 15-30s and screenshots are black.
@@ -665,17 +773,31 @@ while ($warmElapsed -lt $warmMaxWait) {
 Write-Host "  Bundle cached after ${warmElapsed}s" -ForegroundColor Green
 Invoke-Adb "shell", "am", "force-stop", $APP_PACKAGE | Out-Null
 
-# Import seed data into the database (after app has initialized DB)
+# Step: Capture empty state screenshots (before importing any data)
 if (-not $SkipSeed) {
+    $step++
+    Write-Host "[$step/$totalSteps] Capturing empty state screenshots (mode: $Mode, delay: ${DelayMs}ms)..." -ForegroundColor White
+    Write-Host ""
+
+    if ($Mode -eq "both" -or $Mode -eq "light") {
+        $totalCaptured += Invoke-EmptyCapturePass -ThemeMode "light" -BaseDir $OutputDir
+    }
+    if ($Mode -eq "both" -or $Mode -eq "dark") {
+        $totalCaptured += Invoke-EmptyCapturePass -ThemeMode "dark" -BaseDir $OutputDir
+    }
+}
+
+# Step: Import seed data into the database (after empty captures)
+if (-not $SkipSeed) {
+    $step++
+    Write-Host "[$step/$totalSteps] Importing seed data..." -ForegroundColor White
     Import-SeedData -SeedFilePath $SeedFile
 }
 
-# Step: Capture base screenshots (all screens)
+# Step: Capture base screenshots (all screens, now with data)
 $step++
 Write-Host "[$step/$totalSteps] Capturing base screenshots (mode: $Mode, delay: ${DelayMs}ms)..." -ForegroundColor White
 Write-Host ""
-
-$totalCaptured = 0
 
 if ($Mode -eq "both" -or $Mode -eq "light") {
     $totalCaptured += Invoke-CapturePass -ThemeMode "light" -BaseDir $OutputDir
@@ -712,13 +834,14 @@ Write-Host ""
 
 # Generate a manifest file listing all captured screenshots
 $manifest = @{
-    CapturedAt = (Get-Date -Format "o")
-    Mode       = $Mode
-    DelayMs    = $DelayMs
-    Screens    = $SCREENS | ForEach-Object { $_.Name }
-    OutputDir  = $OutputDir
-    SeedData   = (-not $SkipSeed)
-    Built      = (-not $SkipBuild)
+    CapturedAt   = (Get-Date -Format "o")
+    Mode         = $Mode
+    DelayMs      = $DelayMs
+    Screens      = $SCREENS | ForEach-Object { $_.Name }
+    EmptyScreens = if (-not $SkipSeed) { $EMPTY_SCREENS | ForEach-Object { $_.Name } } else { @() }
+    OutputDir    = $OutputDir
+    SeedData     = (-not $SkipSeed)
+    Built        = (-not $SkipBuild)
 }
 $manifestPath = Join-Path $OutputDir "manifest.json"
 $manifest | ConvertTo-Json -Depth 3 | Set-Content -Path $manifestPath -Encoding UTF8

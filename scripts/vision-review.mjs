@@ -55,6 +55,13 @@ const SCREENS = {
   'health-scrolled':        { name: 'Health (scrolled)',   files: ['app/(tabs)/health.tsx', 'components/SimpleLineChart.tsx'] },
   'history-scrolled':       { name: 'History (scrolled)',  files: ['app/(tabs)/history.tsx'] },
   'settings-scrolled':      { name: 'Settings (scrolled)', files: ['app/(tabs)/settings.tsx'] },
+  // Empty state captures (before data import)
+  'home-empty':               { name: 'Home (empty)',         files: ['app/(tabs)/index.tsx', 'components/EmptyState.tsx'] },
+  'medications-empty':        { name: 'Medications (empty)',  files: ['app/(tabs)/medications.tsx', 'components/EmptyState.tsx'] },
+  'calendar-empty':           { name: 'Calendar (empty)',     files: ['app/(tabs)/calendar.tsx', 'components/EmptyState.tsx'] },
+  'health-empty':             { name: 'Health (empty)',       files: ['app/(tabs)/health.tsx', 'components/EmptyState.tsx'] },
+  'history-empty':            { name: 'History (empty)',      files: ['app/(tabs)/history.tsx', 'components/EmptyState.tsx'] },
+  'settings-empty':           { name: 'Settings (empty)',     files: ['app/(tabs)/settings.tsx'] },
 };
 
 // â�€â�€â�€ CLI Parsing â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
@@ -818,6 +825,12 @@ async function main() {
   }
 
   if (allFindings.length === 0) {
+    if (skippedScreens.length === screenKeys.length) {
+      console.error('\n  All screens were skipped due to rate limiting.');
+      console.error('  Try again later or use a different model: --model <id>');
+      console.error('  Run with --list-models to see available models.');
+      process.exit(1);
+    }
     console.log('\n  No findings detected. The UI looks clean!');
     process.exit(0);
   }

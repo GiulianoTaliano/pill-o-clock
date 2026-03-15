@@ -16,11 +16,16 @@
  * Requires: adb in PATH, app installed on target device with debuggable build
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const APP_PACKAGE = 'com.pilloclock.app';
 const DB_NAME = 'pilloclock.db';
+// Expo SQLite stores databases under files/SQLite/, not databases/
+const DB_REL_PATH = `files/SQLite/${DB_NAME}`;
+const DEVICE_TMP = '/data/local/tmp';
 
 // ─── CLI ────────────────────────────────────────────────────
 
@@ -46,26 +51,115 @@ function adbShell(...shellArgs) {
 }
 
 function runSql(sql) {
-  // Run SQL via run-as to access the app's private data dir
-  // Use sqlite3 if available on device, otherwise use the app's Expo SQLite wrapper
-  const dbPath = `/data/data/${APP_PACKAGE}/databases/${DB_NAME}`;
   const escaped = sql.replace(/'/g, "'\\''");
   return adbShell('run-as', APP_PACKAGE, 'sh', '-c',
-    `sqlite3 '${dbPath}' '${escaped}'`
+    `sqlite3 '${DB_REL_PATH}' '${escaped}'`
   );
 }
 
 function runSqlBatch(statements) {
-  // Batch SQL statements into a single sqlite3 call for performance
   const batchSize = 20;
   for (let i = 0; i < statements.length; i += batchSize) {
     const batch = statements.slice(i, i + batchSize).join('\n');
-    const dbPath = `/data/data/${APP_PACKAGE}/databases/${DB_NAME}`;
-    // Write batch to a temp file on device and execute
     const escaped = batch.replace(/'/g, "'\\''");
     adbShell('run-as', APP_PACKAGE, 'sh', '-c',
-      `sqlite3 '${dbPath}' '${escaped}'`
+      `sqlite3 '${DB_REL_PATH}' '${escaped}'`
     );
+  }
+}
+
+// ─── Device vs Host sqlite3 detection ───────────────────────
+
+function hasDeviceSqlite3() {
+  try {
+    adbShell('run-as', APP_PACKAGE, 'sh', '-c', 'sqlite3 --version');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function findHostSqlite3() {
+  const cmd = process.platform === 'win32' ? 'where.exe' : 'which';
+  try {
+    const result = execFileSync(cmd, ['sqlite3'], { encoding: 'utf-8', timeout: 5000 });
+    return result.trim().split(/\r?\n/)[0].trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Host-based SQL execution (pull DB → modify → push back) ─
+
+function adbArgs() {
+  return serial ? ['-s', serial] : [];
+}
+
+function pullDbToHost(localDir) {
+  const mainDb = join(localDir, DB_NAME);
+  const tmpRemote = `${DEVICE_TMP}/${DB_NAME}_seed_pull`;
+
+  // Copy from app sandbox to /data/local/tmp/ via device-side redirect
+  adbShell(`run-as ${APP_PACKAGE} cat ${DB_REL_PATH} > ${tmpRemote}`);
+  adb('pull', tmpRemote, mainDb);
+
+  // Pull WAL and SHM if they exist (schema/data may live in WAL)
+  for (const suffix of ['-wal', '-shm']) {
+    try {
+      const remoteTmp = `${tmpRemote}${suffix}`;
+      adbShell(`run-as ${APP_PACKAGE} cat ${DB_REL_PATH}${suffix} > ${remoteTmp}`);
+      adb('pull', remoteTmp, mainDb + suffix);
+      adbShell('rm', '-f', remoteTmp);
+    } catch { /* file may not exist */ }
+  }
+
+  adbShell('rm', '-f', tmpRemote);
+  return mainDb;
+}
+
+function pushDbToDevice(localDbPath) {
+  const remoteTmp = `${DEVICE_TMP}/${DB_NAME}_seed_push`;
+
+  adb('push', localDbPath, remoteTmp);
+  adbShell('chmod', '644', remoteTmp);
+  // Copy into app sandbox via run-as (app user can read from /data/local/tmp/)
+  adbShell(`run-as ${APP_PACKAGE} sh -c 'cat ${remoteTmp} > ${DB_REL_PATH}'`);
+  // Remove stale WAL/SHM — the app will recreate them on next launch
+  adbShell(`run-as ${APP_PACKAGE} rm -f ${DB_REL_PATH}-wal ${DB_REL_PATH}-shm`);
+  adbShell('rm', '-f', remoteTmp);
+}
+
+function runSqlBatchViaHost(statements, sqlite3Bin) {
+  const localDir = tmpdir();
+  console.log('  Using host sqlite3 (device binary not available)');
+
+  // Pull the database (+ WAL) from the device
+  const localDb = pullDbToHost(localDir);
+
+  // Write all SQL to a temp file with explicit UTF-8 encoding, then feed via
+  // stdin.  Passing SQL as CLI args goes through Windows codepage conversion
+  // (typically CP-1252), which corrupts non-ASCII characters (á, ñ, ó, etc.).
+  // Using stdin with a Buffer bypasses this entirely.
+  const sqlFile = join(localDir, 'seed-batch.sql');
+  writeFileSync(sqlFile, statements.join('\n') + '\n', 'utf-8');
+  execFileSync(sqlite3Bin, [localDb], {
+    input: readFileSync(sqlFile),
+    timeout: 30000,
+  });
+
+  // Checkpoint WAL into main DB so we only need to push one file
+  execFileSync(sqlite3Bin, [localDb], {
+    input: Buffer.from('PRAGMA wal_checkpoint(TRUNCATE);\n', 'utf-8'),
+    timeout: 10000,
+  });
+
+  // Push the modified database back
+  pushDbToDevice(localDb);
+
+  // Clean up local temp files
+  try { unlinkSync(sqlFile); } catch { /* ignore */ }
+  for (const suffix of ['', '-wal', '-shm']) {
+    try { unlinkSync(localDb + suffix); } catch { /* ignore */ }
   }
 }
 
@@ -124,13 +218,21 @@ console.log(`  Target: ${serial || '(auto-detect)'}`);
 console.log('\n  Stopping app...');
 adbShell('am', 'force-stop', APP_PACKAGE);
 
-// Verify sqlite3 is available
-try {
-  adbShell('run-as', APP_PACKAGE, 'sh', '-c', 'sqlite3 --version');
-} catch {
-  console.error('  ERROR: sqlite3 not found on device. Most emulator system images');
-  console.error('  include sqlite3, but some production builds do not.');
-  process.exit(1);
+// Determine sqlite3 strategy: device binary or host binary
+const useDeviceSqlite = hasDeviceSqlite3();
+let hostSqlite3 = null;
+if (!useDeviceSqlite) {
+  hostSqlite3 = findHostSqlite3();
+  if (!hostSqlite3) {
+    console.error('  ERROR: sqlite3 not found on device or host.');
+    console.error('  Install sqlite3 or use an emulator image that includes it.');
+    console.error('  On Windows, sqlite3 is often bundled with Android SDK platform-tools.');
+    process.exit(1);
+  }
+  console.log(`  Device sqlite3: not available (API 36+ emulator)`);
+  console.log(`  Host sqlite3:   ${hostSqlite3}`);
+} else {
+  console.log('  Using device sqlite3');
 }
 
 // Build all SQL statements
@@ -177,7 +279,11 @@ for (const [table, count] of Object.entries(counts)) {
 }
 
 try {
-  runSqlBatch(statements);
+  if (useDeviceSqlite) {
+    runSqlBatch(statements);
+  } else {
+    runSqlBatchViaHost(statements, hostSqlite3);
+  }
   console.log(`\n  Done! ${statements.length} SQL statements executed.`);
 } catch (err) {
   console.error(`\n  ERROR: SQL execution failed: ${err.message}`);
