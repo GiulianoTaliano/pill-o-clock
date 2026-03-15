@@ -194,7 +194,7 @@ function SubTabButton({
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="flex-1 py-2 rounded-xl items-center"
+      className="flex-1 py-3 rounded-xl items-center"
       style={
         active
           ? {

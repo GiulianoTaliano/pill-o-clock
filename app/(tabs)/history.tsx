@@ -263,7 +263,7 @@ export default function HistoryScreen() {
         <View className="flex-row bg-card border border-border rounded-xl overflow-hidden">
           <TouchableOpacity
             onPress={() => switchViewMode("week")}
-            className={`px-3 py-1.5 ${viewMode === "week" ? "bg-primary" : ""}`}
+            className={`px-4 py-2.5 ${viewMode === "week" ? "bg-primary" : ""}`}
           >
             <Text className={`text-xs font-bold ${viewMode === "week" ? "text-white" : "text-muted"}`}>
               {t('history.viewWeek')}
@@ -271,7 +271,7 @@ export default function HistoryScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => switchViewMode("month")}
-            className={`px-3 py-1.5 ${viewMode === "month" ? "bg-primary" : ""}`}
+            className={`px-4 py-2.5 ${viewMode === "month" ? "bg-primary" : ""}`}
           >
             <Text className={`text-xs font-bold ${viewMode === "month" ? "text-white" : "text-muted"}`}>
               {t('history.viewMonth')}
@@ -284,7 +284,7 @@ export default function HistoryScreen() {
       <View className="px-5 py-2 flex-row items-center justify-between">
         <TouchableOpacity
           onPress={() => setOffset((o) => o + 1)}
-          className="p-2 bg-card rounded-xl border border-border"
+          className="p-3 bg-card rounded-xl border border-border"
         >
           <Ionicons name="chevron-back" size={18} color="#4f9cff" />
         </TouchableOpacity>
@@ -299,7 +299,7 @@ export default function HistoryScreen() {
         <TouchableOpacity
           onPress={() => setOffset((o) => Math.max(0, o - 1))}
           disabled={offset === 0}
-          className={`p-2 bg-card rounded-xl border border-border ${offset === 0 ? "opacity-30" : ""}`}
+          className={`p-3 bg-card rounded-xl border border-border ${offset === 0 ? "opacity-30" : ""}`}
         >
           <Ionicons name="chevron-forward" size={18} color="#4f9cff" />
         </TouchableOpacity>

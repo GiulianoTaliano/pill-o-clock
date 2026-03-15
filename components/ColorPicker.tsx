@@ -79,13 +79,15 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             <TouchableOpacity
               key={color}
               onPress={() => selectPreset(color)}
+              accessibilityLabel={color}
+              accessibilityRole="button"
               style={{
                 backgroundColor: c.bg,
                 borderColor: selected ? selectedBorderColor : c.border,
               }}
-              className="w-9 h-9 rounded-full border-2 items-center justify-center"
+              className="w-11 h-11 rounded-full border-2 items-center justify-center"
             >
-              {selected && <Ionicons name="checkmark" size={16} color="#fff" />}
+              {selected && <Ionicons name="checkmark" size={18} color="#fff" />}
             </TouchableOpacity>
           );
         })}
@@ -97,13 +99,15 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             <TouchableOpacity
               key={hex}
               onPress={() => selectPreset(hex)}
+              accessibilityLabel={hex}
+              accessibilityRole="button"
               style={{
                 backgroundColor: hex,
                 borderColor: selected ? selectedBorderColor : (theme.isDark ? "#475569" : "#cbd5e1"),
               }}
-              className="w-9 h-9 rounded-full border-2 items-center justify-center"
+              className="w-11 h-11 rounded-full border-2 items-center justify-center"
             >
-              {selected && <Ionicons name="checkmark" size={16} color="#fff" />}
+              {selected && <Ionicons name="checkmark" size={18} color="#fff" />}
             </TouchableOpacity>
           );
         })}
@@ -118,11 +122,11 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             borderColor: theme.isDark ? "#475569" : "#cbd5e1",
             backgroundColor: theme.isDark ? "#1e293b" : "#f1f5f9",
           }}
-          className="w-9 h-9 rounded-full border-2 items-center justify-center"
+          className="w-11 h-11 rounded-full border-2 items-center justify-center"
         >
           <Ionicons
             name="add"
-            size={18}
+            size={20}
             color={theme.muted}
           />
         </TouchableOpacity>

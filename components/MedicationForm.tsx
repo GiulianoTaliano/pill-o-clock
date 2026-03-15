@@ -75,7 +75,7 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
           <Text className="text-sm font-semibold text-text">{t('form.fieldTime')}</Text>
         <TouchableOpacity
           onPress={() => setShowPicker(true)}
-          className="flex-row items-center gap-2 bg-card border border-border rounded-xl px-4 py-2"
+          className="flex-row items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5"
         >
           <Ionicons name="alarm-outline" size={16} color={theme.primary} />
           <Text className="text-base font-bold text-primary">{schedule.time}</Text>
@@ -408,7 +408,7 @@ export function MedicationForm({
                   <TouchableOpacity
                     key={u.value}
                     onPress={() => setValue("dosageUnit", u.value)}
-                    className={`rounded-xl px-4 py-2 border ${
+                    className={`rounded-xl px-4 py-2.5 border ${
                       dosageUnit === u.value
                         ? "bg-primary border-primary"
                         : "bg-card-alt border-border"
@@ -436,7 +436,7 @@ export function MedicationForm({
                   <TouchableOpacity
                     key={key}
                     onPress={() => setValue("category", key)}
-                    className={`flex-row items-center gap-1.5 rounded-xl px-3 py-2 border ${
+                    className={`flex-row items-center gap-1.5 rounded-xl px-3 py-2.5 border ${
                       category === key
                         ? "border-primary bg-blue-50 dark:bg-blue-950/30"
                         : "border-border bg-card-alt"
@@ -691,7 +691,7 @@ export function MedicationForm({
               </Text>
               <TouchableOpacity
                 onPress={() => appendSchedule(newSchedule())}
-                className="flex-row items-center gap-1 bg-blue-50 rounded-xl px-3 py-1.5"
+                className="flex-row items-center gap-1 bg-blue-50 rounded-xl px-3 py-2.5"
               >
                 <Ionicons name="add" size={14} color={theme.primary} />
                 <Text className="text-blue-600 dark:text-blue-400 text-xs font-bold">{t('form.addAlarm')}</Text>

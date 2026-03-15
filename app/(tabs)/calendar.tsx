@@ -292,7 +292,7 @@ export default function CalendarScreen() {
       <View className="px-5 py-2 flex-row items-center justify-between">
         <TouchableOpacity
           onPress={handlePrevMonth}
-          className="p-2 bg-card rounded-xl border border-border"
+          className="p-3 bg-card rounded-xl border border-border"
         >
           <Ionicons name="chevron-back" size={18} color="#4f9cff" />
         </TouchableOpacity>
@@ -303,7 +303,7 @@ export default function CalendarScreen() {
 
         <TouchableOpacity
           onPress={handleNextMonth}
-          className="p-2 bg-card rounded-xl border border-border"
+          className="p-3 bg-card rounded-xl border border-border"
         >
           <Ionicons name="chevron-forward" size={18} color="#4f9cff" />
         </TouchableOpacity>
@@ -337,7 +337,7 @@ export default function CalendarScreen() {
                   <TouchableOpacity
                     key={col}
                     onPress={() => setSelectedDate(dateStr)}
-                    className={`flex-1 items-center justify-center py-1.5 mx-0.5 rounded-xl ${
+                    className={`flex-1 items-center justify-center py-2.5 mx-0.5 rounded-xl ${
                       isSelected
                         ? "bg-primary"
                         : isTodayCell
@@ -491,7 +491,7 @@ export default function CalendarScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push("/(tabs)/appointments");
             }}
-            className="bg-primary w-8 h-8 rounded-full items-center justify-center"
+            className="bg-primary w-11 h-11 rounded-full items-center justify-center"
           >
             <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>

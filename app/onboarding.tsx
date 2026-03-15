@@ -315,12 +315,12 @@ export default function OnboardingScreen() {
         {/* Dots */}
         <View className="flex-row justify-center mb-6 gap-2">
           {SLIDES.map((_, i) => (
-            <TouchableOpacity key={i} onPress={() => scrollTo(i)}>
+            <TouchableOpacity key={i} onPress={() => scrollTo(i)} hitSlop={{ top: 16, bottom: 16, left: 8, right: 8 }}>
               <View
                 className="rounded-full"
                 style={{
-                  width: i === currentIndex ? 20 : 8,
-                  height: 8,
+                  width: i === currentIndex ? 24 : 10,
+                  height: 10,
                   backgroundColor: i === currentIndex ? theme.primary : theme.muted,
                 }}
               />

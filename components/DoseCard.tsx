@@ -221,7 +221,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.revert')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
-              className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5"
+              className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5"
             >
               <Ionicons name="arrow-undo-outline" size={13} color={theme.muted} />
               <Text className="text-muted text-xs font-semibold">
@@ -232,13 +232,13 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
         </View>
       ) : isPending ? (
         <>
-          <View className="flex-row gap-2 mt-2">
+          <View className="flex-row gap-3 mt-2">
             {/* Snooze */}
             <AppPressable
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.snooze')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSnooze(); }}
-              className="flex-row items-center gap-1 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-2"
+              className="flex-row items-center gap-1 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-2.5"
             >
               <Ionicons name="alarm-outline" size={15} color={theme.amber} />
               <Text className="text-amber-700 dark:text-amber-400 text-xs font-semibold">{t('doseCard.snooze')}</Text>
@@ -249,7 +249,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.skip')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
-              className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2"
+              className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2.5"
             >
               <Ionicons name="close-outline" size={15} color={theme.danger} />
               <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('doseCard.skip')}</Text>
@@ -261,7 +261,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
                 accessibilityRole="button"
                 accessibilityLabel={t('doseCard.take')}
                 onPress={handleTakePress}
-                className="flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-4 py-2"
+                className="flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-4 py-2.5"
               >
                 <Ionicons name="checkmark" size={16} color="#fff" />
                 <Text className="text-white text-sm font-bold">{t('doseCard.take')}</Text>
@@ -299,7 +299,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
         </>
       ) : (
         /* Missed: allow recording a late dose, but no snooze */
-        <View className="flex-row gap-2 mt-2 items-center">
+        <View className="flex-row gap-3 mt-2 items-center">
           <View className="flex-row items-center gap-1.5 mr-1">
             <Ionicons name={STATUS_ICONS[dose.status]} size={14} color={theme.muted} />
             <Text className="text-xs text-muted font-semibold">{t(`status.${dose.status}`)}</Text>
@@ -309,7 +309,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             accessibilityRole="button"
             accessibilityLabel={t('doseCard.skip')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
-            className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
+            className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5"
           >
             <Ionicons name="close-outline" size={15} color={theme.muted} />
             <Text className="text-muted text-xs font-semibold">{t('doseCard.skip')}</Text>
@@ -320,7 +320,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.takeLate')}
               onPress={handleTakePress}
-              className="flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-4 py-2"
+              className="flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-4 py-2.5"
             >
               <Ionicons name="checkmark" size={16} color="#fff" />
               <Text className="text-white text-sm font-bold">{t('doseCard.takeLate')}</Text>

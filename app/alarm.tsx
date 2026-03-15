@@ -216,11 +216,11 @@ export default function AlarmScreen() {
           accessibilityRole="button"
           accessibilityLabel={showNote ? t('common.cancel') : t('doseCard.addNote')}
           onPress={() => setShowNote((v) => !v)}
-          className="mt-4 flex-row items-center gap-1 self-center"
+          className="mt-4 flex-row items-center gap-1 self-center py-2 px-3"
         >
           <Ionicons
             name={showNote ? "chevron-up" : "create-outline"}
-            size={14}
+            size={16}
             color={theme.muted}
           />
           <Text className="text-xs text-muted">
@@ -261,7 +261,7 @@ export default function AlarmScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('alarm.snooze', { minutes: SNOOZE_MINUTES })}
           onPress={handleSnooze}
-          className="rounded-2xl py-3 items-center flex-row justify-center gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700"
+          className="rounded-2xl py-4 items-center flex-row justify-center gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700"
         >
           <Ionicons name="alarm-outline" size={20} color={theme.amber} />
           <Text className="text-amber-700 dark:text-amber-400 text-base font-bold">
@@ -274,7 +274,7 @@ export default function AlarmScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('alarm.skip')}
           onPress={handleSkip}
-          className="rounded-2xl py-3 items-center flex-row justify-center gap-2"
+          className="rounded-2xl py-4 items-center flex-row justify-center gap-2"
         >
           <Ionicons name="close-outline" size={18} color={theme.muted} />
           <Text className="text-muted text-sm font-medium">{t('alarm.skip')}</Text>

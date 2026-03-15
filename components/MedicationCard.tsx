@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Switch, Image } from "react-native";
+﻿import { View, Text, TouchableOpacity, Switch, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Medication, Schedule, DoseLog } from "../src/types";
@@ -13,7 +13,7 @@ interface MedicationCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onToggleActive: (isActive: boolean) => void;
-  /** Today's dose logs — used to compute the "next dose" indicator. */
+  /** Today's dose logs â€” used to compute the "next dose" indicator. */
   todayLogs?: DoseLog[];
 }
 
@@ -36,7 +36,7 @@ export function MedicationCard({
       .sort((a, b) => a - b)
       .map((d) => dayNames[d])
       .join(", ");
-    return `${dayStr} · ${s.time}`;
+    return `${dayStr} Â· ${s.time}`;
   }
 
   // Compute next-dose indicator
@@ -103,11 +103,11 @@ export function MedicationCard({
               <View
                 style={{ backgroundColor: CATEGORY_CONFIG[medication.category].tint + "20",
                           borderColor: CATEGORY_CONFIG[medication.category].tint + "60" }}
-                className="flex-row items-center gap-1 rounded-lg px-1.5 py-0.5 border"
+                className="flex-row items-center gap-1 rounded-lg px-2 py-1 border"
               >
                 <Ionicons
                   name={CATEGORY_CONFIG[medication.category].icon as any}
-                  size={10}
+                  size={12}
                   color={CATEGORY_CONFIG[medication.category].tint}
                 />
                 <Text
@@ -133,12 +133,12 @@ export function MedicationCard({
       {/* Time-bound info */}
       {(medication.startDate || medication.endDate) && (
         <View className="flex-row items-center gap-1 mt-2 ml-12">
-          <Ionicons name="calendar-outline" size={13} color={theme.muted} />
+          <Ionicons name="calendar-outline" size={15} color={theme.muted} />
           <Text className="text-xs text-muted">
             {medication.startDate
               ? format(new Date(medication.startDate + "T12:00"), "d MMM", { locale: getDateLocale() })
               : t('common.start')}
-            {" → "}
+            {" â†’ "}
             {medication.endDate
               ? format(new Date(medication.endDate + "T12:00"), "d MMM yyyy", { locale: getDateLocale() })
               : t('common.end')}
@@ -161,7 +161,7 @@ export function MedicationCard({
           <View className="flex-row items-center gap-1.5 mt-2 ml-12">
             <Ionicons
               name="cube-outline"
-              size={13}
+              size={15}
               color={isLow ? theme.danger : isWarning ? theme.warning : theme.success}
             />
             <Text
@@ -169,7 +169,7 @@ export function MedicationCard({
               className="text-xs font-semibold"
             >
               {t('stock.badge', { count: qty })}
-              {isLow ? ` · ${t('stock.low')}` : ""}
+              {isLow ? ` Â· ${t('stock.low')}` : ""}
             </Text>
           </View>
         );
@@ -184,7 +184,7 @@ export function MedicationCard({
               style={{ backgroundColor: colors.light }}
               className="flex-row items-center gap-2 rounded-xl px-3 py-1.5"
             >
-              <Ionicons name="alarm-outline" size={13} color={colors.text} />
+              <Ionicons name="alarm-outline" size={15} color={colors.text} />
               <Text style={{ color: colors.text }} className="text-xs font-medium">
                 {scheduleLabel(s)}
               </Text>
@@ -199,7 +199,7 @@ export function MedicationCard({
           style={{ backgroundColor: colors.light }}
           className="flex-row items-center gap-2 rounded-xl px-3 py-1.5 mt-3 self-start"
         >
-          <Ionicons name="hand-left-outline" size={13} color={colors.text} />
+          <Ionicons name="hand-left-outline" size={15} color={colors.text} />
           <Text style={{ color: colors.text }} className="text-xs font-medium">
             {t('medicationCard.nextDosePRN')}
           </Text>
@@ -211,7 +211,7 @@ export function MedicationCard({
         <View className="flex-row items-center gap-1 mt-2 ml-0.5">
           <Ionicons
             name={nextDoseLabel === t('medicationCard.todayComplete') ? "checkmark-circle" : "time-outline"}
-            size={13}
+            size={15}
             color={nextDoseLabel === t('medicationCard.todayComplete') ? theme.success : theme.primary}
           />
           <Text
@@ -229,7 +229,7 @@ export function MedicationCard({
           accessibilityRole="button"
           accessibilityLabel={`${t('common.edit')} ${medication.name}`}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(); }}
-          className="flex-row items-center gap-1 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-1.5"
+          className="flex-row items-center gap-1 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5"
         >
           <Ionicons name="pencil-outline" size={14} color="#3b82f6" />
           <Text className="text-blue-600 dark:text-blue-400 text-xs font-semibold">{t('common.edit')}</Text>
@@ -238,7 +238,7 @@ export function MedicationCard({
           accessibilityRole="button"
           accessibilityLabel={`${t('common.delete')} ${medication.name}`}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
-          className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-1.5"
+          className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2.5"
         >
           <Ionicons name="trash-outline" size={14} color={theme.danger} />
           <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('common.delete')}</Text>
@@ -247,3 +247,4 @@ export function MedicationCard({
     </View>
   );
 }
+

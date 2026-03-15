@@ -221,7 +221,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('history.title')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/history"); }}
-            className="bg-card border border-border w-10 h-10 rounded-full items-center justify-center shadow-sm"
+            className="bg-card border border-border w-11 h-11 rounded-full items-center justify-center shadow-sm"
           >
             <Ionicons name="bar-chart-outline" size={20} color="#4f9cff" />
           </TouchableOpacity>
@@ -235,7 +235,7 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('form.addButton')}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
-                className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
+                className="bg-primary w-11 h-11 rounded-full items-center justify-center shadow-sm"
               >
                 <Ionicons name="add" size={24} color="#fff" />
               </TouchableOpacity>
@@ -293,7 +293,7 @@ export default function HomeScreen() {
             <View className="flex-row items-center gap-2">
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCheckinVisible(true); }}
-                className="bg-teal-500 rounded-xl px-3 py-1.5"
+                className="bg-teal-500 rounded-xl px-3 py-2.5"
               >
                 <Text className="text-white text-xs font-bold">{t("checkin.saveButton")}</Text>
               </TouchableOpacity>
@@ -303,9 +303,9 @@ export default function HomeScreen() {
                   storage.set(STORAGE_KEYS.CHECKIN_DISMISSED_DATE, todayKey);
                   setCheckinDismissed(true);
                 }}
-                className="p-1"
+                className="p-2"
               >
-                <Ionicons name="close" size={14} color="#5eead4" />
+                <Ionicons name="close" size={16} color="#5eead4" />
               </TouchableOpacity>
             </View>
           </View>
