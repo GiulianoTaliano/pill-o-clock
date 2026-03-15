@@ -165,7 +165,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           className="rounded-xl px-3 py-1 border flex-row items-center gap-1"
         >
           {isSnoozed && (
-            <Ionicons name="alarm-outline" size={11} color="#d97706" />
+            <Ionicons name="alarm-outline" size={11} color={theme.amber} />
           )}
           <Text
             style={{ color: isSnoozed
@@ -240,7 +240,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSnooze(); }}
               className="flex-row items-center gap-1 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-2"
             >
-              <Ionicons name="alarm-outline" size={15} color="#d97706" />
+              <Ionicons name="alarm-outline" size={15} color={theme.amber} />
               <Text className="text-amber-700 dark:text-amber-400 text-xs font-semibold">{t('doseCard.snooze')}</Text>
             </AppPressable>
 
@@ -251,8 +251,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
               className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2"
             >
-              <Ionicons name="close-outline" size={15} color="#ef4444" />
-              <Text className="text-red-500 dark:text-red-400 text-xs font-semibold">{t('doseCard.skip')}</Text>
+              <Ionicons name="close-outline" size={15} color={theme.danger} />
+              <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('doseCard.skip')}</Text>
             </AppPressable>
 
             {/* Take */}
@@ -261,7 +261,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
                 accessibilityRole="button"
                 accessibilityLabel={t('doseCard.take')}
                 onPress={handleTakePress}
-                className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
+                className="flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-4 py-2"
               >
                 <Ionicons name="checkmark" size={16} color="#fff" />
                 <Text className="text-white text-sm font-bold">{t('doseCard.take')}</Text>
@@ -320,7 +320,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.takeLate')}
               onPress={handleTakePress}
-              className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
+              className="flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-4 py-2"
             >
               <Ionicons name="checkmark" size={16} color="#fff" />
               <Text className="text-white text-sm font-bold">{t('doseCard.takeLate')}</Text>
@@ -372,7 +372,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             value={noteDraft}
             onChangeText={setNoteDraft}
             placeholder={t('doseCard.noteModalPlaceholder')}
-            placeholderTextcolor={theme.muted}
+            placeholderTextColor={theme.muted}
             className="border border-border rounded-2xl px-4 py-3 text-text text-sm bg-slate-50 dark:bg-slate-800 mb-4"
             multiline
             numberOfLines={3}

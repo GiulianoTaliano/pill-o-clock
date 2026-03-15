@@ -749,7 +749,7 @@ export default function HealthScreen() {
                         value={addForm.value1Str}
                         onChangeText={(v) => setAddForm((f) => ({ ...f, value1Str: v }))}
                         placeholder="120"
-                        placeholderTextcolor={theme.muted}
+                        placeholderTextColor={theme.muted}
                         keyboardType="numeric"
                         className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card"
                       />
@@ -760,7 +760,7 @@ export default function HealthScreen() {
                         value={addForm.value2Str}
                         onChangeText={(v) => setAddForm((f) => ({ ...f, value2Str: v }))}
                         placeholder="80"
-                        placeholderTextcolor={theme.muted}
+                        placeholderTextColor={theme.muted}
                         keyboardType="numeric"
                         className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card"
                       />
@@ -776,7 +776,7 @@ export default function HealthScreen() {
                       value={addForm.value1Str}
                       onChangeText={(v) => setAddForm((f) => ({ ...f, value1Str: v }))}
                       placeholder={selectedType === "weight" ? "70.5" : selectedType === "spo2" ? "98" : "100"}
-                      placeholderTextcolor={theme.muted}
+                      placeholderTextColor={theme.muted}
                       keyboardType="numeric"
                       className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
                     />
@@ -830,7 +830,7 @@ export default function HealthScreen() {
                   value={addForm.notes}
                   onChangeText={(v) => setAddForm((f) => ({ ...f, notes: v }))}
                   placeholder={t("health.fieldNotesPlaceholder")}
-                  placeholderTextcolor={theme.muted}
+                  placeholderTextColor={theme.muted}
                   className="border border-border rounded-2xl px-4 py-3 text-text text-sm bg-card mb-4"
                   multiline
                   numberOfLines={2}

@@ -315,7 +315,7 @@ export default function HistoryScreen() {
             <Text className="text-xs text-green-700 dark:text-green-400 font-medium">{t('history.taken')}</Text>
           </View>
           <View className="flex-1 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-800/40 rounded-2xl p-3 items-center">
-            <Text className="text-2xl font-black text-red-500 dark:text-red-400">{totalSkipped + totalMissed}</Text>
+            <Text className="text-2xl font-black text-red-700 dark:text-red-400">{totalSkipped + totalMissed}</Text>
             <Text className="text-xs text-red-600 dark:text-red-400 font-medium">{t('history.missed')}</Text>
           </View>
           {adherence !== null && (

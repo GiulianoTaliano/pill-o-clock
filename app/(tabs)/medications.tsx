@@ -153,7 +153,7 @@ export default function MedicationsScreen() {
                 className="flex-row items-center justify-center gap-2 border border-red-200 dark:border-red-800 rounded-2xl p-4 mb-8 bg-red-50 dark:bg-red-950/30"
               >
                 <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                <Text className="text-red-500 text-sm font-semibold">{t('medications.resetButtonFull')}</Text>
+                <Text className="text-red-700 dark:text-red-400 text-sm font-semibold">{t('medications.resetButtonFull')}</Text>
               </TouchableOpacity>
             )}
           </>

@@ -86,6 +86,7 @@ function AppointmentCard({
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const dateObj = new Date(appt.date + "T12:00");
   const dateLabel = format(dateObj, "PPP", { locale: getDateLocale() });
   const dateLabelCap = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
@@ -217,6 +218,7 @@ function formFromAppointment(appt: Appointment): FormState {
 
 export default function AppointmentsScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const appointments = useAppStore((s) => s.appointments);
   const loadAppointments = useAppStore((s) => s.loadAppointments);
   const addAppointment = useAppStore((s) => s.addAppointment);
@@ -481,7 +483,7 @@ export default function AppointmentsScreen() {
                   value={form.title}
                   onChangeText={(v) => setForm((f) => ({ ...f, title: v }))}
                   placeholder={t("appointments.fieldTitlePlaceholder")}
-                  placeholderTextcolor={theme.muted}
+                  placeholderTextColor={theme.muted}
                   className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
                   autoCapitalize="words"
                 />
@@ -492,7 +494,7 @@ export default function AppointmentsScreen() {
                   value={form.doctor}
                   onChangeText={(v) => setForm((f) => ({ ...f, doctor: v }))}
                   placeholder={t("appointments.fieldDoctorPlaceholder")}
-                  placeholderTextcolor={theme.muted}
+                  placeholderTextColor={theme.muted}
                   className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
                   autoCapitalize="words"
                 />
@@ -604,7 +606,7 @@ export default function AppointmentsScreen() {
                   value={form.notes}
                   onChangeText={(v) => setForm((f) => ({ ...f, notes: v }))}
                   placeholder={t("appointments.fieldNotesPlaceholder")}
-                  placeholderTextcolor={theme.muted}
+                  placeholderTextColor={theme.muted}
                   className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
                   multiline
                   numberOfLines={3}

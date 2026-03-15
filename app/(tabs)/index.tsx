@@ -247,16 +247,16 @@ export default function HomeScreen() {
       {/* Summary chips */}
       <View className="px-5 py-3 flex-row gap-2 flex-wrap">
         <View className="bg-amber-100 dark:bg-amber-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
-          <Ionicons name="time-outline" size={14} color="#d97706" />
+          <Ionicons name="time-outline" size={14} color={theme.amber} />
           <Text className="text-amber-700 dark:text-amber-400 text-xs font-bold">{t('home.chipPending', { count: pending.length })}</Text>
         </View>
         <View className="bg-green-100 dark:bg-green-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
-          <Ionicons name="checkmark-circle-outline" size={14} color="#16a34a" />
+          <Ionicons name="checkmark-circle-outline" size={14} color={theme.success} />
           <Text className="text-green-700 dark:text-green-400 text-xs font-bold">{t('home.chipTaken', { count: done.filter(d => d.status === 'taken').length })}</Text>
         </View>
         {done.filter(d => d.status === "skipped").length > 0 && (
           <View className="bg-red-100 dark:bg-red-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
-            <Ionicons name="close-circle-outline" size={14} color="#dc2626" />
+            <Ionicons name="close-circle-outline" size={14} color={theme.danger} />
             <Text className="text-red-600 dark:text-red-400 text-xs font-bold">{t('home.chipSkipped', { count: done.filter(d => d.status === 'skipped').length })}</Text>
           </View>
         )}

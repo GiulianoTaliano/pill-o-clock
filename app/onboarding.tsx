@@ -16,6 +16,7 @@ import { storage } from "../src/storage";
 import { STORAGE_KEYS } from "../src/config";
 import * as IntentLauncher from "expo-intent-launcher";
 import { useTranslation } from "../src/i18n";
+import { useAppTheme } from "../src/hooks/useAppTheme";
 import { setupNotifications, openExactAlarmSettings } from "../src/services/notifications";
 import { checkFullScreenIntentPermission } from "expo-alarm";
 import * as Haptics from "expo-haptics";
@@ -80,6 +81,7 @@ const LAST = SLIDES.length - 1;
 
 export default function OnboardingScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -213,22 +215,22 @@ export default function OnboardingScreen() {
               <View className="mt-7 w-full gap-2.5">
                 <View className="flex-row gap-2.5">
                   <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-primary/20 bg-primary/10">
-                    <Ionicons name="medkit-outline" size={15} color="#4f9cff" />
+                    <Ionicons name="medkit-outline" size={15} color={theme.primary} />
                     <Text className="text-xs font-semibold text-primary">{t("onboarding.chip1")}</Text>
                   </View>
                   <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
-                    <Ionicons name="notifications-outline" size={15} color="#f59e0b" />
-                    <Text className="text-xs font-semibold text-amber-600">{t("onboarding.chip2")}</Text>
+                    <Ionicons name="notifications-outline" size={15} color={theme.amber} />
+                    <Text className="text-xs font-semibold text-amber-700 dark:text-amber-400">{t("onboarding.chip2")}</Text>
                   </View>
                 </View>
                 <View className="flex-row gap-2.5">
                   <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800">
-                    <Ionicons name="calendar-outline" size={15} color="#16a34a" />
-                    <Text className="text-xs font-semibold text-green-700">{t("onboarding.chip3")}</Text>
+                    <Ionicons name="calendar-outline" size={15} color={theme.success} />
+                    <Text className="text-xs font-semibold text-green-700 dark:text-green-400">{t("onboarding.chip3")}</Text>
                   </View>
                   <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-rose-200 bg-rose-50 dark:bg-rose-950/30 dark:border-rose-800">
-                    <Ionicons name="fitness-outline" size={15} color="#e11d48" />
-                    <Text className="text-xs font-semibold text-rose-600">{t("onboarding.chip4")}</Text>
+                    <Ionicons name="fitness-outline" size={15} color={theme.isDark ? "#fb7185" : "#e11d48"} />
+                    <Text className="text-xs font-semibold text-rose-700 dark:text-rose-400">{t("onboarding.chip4")}</Text>
                   </View>
                 </View>
               </View>
@@ -270,7 +272,7 @@ export default function OnboardingScreen() {
                     onPress={openExactAlarmSettings}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="alarm-outline" size={22} color="#f59e0b" />
+                    <Ionicons name="alarm-outline" size={22} color={theme.amber} />
                     <View className="flex-1 mx-3">
                       <Text className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                         {t("onboarding.exactAlarmBtn")}
@@ -279,7 +281,7 @@ export default function OnboardingScreen() {
                         {t("onboarding.exactAlarmHint")}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#f59e0b" />
+                    <Ionicons name="chevron-forward" size={16} color={theme.amber} />
                   </TouchableOpacity>
                 )}
 
@@ -290,7 +292,7 @@ export default function OnboardingScreen() {
                     onPress={handleOpenFullScreen}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="phone-portrait-outline" size={22} color="#f59e0b" />
+                    <Ionicons name="phone-portrait-outline" size={22} color={theme.amber} />
                     <View className="flex-1 mx-3">
                       <Text className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                         {t("onboarding.fullScreenBtn")}
@@ -299,7 +301,7 @@ export default function OnboardingScreen() {
                         {t("onboarding.fullScreenHint")}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#f59e0b" />
+                    <Ionicons name="chevron-forward" size={16} color={theme.amber} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -319,7 +321,7 @@ export default function OnboardingScreen() {
                 style={{
                   width: i === currentIndex ? 20 : 8,
                   height: 8,
-                  backgroundColor: i === currentIndex ? "#4f9cff" : "#cbd5e1",
+                  backgroundColor: i === currentIndex ? theme.primary : theme.muted,
                 }}
               />
             </TouchableOpacity>

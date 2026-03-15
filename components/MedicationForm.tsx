@@ -109,7 +109,7 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
         className="flex-row items-center gap-1 mt-3 self-end"
       >
         <Ionicons name="trash-outline" size={14} color={theme.danger} />
-        <Text className="text-red-500 dark:text-red-400 text-xs font-semibold">{t('form.removeAlarm')}</Text>
+        <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('form.removeAlarm')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -368,7 +368,7 @@ export function MedicationForm({
                   value={value}
                   onChangeText={onChange}
                   placeholder={t('form.fieldNamePlaceholder')}
-                  placeholderTextcolor={theme.muted}
+                  placeholderTextColor={theme.muted}
                   className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
                   autoCapitalize="words"
                 />
@@ -392,7 +392,7 @@ export function MedicationForm({
                     value={value}
                     onChangeText={onChange}
                     placeholder={t('form.fieldDoseAmountPlaceholder')}
-                    placeholderTextcolor={theme.muted}
+                    placeholderTextColor={theme.muted}
                     keyboardType="decimal-pad"
                     className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
                   />
@@ -473,7 +473,7 @@ export function MedicationForm({
                   value={value}
                   onChangeText={onChange}
                   placeholder={t('form.fieldNotesPlaceholder')}
-                  placeholderTextcolor={theme.muted}
+                  placeholderTextColor={theme.muted}
                   className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
                   multiline
                   numberOfLines={2}
@@ -507,14 +507,14 @@ export function MedicationForm({
                   className="flex-row items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2"
                 >
                   <Ionicons name="image-outline" size={14} color={theme.primary} />
-                  <Text className="text-blue-500 text-xs font-semibold">{t('form.changePhoto')}</Text>
+                  <Text className="text-blue-600 dark:text-blue-400 text-xs font-semibold">{t('form.changePhoto')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setValue("photoUri", undefined)}
                   className="flex-row items-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2"
                 >
                   <Ionicons name="trash-outline" size={14} color={theme.danger} />
-                  <Text className="text-red-500 dark:text-red-400 text-xs font-semibold">{t('form.removePhoto')}</Text>
+                  <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('form.removePhoto')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -694,7 +694,7 @@ export function MedicationForm({
                 className="flex-row items-center gap-1 bg-blue-50 rounded-xl px-3 py-1.5"
               >
                 <Ionicons name="add" size={14} color={theme.primary} />
-                <Text className="text-blue-500 text-xs font-bold">{t('form.addAlarm')}</Text>
+                <Text className="text-blue-600 dark:text-blue-400 text-xs font-bold">{t('form.addAlarm')}</Text>
               </TouchableOpacity>
             </View>
             {scheduleFields.map((field, idx) => (
@@ -720,7 +720,7 @@ export function MedicationForm({
                 value={stockQtyStr}
                 onChangeText={(v) => { setValue("stockQtyStr", v); if (!v.trim()) setValue("stockThreshStr", ""); }}
                 placeholder={t('form.fieldStockPlaceholder')}
-                placeholderTextcolor={theme.muted}
+                placeholderTextColor={theme.muted}
                 keyboardType="number-pad"
                 className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
               />
@@ -735,7 +735,7 @@ export function MedicationForm({
                   value={stockThreshStr}
                   onChangeText={(v) => setValue("stockThreshStr", v)}
                   placeholder={t('form.fieldStockThresholdPlaceholder')}
-                  placeholderTextcolor={theme.muted}
+                  placeholderTextColor={theme.muted}
                   keyboardType="number-pad"
                   className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
                 />

@@ -81,7 +81,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
               onPress={() => selectPreset(color)}
               style={{
                 backgroundColor: c.bg,
-                borderColor: selected ? selectedBorderColor : "transparent",
+                borderColor: selected ? selectedBorderColor : c.border,
               }}
               className="w-9 h-9 rounded-full border-2 items-center justify-center"
             >
@@ -99,7 +99,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
               onPress={() => selectPreset(hex)}
               style={{
                 backgroundColor: hex,
-                borderColor: selected ? selectedBorderColor : "transparent",
+                borderColor: selected ? selectedBorderColor : (theme.isDark ? "#475569" : "#cbd5e1"),
               }}
               className="w-9 h-9 rounded-full border-2 items-center justify-center"
             >

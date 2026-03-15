@@ -232,7 +232,7 @@ export function MedicationCard({
           className="flex-row items-center gap-1 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-1.5"
         >
           <Ionicons name="pencil-outline" size={14} color="#3b82f6" />
-          <Text className="text-blue-500 text-xs font-semibold">{t('common.edit')}</Text>
+          <Text className="text-blue-600 dark:text-blue-400 text-xs font-semibold">{t('common.edit')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           accessibilityRole="button"
@@ -241,7 +241,7 @@ export function MedicationCard({
           className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-1.5"
         >
           <Ionicons name="trash-outline" size={14} color={theme.danger} />
-          <Text className="text-red-500 text-xs font-semibold">{t('common.delete')}</Text>
+          <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('common.delete')}</Text>
         </TouchableOpacity>
       </View>
     </View>
