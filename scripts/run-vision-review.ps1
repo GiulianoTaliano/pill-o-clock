@@ -176,8 +176,12 @@ if ($Auto) {
 
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Automated analysis failed. Check the output above for details."
+        Write-Host "PIPELINE_DONE:FAILURE" -ForegroundColor Red
         exit 1
     }
+
+    Write-Host ""
+    Write-Host "PIPELINE_DONE:SUCCESS" -ForegroundColor Green
 }
 else {
     Write-Host ""

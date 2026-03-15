@@ -515,20 +515,20 @@ function Install-AppBuild {
     $projectRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 
     Write-Host "  Building and installing app..." -ForegroundColor Cyan
-    Write-Host "  Running 'npx expo run:android' (this may take a few minutes)..." -ForegroundColor DarkGray
 
-    $buildResult = & npx expo run:android --no-bundler 2>&1
+    # Always use --device when $Serial is available to prevent interactive
+    # device-selection prompts that block non-interactive / background runs.
+    $deviceArgs = @()
+    if (-not [string]::IsNullOrWhiteSpace($Serial)) {
+        $deviceArgs = @("--device", $Serial)
+    }
+
+    Write-Host "  Running 'npx expo run:android --no-bundler $deviceArgs' ..." -ForegroundColor DarkGray
+
+    $buildResult = & npx expo run:android --no-bundler @deviceArgs 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Warning "  'npx expo run:android' exited with code $LASTEXITCODE."
-        Write-Host "  Attempting with --device flag..." -ForegroundColor DarkGray
-        # Try again specifying the device
-        if (-not [string]::IsNullOrWhiteSpace($Serial)) {
-            $buildResult = & npx expo run:android --no-bundler --device $Serial 2>&1
-        }
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "  Build+install failed. Output:`n$($buildResult | Select-Object -Last 30 | Out-String)"
-            return $false
-        }
+        Write-Error "  Build+install failed (exit code $LASTEXITCODE). Output:`n$($buildResult | Select-Object -Last 30 | Out-String)"
+        return $false
     }
 
     Write-Host "  Build installed successfully." -ForegroundColor Green

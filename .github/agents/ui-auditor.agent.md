@@ -51,14 +51,23 @@ asynchronously and does not block the conversation.
 
 After launching, **poll the terminal output** every 60 seconds using the
 get-terminal-output tool with the terminal ID returned by the execute call.
-Look for the completion marker in the output:
+Look for the **completion marker** `PIPELINE_DONE:SUCCESS` or
+`PIPELINE_DONE:FAILURE` in the output.
 
-- **Success**: Output contains `"Report:"` followed by a file path
-- **Failure**: Output contains `"failed"` or a non-zero exit code
+**IMPORTANT — Terminal "awaiting input" handling:**
 
-Keep polling until you see the completion marker. Do NOT assume the terminal is
-waiting for input — this pipeline is fully non-interactive and never prompts.
-If the output seems stalled, wait and poll again.
+Once the pipeline script finishes, the background terminal returns to a
+PowerShell prompt. The terminal tool may report the terminal as "awaiting
+input" — this does **NOT** mean the script is stuck or needs interaction.
+This pipeline is fully non-interactive and never prompts for input.
+
+- If you see `PIPELINE_DONE:SUCCESS` in the output → the pipeline finished
+  successfully. **Stop polling and proceed to Step 3.**
+- If you see `PIPELINE_DONE:FAILURE` in the output → the pipeline failed.
+  Read the last 50 lines of output to diagnose.
+- If you see `"awaiting input"` but **no** `PIPELINE_DONE` marker yet →
+  the script is still running. Wait and poll again.
+- **Never** attempt to type into or provide input to the background terminal.
 
 **Flag cheat-sheet** — apply these based on the user's request:
 
