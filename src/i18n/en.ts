@@ -474,6 +474,10 @@ const en: TranslationShape = {
     clearDataConfirmMsg:
       "All your medications, alarms and history will be permanently deleted. This cannot be undone.",
     clearDataConfirmButton: "Yes, delete all",
+    clearDataFinalTitle: "⚠️ Final confirmation",
+    clearDataFinalMsg:
+      "This action is IRREVERSIBLE. You will lose all your medications, alarms, history, and health measurements. Do you want to continue?",
+    clearDataFinalButton: "Delete permanently",
   },
 
   // ─── Onboarding ──────────────────────────────────────────────────────────

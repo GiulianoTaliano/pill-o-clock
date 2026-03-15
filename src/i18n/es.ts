@@ -472,6 +472,10 @@ const es = {
     clearDataConfirmMsg:
       "Se eliminarán todos tus medicamentos, alarmas e historial. Esta acción no se puede deshacer.",
     clearDataConfirmButton: "Sí, borrar todo",
+    clearDataFinalTitle: "⚠️ Confirmación final",
+    clearDataFinalMsg:
+      "Esta acción es IRREVERSIBLE. Perderás todos tus medicamentos, alarmas, historial y mediciones de salud. ¿Deseas continuar?",
+    clearDataFinalButton: "Borrar permanentemente",
   },
 
   // ─── Onboarding ──────────────────────────────────────────────────────────

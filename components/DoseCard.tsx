@@ -122,8 +122,8 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               <Ionicons name="medical" size={20} color="#fff" />
             </View>
           )}
-          <View>
-            <Text className="text-base font-bold text-text">{dose.medication.name}</Text>
+          <View className="flex-1">
+            <Text className="text-base font-bold text-text" numberOfLines={1}>{dose.medication.name}</Text>
             <View className="flex-row items-center gap-1.5 mt-0.5">
               <Text className="text-sm text-muted">{dose.medication.dosage}</Text>
               <Text className="text-muted">Â·</Text>

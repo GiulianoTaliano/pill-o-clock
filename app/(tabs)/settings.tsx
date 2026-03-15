@@ -218,9 +218,23 @@ export default function SettingsScreen() {
         {
           text: t("settings.clearDataConfirmButton"),
           style: "destructive",
-          onPress: async () => {
-            await resetAllData();
-            await loadAll();
+          onPress: () => {
+            // Second confirmation to prevent accidental data loss
+            Alert.alert(
+              t("settings.clearDataFinalTitle"),
+              t("settings.clearDataFinalMsg"),
+              [
+                { text: t("common.cancel"), style: "cancel" },
+                {
+                  text: t("settings.clearDataFinalButton"),
+                  style: "destructive",
+                  onPress: async () => {
+                    await resetAllData();
+                    await loadAll();
+                  },
+                },
+              ]
+            );
           },
         },
       ]

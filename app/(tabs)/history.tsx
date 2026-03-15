@@ -350,7 +350,7 @@ export default function HistoryScreen() {
                 <Ionicons name="medical" size={18} color={colors.bg} />
               </View>
               <View className="flex-1">
-                <Text className="text-sm font-bold text-text">
+                <Text className="text-sm font-bold text-text" numberOfLines={1}>
                   {med?.name ?? "Medicamento"}
                 </Text>
                 <Text className="text-xs text-muted">

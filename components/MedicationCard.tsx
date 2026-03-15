@@ -96,6 +96,7 @@ export function MedicationCard({
             <View className="flex-row items-center gap-2 flex-wrap">
               <Text
                 className={`text-base font-bold ${medication.isActive ? "text-text" : "text-muted"}`}
+                numberOfLines={1}
               >
                 {medication.name}
               </Text>
