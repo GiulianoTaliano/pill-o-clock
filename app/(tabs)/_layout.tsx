@@ -1,6 +1,7 @@
 import { Tabs, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { CopilotStep, walkthroughable } from "react-native-copilot";
 import { useTranslation } from "../../src/i18n";
@@ -57,6 +58,8 @@ export default function TabsLayout() {
   };
 
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 8);
 
   return (
     <>
@@ -75,8 +78,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: theme.card,
           borderTopColor: theme.isDark ? "#1e293b" : "#e2e8f0",
-          height: 65,
-          paddingBottom: 8,
+          height: 57 + bottomInset,
+          paddingBottom: bottomInset,
         },
         tabBarLabelStyle: {
           fontSize: 11,
