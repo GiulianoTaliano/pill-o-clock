@@ -115,6 +115,9 @@ const en: TranslationShape = {
     noDoses: "No doses",
     noDosesSubtitle: "No doses scheduled for this day",
     dayHeaders: ["M", "T", "W", "T", "F", "S", "S"],
+    segmentDoses: "Doses",
+    segmentAppointments: "Appointments",
+    noAppointmentsOnDate: "No appointments on this day",
   },
 
   // ─── Medication form ──────────────────────────────────────────────────────

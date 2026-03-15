@@ -220,17 +220,17 @@ export default function OnboardingScreen() {
                   </View>
                   <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
                     <Ionicons name="notifications-outline" size={15} color={theme.amber} />
-                    <Text className="text-xs font-semibold text-amber-700 dark:text-amber-400">{t("onboarding.chip2")}</Text>
+                    <Text className="text-xs font-semibold text-amber-700 dark:text-amber-300">{t("onboarding.chip2")}</Text>
                   </View>
                 </View>
                 <View className="flex-row gap-2.5">
                   <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800">
                     <Ionicons name="calendar-outline" size={15} color={theme.success} />
-                    <Text className="text-xs font-semibold text-green-700 dark:text-green-400">{t("onboarding.chip3")}</Text>
+                    <Text className="text-xs font-semibold text-green-700 dark:text-green-300">{t("onboarding.chip3")}</Text>
                   </View>
                   <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-rose-200 bg-rose-50 dark:bg-rose-950/30 dark:border-rose-800">
-                    <Ionicons name="fitness-outline" size={15} color={theme.isDark ? "#fb7185" : "#e11d48"} />
-                    <Text className="text-xs font-semibold text-rose-700 dark:text-rose-400">{t("onboarding.chip4")}</Text>
+                    <Ionicons name="fitness-outline" size={15} color={theme.isDark ? "#fda4af" : "#e11d48"} />
+                    <Text className="text-xs font-semibold text-rose-700 dark:text-rose-300">{t("onboarding.chip4")}</Text>
                   </View>
                 </View>
               </View>

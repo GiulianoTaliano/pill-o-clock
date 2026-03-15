@@ -1,6 +1,6 @@
 ══════════════════════════════════════════════════════════════
  PILL O-CLOCK — INTERNAL TRACK SUBMISSION CHECKLIST
- VERSION 1.4.0
+ VERSION 1.5.0
 ══════════════════════════════════════════════════════════════
 
 Before running any command, verify each item is ✅.
@@ -64,17 +64,21 @@ STEP 2 — CONFIGURE NOTIFICATIONS PLUGIN (collapsed title i18n)
 STEP 3 — BUILD (production AAB)
 ───────────────────────────────────────────────────────────────
 
+Before building, bump versionCode in android/app/build.gradle:
+  versionCode <last + 1>   ← must be strictly greater than last upload
+
 Run from the project root:
 
-    npx eas-cli build --platform android --profile production
+    npm run build:android
 
 This will:
-  • Compile a release AAB (Android App Bundle) via EAS cloud
-  • Auto-increment versionCode (configured in eas.json)
-  • Upload to EAS dashboard (~10–15 min)
+  • Compile a release AAB locally via Gradle (~3–5 min)
+  • Sign with the upload keystore (android/app/upload-keystore.jks)
+  • Upload Sentry source maps automatically
+  • Output: android/app/build/outputs/bundle/release/app-release.aab
 
-When complete:
-  • Download the .aab from https://expo.dev or let EAS Submit upload it
+Note: Sentry auth token is read from .env.local (SENTRY_AUTH_TOKEN)
+or ~/.sentryclirc. Run `npx sentry-cli login` if neither exists.
 
 ───────────────────────────────────────────────────────────────
 STEP 4 — SUBMIT TO INTERNAL TESTING TRACK
@@ -115,10 +119,10 @@ STEP 5 — PLAY CONSOLE — COMPLETE BEFORE REVIEW
     "Does your app provide health or medical related content?"  → Yes
     "Does your app allow users to track health measurements?"   → Yes
     Add disclaimer (already in-app and in store description)
-    Note: v1.4.0 adds guided in-app tour, skeleton loading screens, swipe-to-dismiss
-    modals, full VoiceOver/TalkBack accessibility labels, predictive back gesture
-    re-enabled (Android 14+), and notification map migrated to SQLite for improved
-    alarm reliability. Update release notes in store/play-store-*.txt accordingly.
+    Note: v1.5.0 is a maintenance release with stability improvements.
+    The next feature cycle (perfiles múltiples, Google Fit, barcode scanner, refill
+    reminder) is tracked under v1.5 in docs/roadmap.md.
+    Update release notes in store/play-store-*.txt accordingly.
 
 [ ] App content → App access:
     "All or most functionality is available without special access" → select that option

@@ -217,12 +217,19 @@ interface MedicationFormProps {
   isSubmitting: boolean;
 }
 
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
 function newSchedule(): ScheduleInput {
   return {
     id: String(Date.now()),
     time: "08:00",
-    days: [],
+    days: ALL_DAYS,
   };
+}
+
+/** Normalize days: empty array (DB convention for "daily") → explicit all days for UI */
+function normalizeScheduleDays(s: ScheduleInput): ScheduleInput {
+  return s.days.length === 0 ? { ...s, days: ALL_DAYS } : s;
 }
 
 export function MedicationForm({
@@ -255,7 +262,7 @@ export function MedicationForm({
       onceDate: isInitiallyOnce ? (initialValues?.startDate ?? todayStr) : todayStr,
       startDate: initialValues?.startDate,
       endDate: initialValues?.endDate,
-      schedules: initialValues?.schedules?.length ? initialValues.schedules : [newSchedule()],
+      schedules: initialValues?.schedules?.length ? initialValues.schedules.map(normalizeScheduleDays) : [newSchedule()],
       stockQtyStr: initialValues?.stockQuantity != null ? String(initialValues.stockQuantity) : "",
       stockThreshStr: initialValues?.stockAlertThreshold != null ? String(initialValues.stockAlertThreshold) : "",
       photoUri: initialValues?.photoUri,
@@ -277,6 +284,7 @@ export function MedicationForm({
   const photoUri = watch("photoUri");
   const repeatMode = watch("repeatMode");
   const onceDate = watch("onceDate");
+  const watchedSchedules = watch("schedules");
 
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -315,9 +323,11 @@ export function MedicationForm({
       color: data.color,
       startDate: data.repeatMode === "once" ? data.onceDate : data.repeatMode === "prn" ? undefined : data.startDate,
       endDate:   data.repeatMode === "once" ? data.onceDate : data.repeatMode === "prn" ? undefined : data.endDate,
-      schedules: data.repeatMode === "prn" ? [] : data.schedules.map((s) =>
-        data.repeatMode === "once" ? { ...s, days: [] } : s
-      ),
+      schedules: data.repeatMode === "prn" ? [] : data.schedules.map((s) => {
+        // Normalize back: all 7 days → [] (DB convention for "daily")
+        const days = data.repeatMode === "once" || s.days.length === 7 ? [] : s.days;
+        return { ...s, days };
+      }),
       stockQuantity: data.stockQtyStr?.trim() ? Math.max(0, parseInt(data.stockQtyStr, 10)) : undefined,
       stockAlertThreshold: data.stockThreshStr?.trim() ? Math.max(0, parseInt(data.stockThreshStr, 10)) : undefined,
       isPRN: data.repeatMode === "prn",
@@ -408,7 +418,7 @@ export function MedicationForm({
                   <TouchableOpacity
                     key={u.value}
                     onPress={() => setValue("dosageUnit", u.value)}
-                    className={`rounded-xl px-4 py-2.5 border ${
+                    className={`rounded-xl px-4 py-3 min-h-[44px] items-center justify-center border ${
                       dosageUnit === u.value
                         ? "bg-primary border-primary"
                         : "bg-card-alt border-border"
@@ -416,7 +426,7 @@ export function MedicationForm({
                   >
                     <Text
                       className={`text-sm font-bold ${
-                        dosageUnit === u.value ? "text-white" : "text-muted"
+                        dosageUnit === u.value ? "text-white" : "text-text"
                       }`}
                     >
                       {getDosageLabel(u.value, t)}
@@ -436,7 +446,7 @@ export function MedicationForm({
                   <TouchableOpacity
                     key={key}
                     onPress={() => setValue("category", key)}
-                    className={`flex-row items-center gap-1.5 rounded-xl px-3 py-2.5 border ${
+                    className={`flex-row items-center gap-1.5 rounded-xl px-4 py-3 min-h-[44px] border ${
                       category === key
                         ? "border-primary bg-blue-50 dark:bg-blue-950/30"
                         : "border-border bg-card-alt"
@@ -448,8 +458,8 @@ export function MedicationForm({
                       color={category === key ? theme.primary : theme.muted}
                     />
                     <Text
-                      className={`text-xs font-semibold ${
-                        category === key ? "text-primary" : "text-muted"
+                      className={`text-sm font-semibold ${
+                        category === key ? "text-primary" : "text-text"
                       }`}
                     >
                       {getCategoryLabel(key, t)}
@@ -648,7 +658,7 @@ export function MedicationForm({
             {scheduleFields.slice(0, 1).map((field, idx) => (
               <ScheduleRow
                 key={field.id}
-                schedule={field}
+                schedule={watchedSchedules[idx] ?? field}
                 showDays={false}
                 onChange={(updated) => updateSchedule(idx, updated)}
                 onRemove={() => removeSchedule(idx)}
@@ -700,7 +710,7 @@ export function MedicationForm({
             {scheduleFields.map((field, idx) => (
               <ScheduleRow
                 key={field.id}
-                schedule={field}
+                schedule={watchedSchedules[idx] ?? field}
                 onChange={(updated) => updateSchedule(idx, updated)}
                 onRemove={() => removeSchedule(idx)}
               />

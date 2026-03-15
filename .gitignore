@@ -18,6 +18,7 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+keystore.properties
 
 # Metro
 .metro-health-check*
@@ -33,6 +34,9 @@ yarn-error.*
 
 # local env files
 .env*.local
+
+# VS Code MCP config (contains API tokens)
+.vscode/mcp.json
 
 # Google Play service account key — never commit this
 google-service-account.json

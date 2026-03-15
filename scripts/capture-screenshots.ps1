@@ -76,7 +76,6 @@ $SCREENS = @(
     @{ Name = "history";           Path = "/history";           Desc = "Adherence history" }
     @{ Name = "settings";          Path = "/settings";          Desc = "Settings" }
     @{ Name = "medication-new";    Path = "/medication/new";    Desc = "New medication form" }
-    @{ Name = "alarm";             Path = "/alarm";             Desc = "Alarm screen" }
     @{ Name = "onboarding";        Path = "/onboarding";       Desc = "Onboarding slides" }
 )
 
@@ -373,7 +372,9 @@ function Invoke-DeepLink {
     # name is silently ignored by newer Android versions and the system may
     # resolve the VIEW intent to another app (e.g., Google Calendar for
     # pilloclock:///calendar) when Pill O-Clock has crashed or isn't running.
-    Invoke-Adb "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", $uri, "-n", "$APP_PACKAGE/.MainActivity" | Out-Null
+    # Wrap the URI in single quotes so the device shell doesn't interpret
+    # query-param ampersands (&) as command separators.
+    Invoke-Adb "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "'$uri'", "-n", "$APP_PACKAGE/.MainActivity" | Out-Null
 }
 
 function Save-Screenshot {
@@ -581,6 +582,48 @@ function Invoke-InteractionCaptures {
     Invoke-ScrollDown
     $result = Save-Screenshot -FileName "${ThemeMode}_settings-scrolled" -DestDir $passDir
     if ($result) { $captured++ }
+
+    # --- 8. Full-screen alarm (requires seed schedule params) ---
+    # The alarm screen needs scheduleId + date + time query params;
+    # without them it redirects to home.  We use a known seed schedule
+    # (Ibuprofeno 08:00) so the screen renders with realistic data.
+    $alarmDate = Get-Date -Format "yyyy-MM-dd"
+    $alarmScheduleId = "seed-sch-001"   # Ibuprofeno 400 mg (orange)
+    $alarmTime = "08:00"
+
+    Write-Host "  [$ThemeMode] Alarm screen (full-screen)" -ForegroundColor Yellow
+    $alarmPath = "/alarm?scheduleId=${alarmScheduleId}&date=${alarmDate}&time=${alarmTime}"
+    Invoke-DeepLink -RoutePath $alarmPath
+    Start-Sleep -Milliseconds ($DelayMs + 1000)  # extra wait for pulse animation
+    $result = Save-Screenshot -FileName "${ThemeMode}_alarm-fullscreen" -DestDir $passDir
+    if ($result) { $captured++ }
+
+    # Capture alarm with note field expanded
+    Write-Host "  [$ThemeMode] Alarm screen (with note)" -ForegroundColor Yellow
+    # Tap the "Add note" toggle (center-bottom area, above action buttons)
+    Invoke-Tap -X 540 -Y 1300
+    Start-Sleep -Milliseconds 1000
+    $result = Save-Screenshot -FileName "${ThemeMode}_alarm-with-note" -DestDir $passDir
+    if ($result) { $captured++ }
+
+    # Navigate away from alarm (hardware back is blocked, use deep link)
+    Invoke-DeepLink -RoutePath "/"
+    Start-Sleep -Milliseconds 1500
+
+    # --- 9. Alarm with a different medication color ---
+    $alarmScheduleId2 = "seed-sch-006"   # Vitamina D3 (teal)
+    $alarmTime2 = "09:00"
+
+    Write-Host "  [$ThemeMode] Alarm screen (alt medication)" -ForegroundColor Yellow
+    $alarmPath2 = "/alarm?scheduleId=${alarmScheduleId2}&date=${alarmDate}&time=${alarmTime2}"
+    Invoke-DeepLink -RoutePath $alarmPath2
+    Start-Sleep -Milliseconds ($DelayMs + 1000)
+    $result = Save-Screenshot -FileName "${ThemeMode}_alarm-alt-med" -DestDir $passDir
+    if ($result) { $captured++ }
+
+    # Navigate away from alarm
+    Invoke-DeepLink -RoutePath "/"
+    Start-Sleep -Milliseconds 1500
 
     return $captured
 }

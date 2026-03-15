@@ -225,24 +225,24 @@ export function MedicationCard({
       )}
 
       {/* Actions */}
-      <View className="flex-row justify-end gap-3 mt-3">
+      <View className="flex-row justify-end gap-4 mt-3">
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={`${t('common.edit')} ${medication.name}`}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(); }}
-          className="flex-row items-center gap-1 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5"
+          className="flex-row items-center justify-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-4 py-3 min-h-[44px] min-w-[44px]"
         >
-          <Ionicons name="pencil-outline" size={14} color="#3b82f6" />
-          <Text className="text-blue-600 dark:text-blue-400 text-xs font-semibold">{t('common.edit')}</Text>
+          <Ionicons name="pencil-outline" size={16} color="#3b82f6" />
+          <Text className="text-blue-600 dark:text-blue-400 text-sm font-semibold">{t('common.edit')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={`${t('common.delete')} ${medication.name}`}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
-          className="flex-row items-center gap-1 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2.5"
+          className="flex-row items-center justify-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded-xl px-4 py-3 min-h-[44px] min-w-[44px]"
         >
-          <Ionicons name="trash-outline" size={14} color={theme.danger} />
-          <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('common.delete')}</Text>
+          <Ionicons name="trash-outline" size={16} color={theme.danger} />
+          <Text className="text-red-700 dark:text-red-400 text-sm font-semibold">{t('common.delete')}</Text>
         </TouchableOpacity>
       </View>
     </View>

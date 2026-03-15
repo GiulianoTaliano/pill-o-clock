@@ -113,6 +113,9 @@ const es = {
     noDoses: "Sin dosis",
     noDosesSubtitle: "No hay dosis programadas para este día",
     dayHeaders: ["L", "M", "X", "J", "V", "S", "D"],
+    segmentDoses: "Dosis",
+    segmentAppointments: "Citas",
+    noAppointmentsOnDate: "Sin citas para este día",
   },
 
   // ─── Medication form ──────────────────────────────────────────────────────

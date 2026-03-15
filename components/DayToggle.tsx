@@ -9,14 +9,10 @@ interface DayToggleProps {
 }
 
 export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
-  const isAllSelected =
-    selectedDays.length === 0 || selectedDays.length === 7;
+  const isAllSelected = selectedDays.length === 7;
 
   const toggleAll = () => {
     if (isAllSelected) {
-      // Already all days — keep as "all" (represented by empty array)
-      // Do nothing or clear to empty; here we explicitly set [] so the
-      // user can then pick specific days from scratch.
       onChange([]);
     } else {
       onChange(ALL_DAYS);
@@ -55,8 +51,7 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
 
         {/* Individual day chips */}
         {DAY_NAMES_SHORT.map((label, idx) => {
-          const active =
-            isAllSelected || selectedDays.includes(idx);
+          const active = selectedDays.includes(idx);
           return (
             <TouchableOpacity
               key={idx}

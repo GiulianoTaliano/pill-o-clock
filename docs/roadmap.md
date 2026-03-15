@@ -1,6 +1,6 @@
 # Pill O-Clock — Roadmap v1.3 → v2.0
 
-> Fecha de revisión: marzo 2026 · Versión actual en producción: **1.4.0 (Android)**
+> Fecha de revisión: marzo 2026 · Versión actual en producción: **1.5.0 (Android)**
 
 ---
 
@@ -116,7 +116,7 @@
 
 ---
 
-## v1.4 — "Crecimiento y diferenciación" · ~8-10 semanas
+## v1.5 — "Crecimiento y diferenciación" · En desarrollo
 
 > Objetivo: features que convierten Pill O-Clock en la app que los usuarios recomiendan.
 
@@ -209,26 +209,13 @@
 | # | Tarea | Urgencia |
 |---|---|---|
 | T1 | Configurar Sentry (o similiar) para captura de errores en producción | ~~Alta~~ ✅ Completo (v1.3) |
-| T2 | Tests de integración para el store (markDose, backup, notificaciones) con Jest | Media |
-| T3 | Migración automatizada de DB con versioning (actualmente la DB se crea de cero) | Alta |
+| T2 | Tests de integración para el store (markDose, backup, notificaciones) con Jest | ~~Media~~ ✅ Completo (v1.4) |
+| T3 | Migración automatizada de DB con versioning (actualmente la DB se crea de cero) | ~~Alta~~ ✅ Completo (v1.4) |
 | T4 | Agregar `eslint-plugin-react-hooks` y sanear todos los hooks de dependencias | Media |
 | T5 | Métricas de uso básicas y anónimas (PostHog self-hosted) para validar qué features se usan | Media |
-| T6 | Revisar el budget de 64 notificaciones en iOS al agregar perfiles múltiples | Alta (para v1.5+) |
+| T6 | Revisar el budget de 64 notificaciones en iOS al agregar perfiles múltiples | Alta (para v1.6+) |
 | T7 | Internacionalización: agregar portugués (Brasil) — tercer mercado más grande de la región | Media |
 | T8 | Accesibilidad: labels `accessibilityLabel` en todos los botones de acción táctil | ~~Media~~ ✅ Completo (v1.4) |
-
----
-
-## Assets y marketing (pre-lanzamiento iOS + v1.3)
-
-| Acción | Descripción |
-|---|---|
-| **Screenshots de tienda** | Diseñar 5-6 capturas con texto superpuesto en inglés y español. Mostrar: home con dosis del día, calendar heatmap, health charts, appointment con mapa, dark mode |
-| **Video preview** | 15-30s mostrando el flujo principal: agregar med → recibir alarma → marcar como tomado → ver racha. Sin voz, solo texto en pantalla |
-| **Ícono A/B** | Probar 2 variantes de ícono en Google Play (A/B testing de íconos disponible en Play Store) |
-| **Keyword research** | Mapear keywords en inglés y español: "pill reminder", "medication tracker", "pastilla recordatorio", "medicamento alarma". Revisar competencia directa (Medisafe, MyTherapy) |
-| **Página de producto** | Landing page simple (GitHub Pages o Vercel) con capturas, features y link a tiendas |
-| **Respuesta a reseñas** | Preparar plantillas de respuesta para reseñas positivas y negativas. Las primeras 10 reseñas son críticas para el ranking |
 
 ---
 
@@ -243,7 +230,7 @@ Q1 2026 (v1.4 — calidad y accesibilidad)
 ├── ✅ Predictive back gesture rehabilitado globalmente (bloqueado solo en pantalla de alarma)
 └── ✅ Notification map migrado a SQLite (fiabilidad ACID)
 
-Q3 2026 (v1.5)
+Q2–Q3 2026 (v1.5 — en desarrollo)
 ├── Perfiles múltiples
 ├── Apple Health / Google Fit
 ├── Recordatorio de reposición predictivo

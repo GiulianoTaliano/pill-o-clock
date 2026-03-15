@@ -55,6 +55,9 @@ Follows your system's light/dark theme automatically. Clean, readable typography
 
 ── WHAT'S NEW / RELEASE NOTES (max 500 characters) ─────
 
+v1.5.0
+• Under-the-hood improvements and stability fixes
+
 v1.4.0
 • Guided tour — interactive spotlight walkthrough on your first session
 • Skeleton loading screens — smooth animated placeholders instead of spinners

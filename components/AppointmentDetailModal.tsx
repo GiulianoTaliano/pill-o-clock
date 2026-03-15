@@ -78,6 +78,13 @@ export function AppointmentDetailModal({
   const { t } = useTranslation();
   const theme = useAppTheme();
 
+  const dismissPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderRelease: (_, { dy }) => { if (dy > 50) onClose(); },
+    })
+  ).current;
+
   if (!appt) return null;
 
   const dateObj = new Date(appt.date + "T12:00");
@@ -143,13 +150,6 @@ export function AppointmentDetailModal({
   };
 
   const borderColor = theme.isDark ? "#1e293b" : "#e2e8f0";
-
-  const dismissPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderRelease: (_, { dy }) => { if (dy > 50) onClose(); },
-    })
-  ).current;
 
   return (
     <Modal

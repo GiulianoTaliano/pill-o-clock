@@ -104,10 +104,60 @@ function ApptMiniCard({
   );
 }
 
+// ─── Segment toggle button ─────────────────────────────────────────────────
+
+// Extracted as a standalone component so react-native-css-interop's upgrade-
+// warning serializer cannot crawl the parent closure and accidentally access
+// React Navigation's context getter (see AppointmentSubTabButton reasoning).
+function SegmentButton({
+  active,
+  label,
+  icon,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  onPress: () => void;
+}) {
+  const theme = useAppTheme();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="flex-1 py-2 rounded-xl flex-row items-center justify-center gap-1.5"
+      style={
+        active
+          ? {
+              backgroundColor: theme.card,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.06,
+              shadowRadius: 2,
+              elevation: 1,
+            }
+          : undefined
+      }
+    >
+      <Ionicons
+        name={icon}
+        size={14}
+        color={active ? (theme.isDark ? "#f8fafc" : "#1e293b") : theme.muted}
+      />
+      <Text
+        className="text-sm font-bold"
+        style={{ color: active ? (theme.isDark ? "#f8fafc" : "#1e293b") : theme.muted }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 // ─── Main screen ───────────────────────────────────────────────────────────
 
 export default function CalendarScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const router = useRouter();
   const medications = useAppStore((s) => s.medications);
   const schedules   = useAppStore((s) => s.schedules);
@@ -126,6 +176,7 @@ export default function CalendarScreen() {
   );
   const [monthLogs, setMonthLogs] = useState<DoseLog[]>([]);
   const [loading, setLoading] = useState(false);
+  const [segment, setSegment] = useState<"doses" | "appointments">("doses");
 
   // ── Load dose logs for the visible month ──────────────────────────────
 
@@ -173,6 +224,9 @@ export default function CalendarScreen() {
 
   const medMap = new Map(medications.map((m) => [m.id, m]));
 
+  // Build a set of dates that have appointments for quick lookup
+  const apptDateSet = new Set(appointments.map((a) => a.date));
+
   function getDotsForDay(day: number): string[] {
     const date = new Date(year, month, day);
     const seen = new Set<string>();
@@ -188,6 +242,11 @@ export default function CalendarScreen() {
       }
     }
     return colors.slice(0, 4);
+  }
+
+  function hasAppointmentOnDay(day: number): boolean {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return apptDateSet.has(dateStr);
   }
 
   // ── Doses for the selected day ────────────────────────────────────────
@@ -246,8 +305,15 @@ export default function CalendarScreen() {
   const isSelectedToday = selectedDate === toDateString(new Date());
 
   const todayDate = today();
+
+  // Appointments on the selected date
+  const selectedDateAppts = appointments
+    .filter((a) => a.date === selectedDate)
+    .sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
+
+  // Upcoming appointments (excluding those already shown for the selected date)
   const upcomingAppts = appointments
-    .filter((a) => a.date >= todayDate)
+    .filter((a) => a.date >= todayDate && a.date !== selectedDate)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const handleMarkDose = async (dose: TodayDose, status: "taken" | "skipped") => {
@@ -326,7 +392,7 @@ export default function CalendarScreen() {
           Array.from({ length: cells.length / 7 }, (_, row) => (
             <View key={row} className="flex-row mb-1">
               {cells.slice(row * 7, row * 7 + 7).map((day, col) => {
-                if (!day) return <View key={col} className="flex-1 mx-0.5" />;
+                if (!day) return <View key={col} className="flex-1 mx-1" />;
 
                 const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                 const isSelected  = dateStr === selectedDate;
@@ -337,7 +403,7 @@ export default function CalendarScreen() {
                   <TouchableOpacity
                     key={col}
                     onPress={() => setSelectedDate(dateStr)}
-                    className={`flex-1 items-center justify-center py-2.5 mx-0.5 rounded-xl ${
+                    className={`flex-1 items-center justify-center py-2.5 mx-1 rounded-xl min-h-[44px] ${
                       isSelected
                         ? "bg-primary"
                         : isTodayCell
@@ -356,7 +422,7 @@ export default function CalendarScreen() {
                     >
                       {day}
                     </Text>
-                    {/* Medication dots */}
+                    {/* Medication dots + appointment indicator */}
                     <View className="flex-row gap-0.5 mt-0.5 h-2 items-center justify-center">
                       {dots.map((color, i) => (
                         <View
@@ -367,6 +433,14 @@ export default function CalendarScreen() {
                           className="w-1.5 h-1.5 rounded-full"
                         />
                       ))}
+                      {hasAppointmentOnDay(day) && (
+                        <View
+                          style={{
+                            backgroundColor: isSelected ? "rgba(255,255,255,0.8)" : "#4f9cff",
+                          }}
+                          className="w-1.5 h-1.5 rounded-full"
+                        />
+                      )}
                     </View>
                   </TouchableOpacity>
                 );
@@ -391,140 +465,189 @@ export default function CalendarScreen() {
         )}
       </View>
 
-      {/* Dose list for selected day */}
+      {/* ── Segment toggle ──────────────────────────────────────────── */}
+      <View
+        className="mx-5 mb-3 flex-row rounded-xl p-1"
+        style={{ backgroundColor: theme.isDark ? '#1e293b' : '#f1f5f9' }}
+      >
+        <SegmentButton
+          active={segment === "doses"}
+          label={t('calendar.segmentDoses')}
+          icon="medkit-outline"
+          onPress={() => setSegment("doses")}
+        />
+        <SegmentButton
+          active={segment === "appointments"}
+          label={t('calendar.segmentAppointments')}
+          icon="calendar-outline"
+          onPress={() => setSegment("appointments")}
+        />
+      </View>
+
+      {/* ── Content area ────────────────────────────────────────────── */}
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
       >
-        {selectedDoses.length === 0 ? (
-          <View className="py-10 items-center">
-            <Ionicons name="checkmark-circle-outline" size={36} color="#cbd5e1" />
-            <Text className="text-muted text-sm mt-2 text-center">
-              {t('calendar.noDosesSubtitle')}
-            </Text>
-          </View>
-        ) : (
-          selectedDoses.map((dose) => {
-            const colors   = getColorConfig(dose.medication.color);
-            const catCfg   = CATEGORY_CONFIG[dose.medication.category];
-            const canAct   = isSelectedToday && (dose.status === "pending" || dose.status === "missed");
+        {segment === "doses" ? (
+          /* ── Doses segment ──────────────────────────────────────── */
+          selectedDoses.length === 0 ? (
+            <View className="py-10 items-center">
+              <Ionicons name="checkmark-circle-outline" size={36} color="#cbd5e1" />
+              <Text className="text-muted text-sm mt-2 text-center">
+                {t('calendar.noDosesSubtitle')}
+              </Text>
+            </View>
+          ) : (
+            selectedDoses.map((dose) => {
+              const colors   = getColorConfig(dose.medication.color);
+              const catCfg   = CATEGORY_CONFIG[dose.medication.category];
+              const canAct   = isSelectedToday && (dose.status === "pending" || dose.status === "missed");
 
-            return (
-              <View
-                key={`${dose.schedule.id}-${dose.scheduledDate}`}
-                style={{ borderLeftColor: colors.bg }}
-                className="bg-card rounded-2xl border border-border border-l-4 p-4 mb-3"
-              >
-                {/* Row: icon + name + time/status */}
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center gap-2 flex-1">
-                    <View
-                      style={{ backgroundColor: colors.light }}
-                      className="w-9 h-9 rounded-full items-center justify-center"
-                    >
-                      <Ionicons
-                        name={catCfg.icon as any}
-                        size={18}
-                        color={colors.bg}
-                      />
+              return (
+                <View
+                  key={`${dose.schedule.id}-${dose.scheduledDate}`}
+                  style={{ borderLeftColor: colors.bg }}
+                  className="bg-card rounded-2xl border border-border border-l-4 p-4 mb-3"
+                >
+                  {/* Row: icon + name + time/status */}
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2 flex-1">
+                      <View
+                        style={{ backgroundColor: colors.light }}
+                        className="w-9 h-9 rounded-full items-center justify-center"
+                      >
+                        <Ionicons
+                          name={catCfg.icon as any}
+                          size={18}
+                          color={colors.bg}
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-sm font-bold text-text">
+                          {dose.medication.name}
+                        </Text>
+                        <Text className="text-xs text-muted">
+                          {dose.medication.dosage} · {getCategoryLabel(dose.medication.category, t)}
+                        </Text>
+                      </View>
                     </View>
-                    <View className="flex-1">
-                      <Text className="text-sm font-bold text-text">
-                        {dose.medication.name}
+
+                    <View className="items-end gap-1.5">
+                      <Text className="text-sm font-bold text-primary">
+                        {dose.scheduledTime}
                       </Text>
-                      <Text className="text-xs text-muted">
-                        {dose.medication.dosage} · {getCategoryLabel(dose.medication.category, t)}
-                      </Text>
+                      <StatusBadge status={dose.status} />
                     </View>
                   </View>
 
-                  <View className="items-end gap-1.5">
-                    <Text className="text-sm font-bold text-primary">
-                      {dose.scheduledTime}
+                  {/* Notes */}
+                  {dose.medication.notes ? (
+                    <Text className="text-xs text-muted mt-2 ml-11">
+                      {dose.medication.notes}
                     </Text>
-                    <StatusBadge status={dose.status} />
-                  </View>
+                  ) : null}
+
+                  {/* Action buttons — today only */}
+                  {canAct && (
+                    <View className="flex-row gap-2 mt-3">
+                      <TouchableOpacity
+                        onPress={() => handleMarkDose(dose, "skipped")}
+                        className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
+                      >
+                        <Ionicons name="close-outline" size={14} color="#64748b" />
+                        <Text className="text-muted text-xs font-semibold">
+                          {t('status.skipped')}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => handleMarkDose(dose, "taken")}
+                        className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
+                      >
+                        <Ionicons name="checkmark" size={14} color="#fff" />
+                        <Text className="text-white text-xs font-bold">
+                          {t('status.taken')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-
-                {/* Notes */}
-                {dose.medication.notes ? (
-                  <Text className="text-xs text-muted mt-2 ml-11">
-                    {dose.medication.notes}
-                  </Text>
-                ) : null}
-
-                {/* Action buttons — today only */}
-                {canAct && (
-                  <View className="flex-row gap-2 mt-3">
-                    <TouchableOpacity
-                      onPress={() => handleMarkDose(dose, "skipped")}
-                      className="flex-row items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
-                    >
-                      <Ionicons name="close-outline" size={14} color="#64748b" />
-                      <Text className="text-muted text-xs font-semibold">
-                        {t('status.skipped')}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => handleMarkDose(dose, "taken")}
-                      className="flex-1 flex-row items-center justify-center gap-2 bg-green-500 rounded-xl px-4 py-2"
-                    >
-                      <Ionicons name="checkmark" size={14} color="#fff" />
-                      <Text className="text-white text-xs font-bold">
-                        {dose.status === "missed" ? t('status.taken') : t('status.taken')}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            );
-          })
-        )}
-
-        {/* ── UPCOMING APPOINTMENTS ──────────────────────────────────── */}
-        <View className="border-t border-border mt-2 mb-4" />
-        <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-sm font-bold text-text">{t('appointments.upcomingSection')}</Text>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/(tabs)/appointments");
-            }}
-            className="bg-primary w-11 h-11 rounded-full items-center justify-center"
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-        {upcomingAppts.length === 0 ? (
-          <View className="py-6 items-center">
-            <Ionicons name="calendar-outline" size={26} color="#cbd5e1" />
-            <Text className="text-muted text-xs mt-2 text-center">{t('appointments.noAppointments')}</Text>
-          </View>
+              );
+            })
+          )
         ) : (
+          /* ── Appointments segment ──────────────────────────────── */
           <>
-            {upcomingAppts.slice(0, 3).map((appt) => (
-              <ApptMiniCard
-                key={appt.id}
-                appt={appt}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedAppointmentId(appt.id);
-                }}
-              />
-            ))}
-            {upcomingAppts.length > 3 && (
+            {/* Add new appointment button */}
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-xs font-bold text-muted uppercase tracking-wider">
+                {format(selDateObj, "PPP", { locale: getDateLocale() })}
+              </Text>
               <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push("/(tabs)/appointments");
                 }}
-                className="items-center py-2"
+                className="bg-primary rounded-full px-4 py-2 flex-row items-center gap-1.5"
               >
-                <Text className="text-primary text-sm font-semibold">
-                  {t('appointments.viewAll', { count: upcomingAppts.length })}
-                </Text>
+                <Ionicons name="add" size={15} color="#fff" />
+                <Text className="text-white text-xs font-bold">{t('appointments.newTitle')}</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Appointments on the selected date */}
+            {selectedDateAppts.length > 0 ? (
+              selectedDateAppts.map((appt) => (
+                <ApptMiniCard
+                  key={appt.id}
+                  appt={appt}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedAppointmentId(appt.id);
+                  }}
+                />
+              ))
+            ) : (
+              <View className="py-8 items-center">
+                <Ionicons name="calendar-outline" size={36} color="#cbd5e1" />
+                <Text className="text-muted text-sm mt-2 text-center">
+                  {t('calendar.noAppointmentsOnDate')}
+                </Text>
+              </View>
+            )}
+
+            {/* Upcoming appointments (other dates) */}
+            {upcomingAppts.length > 0 && (
+              <>
+                <View className="border-t border-border mt-2 mb-3" />
+                <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                  {t('appointments.upcomingSection')}
+                </Text>
+                {upcomingAppts.slice(0, 5).map((appt) => (
+                  <ApptMiniCard
+                    key={appt.id}
+                    appt={appt}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedAppointmentId(appt.id);
+                    }}
+                  />
+                ))}
+                {upcomingAppts.length > 5 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push("/(tabs)/appointments");
+                    }}
+                    className="items-center py-2"
+                  >
+                    <Text className="text-primary text-sm font-semibold">
+                      {t('appointments.viewAll', { count: upcomingAppts.length })}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </>
         )}

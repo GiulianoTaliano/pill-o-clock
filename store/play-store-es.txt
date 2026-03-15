@@ -55,6 +55,9 @@ Sigue automáticamente el tema claro/oscuro del sistema. Tipografía clara y leg
 
 ── NOVEDADES / RELEASE NOTES (max 500 caracteres) ──────
 
+v1.5.0
+• Mejoras internas de estabilidad y rendimiento
+
 v1.4.0
 • Tour guiado — recorrido interactivo con spotlight en la primera sesión
 • Skeleton loading — placeholders animados en lugar de spinners en Historial, Agenda y formularios

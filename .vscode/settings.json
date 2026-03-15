@@ -1,0 +1,10 @@
+{
+    "chat.mcp.serverSampling": {
+        "pill-o-clock/.vscode/mcp.json: github": {
+            "allowedModels": [
+                "copilot/auto",
+                "copilotcli/claude-sonnet-4.6"
+            ]
+        }
+    }
+}
