@@ -320,13 +320,20 @@ class AlarmAudioService : Service() {
   }
 
   private fun playAlarm() {
-    // Resolve alarm.wav from res/raw/ (placed there by expo-notifications plugin).
-    // Falls back to the system default alarm if the file is missing.
-    val resId = resources.getIdentifier("alarm", "raw", packageName)
-    val uri = if (resId != 0) {
-      Uri.parse("android.resource://$packageName/$resId")
+    // Check SharedPreferences for user-selected alarm sound.
+    val savedUri = AlarmPreferences.getSoundUri(this)
+
+    val uri = if (savedUri != null) {
+      // User chose a system alarm sound
+      Uri.parse(savedUri)
     } else {
-      android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI
+      // Default: bundled alarm.wav from res/raw/
+      val resId = resources.getIdentifier("alarm", "raw", packageName)
+      if (resId != 0) {
+        Uri.parse("android.resource://$packageName/$resId")
+      } else {
+        android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI
+      }
     }
 
     mediaPlayer?.release()

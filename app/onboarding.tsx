@@ -18,7 +18,8 @@ import * as IntentLauncher from "expo-intent-launcher";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { setupNotifications, openExactAlarmSettings } from "../src/services/notifications";
-import { checkFullScreenIntentPermission } from "expo-alarm";
+import { checkFullScreenIntentPermission, stopSoundPreview } from "expo-alarm";
+import { AlarmSoundPicker } from "../components/AlarmSoundPicker";
 import * as Haptics from "expo-haptics";
 
 export const ONBOARDING_DONE_KEY = STORAGE_KEYS.ONBOARDING_DONE;
@@ -67,11 +68,18 @@ const SLIDES: SlideConfig[] = [
     descKey: "onboarding.slide4Desc",
   },
   {
+    icon: "musical-notes",
+    iconColor: "#8b5cf6",
+    iconBg: "#ede9fe",
+    titleKey: "onboarding.slide5Title",
+    descKey: "onboarding.slide5Desc",
+  },
+  {
     icon: "shield-checkmark",
     iconColor: "#4f9cff",
     iconBg: "#e0eeff",
-    titleKey: "onboarding.slide5Title",
-    descKey: "onboarding.slide5Desc",
+    titleKey: "onboarding.slide6Title",
+    descKey: "onboarding.slide6Desc",
   },
 ];
 
@@ -90,9 +98,16 @@ export default function OnboardingScreen() {
   const [needsExactAlarm, setNeedsExactAlarm] = useState(false);
   const [needsFullScreen, setNeedsFullScreen] = useState(false);
 
+  // Sound slide index (Android-only alarm sound selection)
+  const SOUND_SLIDE_INDEX = 4;
+
   // ── Navigation ──────────────────────────────────────────────────────────
 
   function scrollTo(index: number) {
+    // Stop sound preview when leaving the sound slide
+    if (currentIndex === SOUND_SLIDE_INDEX && index !== SOUND_SLIDE_INDEX && Platform.OS === "android") {
+      stopSoundPreview().catch(() => {});
+    }
     scrollRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
     setCurrentIndex(index);
   }
@@ -106,6 +121,10 @@ export default function OnboardingScreen() {
 
   function handleScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    // Stop sound preview when swiping away from the sound slide
+    if (currentIndex === SOUND_SLIDE_INDEX && index !== SOUND_SLIDE_INDEX && Platform.OS === "android") {
+      stopSoundPreview().catch(() => {});
+    }
     setCurrentIndex(index);
   }
 
@@ -142,6 +161,8 @@ export default function OnboardingScreen() {
 
   async function handleStart() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Stop any sound preview that may be playing
+    if (Platform.OS === "android") stopSoundPreview().catch(() => {});
     // Request permissions if not yet asked
     if (permissionGranted === null) {
       await handleRequestPermission();
@@ -151,6 +172,8 @@ export default function OnboardingScreen() {
   }
 
   async function handleSkip() {
+    // Stop any sound preview that may be playing
+    if (Platform.OS === "android") stopSoundPreview().catch(() => {});
     // Request notification permission even when the user skips the onboarding
     // flow — otherwise alarms will never show without an explicit re-prompt.
     await setupNotifications().catch(() => {});
@@ -233,6 +256,13 @@ export default function OnboardingScreen() {
                     <Text className="text-xs font-semibold text-rose-700 dark:text-rose-300">{t("onboarding.chip4")}</Text>
                   </View>
                 </View>
+              </View>
+            )}
+
+            {/* Alarm sound picker (sound slide — Android only) */}
+            {i === SOUND_SLIDE_INDEX && Platform.OS === "android" && (
+              <View className="mt-6 w-full">
+                <AlarmSoundPicker maxHeight={220} />
               </View>
             )}
 

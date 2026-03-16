@@ -1,5 +1,5 @@
 import { requireOptionalNativeModule } from "expo-modules-core";
-import type { AlarmParams } from "./ExpoAlarm.types";
+import type { AlarmParams, AlarmSound } from "./ExpoAlarm.types";
 
 /**
  * Low-level native module declaration.
@@ -16,6 +16,11 @@ interface ExpoAlarmNativeModule {
   requestFullScreenIntentPermission(): Promise<void>;
   setAlarmWindowFlags(): Promise<void>;
   clearAlarmWindowFlags(): Promise<void>;
+  getAvailableAlarmSounds(): Promise<AlarmSound[]>;
+  previewAlarmSound(uri: string): Promise<void>;
+  stopSoundPreview(): Promise<void>;
+  setAlarmSound(uri: string, title: string): Promise<void>;
+  getAlarmSound(): Promise<AlarmSound>;
 }
 
 export default requireOptionalNativeModule<ExpoAlarmNativeModule>("ExpoAlarm");

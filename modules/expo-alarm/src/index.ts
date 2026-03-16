@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import ExpoAlarmNativeModule from "./ExpoAlarmModule";
 
-export type { AlarmParams } from "./ExpoAlarm.types";
+export type { AlarmParams, AlarmSound } from "./ExpoAlarm.types";
 
 // ─── Platform guard ────────────────────────────────────────────────────────
 // All functions are no-ops on iOS/web; the module only ships native code for
@@ -82,4 +82,54 @@ export async function setAlarmWindowFlags(): Promise<void> {
 export async function clearAlarmWindowFlags(): Promise<void> {
   if (!isAvailable) return;
   return ExpoAlarmNativeModule!.clearAlarmWindowFlags();
+}
+// ─── Alarm sound selection ─────────────────────────────────────────────────
+
+/**
+ * Returns all available alarm sounds on the device.
+ * The first entry (uri="") is always the bundled default.
+ */
+export async function getAvailableAlarmSounds(): Promise<
+  import("./ExpoAlarm.types").AlarmSound[]
+> {
+  if (!isAvailable) return [];
+  return ExpoAlarmNativeModule!.getAvailableAlarmSounds();
+}
+
+/**
+ * Preview an alarm sound. Pass empty string to preview the bundled default.
+ * Automatically stops any previous preview.
+ */
+export async function previewAlarmSound(uri: string): Promise<void> {
+  if (!isAvailable) return;
+  return ExpoAlarmNativeModule!.previewAlarmSound(uri);
+}
+
+/** Stop any currently playing sound preview. */
+export async function stopSoundPreview(): Promise<void> {
+  if (!isAvailable) return;
+  return ExpoAlarmNativeModule!.stopSoundPreview();
+}
+
+/**
+ * Persist the user's alarm sound choice.
+ * Empty uri/title = revert to bundled default.
+ */
+export async function setAlarmSound(
+  uri: string,
+  title: string,
+): Promise<void> {
+  if (!isAvailable) return;
+  return ExpoAlarmNativeModule!.setAlarmSound(uri, title);
+}
+
+/**
+ * Read the currently saved alarm sound preference.
+ * Returns `{ uri: "", title: "" }` when the bundled default is selected.
+ */
+export async function getAlarmSound(): Promise<
+  import("./ExpoAlarm.types").AlarmSound
+> {
+  if (!isAvailable) return { uri: "", title: "" };
+  return ExpoAlarmNativeModule!.getAlarmSound();
 }

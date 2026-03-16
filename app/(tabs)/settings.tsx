@@ -11,8 +11,10 @@ import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore, ThemeMode } from "../../src/store";
 import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
 import { generateAndShareReport } from "../../src/services/pdfReport";
-import { checkFullScreenIntentPermission, requestFullScreenIntentPermission } from "expo-alarm";
+import { checkFullScreenIntentPermission, requestFullScreenIntentPermission, getAlarmSound, stopSoundPreview } from "expo-alarm";
+import type { AlarmSound } from "expo-alarm";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
+import { AlarmSoundPicker } from "../../components/AlarmSoundPicker";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -122,12 +124,21 @@ export default function SettingsScreen() {
   // Full-screen intent permission (Android 14+ only)
   const [hasFullScreenPerm, setHasFullScreenPerm] = useState<boolean | null>(null);
 
+  // Alarm sound selection (Android only)
+  const [alarmSoundExpanded, setAlarmSoundExpanded] = useState(false);
+  const [currentSoundTitle, setCurrentSoundTitle] = useState<string>("");
+
   useFocusEffect(
     useCallback(() => {
       if (Platform.OS !== "android") return;
 
       // Check on mount/focus
       checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => setHasFullScreenPerm(true));
+
+      // Load current alarm sound name
+      getAlarmSound()
+        .then((s) => setCurrentSoundTitle(s.title || ""))
+        .catch(() => {});
 
       // Re-check when the user returns from system Settings
       const sub = RNAppState.addEventListener("change", (nextState) => {
@@ -136,7 +147,11 @@ export default function SettingsScreen() {
         }
       });
 
-      return () => sub.remove();
+      return () => {
+        sub.remove();
+        // Stop any sound preview when leaving settings
+        stopSoundPreview().catch(() => {});
+      };
     }, [])
   );
 
@@ -145,6 +160,18 @@ export default function SettingsScreen() {
   async function handleFullScreenPermission() {
     Haptics.selectionAsync();
     await requestFullScreenIntentPermission();
+  }
+
+  function handleToggleAlarmSound() {
+    Haptics.selectionAsync();
+    if (alarmSoundExpanded) {
+      stopSoundPreview().catch(() => {});
+    }
+    setAlarmSoundExpanded((prev) => !prev);
+  }
+
+  function handleSoundChange(sound: AlarmSound) {
+    setCurrentSoundTitle(sound.title || "");
   }
 
   async function handleExport() {
@@ -286,6 +313,29 @@ export default function SettingsScreen() {
                 chevron={hasFullScreenPerm === false}
               />
             </View>
+          </>
+        )}
+
+        {/* ─── Alarm sound (Android only) ─── */}
+        {Platform.OS === "android" && (
+          <>
+            <SectionHeader title={t("settings.sectionAlarmSound")} />
+            <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+              <SettingRow
+                icon="musical-notes-outline"
+                iconColor="#8b5cf6"
+                title={t("settings.alarmSound")}
+                subtitle={t("settings.alarmSoundSubtitle")}
+                value={currentSoundTitle || t("settings.alarmSoundDefault")}
+                onPress={handleToggleAlarmSound}
+                chevron
+              />
+            </View>
+            {alarmSoundExpanded && (
+              <View className="mx-5 mt-2">
+                <AlarmSoundPicker maxHeight={300} onSoundChange={handleSoundChange} />
+              </View>
+            )}
           </>
         )}
 

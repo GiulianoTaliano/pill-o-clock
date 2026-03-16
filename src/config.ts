@@ -38,6 +38,7 @@ export const STORAGE_KEYS = {
   REVIEW_PROMPTED:          "@pilloclock/review_prompted",
   EXACT_ALARM_PROMPTED:     "@pilloclock/exact_alarm_prompted",
   FULLSCREEN_INTENT_PROMPTED: "@pilloclock/fullscreen_intent_prompted",
+  ALARM_SOUND_URI:            "@pilloclock/alarm_sound_uri",
   RECENT_COLORS:            "custom_colors_recent",
   // Legacy keys kept for migration only (notifications.ts)
   NOTIF_MAP:                "@pilloclock/notif_map",

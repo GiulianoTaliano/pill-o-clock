@@ -460,6 +460,12 @@ const en: TranslationShape = {
     fullScreenPermissionSubtitle: "Lets alarm appear over the lock screen and above other apps (Android 14+)",
     fullScreenPermissionGranted: "Granted",
     fullScreenPermissionRequired: "Tap to enable",
+    // Alarm sound
+    sectionAlarmSound: "Alarm sound",
+    alarmSound: "Alarm sound",
+    alarmSoundSubtitle: "Choose the sound for your medication alarms",
+    alarmSoundDefault: "Pill O-Clock (default)",
+    alarmSoundPlaying: "Playing…",
     // Appearance
     sectionAppearance: "Appearance",
     themeSystem: "Automatic (system)",
@@ -505,9 +511,12 @@ const en: TranslationShape = {
     // Slide 4 — Health (NEW)
     slide4Title: "Track your health",
     slide4Desc: "Log blood pressure, glucose, weight and more. Record daily wellness check-ins and export PDF reports for your doctor.",
-    // Slide 5 — Permissions
-    slide5Title: "Almost ready",
-    slide5Desc: "We need your permission to send you reminders when it\'s time to take your medications.",
+    // Slide 5 — Alarm sound (NEW)
+    slide5Title: "Choose your sound",
+    slide5Desc: "Pick the sound your medication alarms will use. You can change it anytime from Settings.",
+    // Slide 6 — Permissions
+    slide6Title: "Almost ready",
+    slide6Desc: "We need your permission to send you reminders when it\'s time to take your medications.",
     enableNotifications: "Enable notifications",
     notificationsGranted: "✅ Notifications enabled",
     notificationsDenied: "You can enable them later from System Settings.",

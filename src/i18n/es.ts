@@ -458,6 +458,12 @@ const es = {
     fullScreenPermissionSubtitle: "Permite que la alarma aparezca sobre la pantalla de bloqueo y sobre otras apps (Android 14+)",
     fullScreenPermissionGranted: "Concedido",
     fullScreenPermissionRequired: "Toca para habilitar",
+    // Alarm sound
+    sectionAlarmSound: "Sonido de alarma",
+    alarmSound: "Sonido de alarma",
+    alarmSoundSubtitle: "Elegí el sonido para tus alarmas de medicamentos",
+    alarmSoundDefault: "Pill O-Clock (predeterminado)",
+    alarmSoundPlaying: "Reproduciendo…",
     // Appearance
     sectionAppearance: "Apariencia",
     themeSystem: "Automático (sistema)",
@@ -503,9 +509,12 @@ const es = {
     // Slide 4 — Salud (NUEVO)
     slide4Title: "Seguí tu salud",
     slide4Desc: "Registrá presión arterial, glucosa, peso y más. Completá tu check-in diario de bienestar y exportá informes PDF para tu médico.",
-    // Slide 5 — Permisos
-    slide5Title: "Casi listo",
-    slide5Desc: "Necesitamos tu permiso para enviarte recordatorios cuando sea momento de tomar tus medicamentos.",
+    // Slide 5 — Sonido de alarma (NUEVO)
+    slide5Title: "Elegí tu sonido",
+    slide5Desc: "Seleccioná el sonido que usarán tus alarmas de medicamentos. Podés cambiarlo en cualquier momento desde Ajustes.",
+    // Slide 6 — Permisos
+    slide6Title: "Casi listo",
+    slide6Desc: "Necesitamos tu permiso para enviarte recordatorios cuando sea momento de tomar tus medicamentos.",
     enableNotifications: "Activar notificaciones",
     notificationsGranted: "✅ Notificaciones activadas",
     notificationsDenied: "Podés activarlas luego desde Ajustes del sistema.",

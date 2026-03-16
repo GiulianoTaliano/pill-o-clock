@@ -4,8 +4,13 @@ import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
@@ -36,6 +41,9 @@ class ExpoAlarmModule : Module() {
 
   private val context: Context
     get() = requireNotNull(appContext.reactContext) { "React context is null" }
+
+  /** Reusable MediaPlayer for sound previews — released on stop or module teardown. */
+  private var previewPlayer: MediaPlayer? = null
 
   override fun definition() = ModuleDefinition {
 
@@ -146,5 +154,91 @@ class ExpoAlarmModule : Module() {
         }
       }
     }
+
+    // ── getAvailableAlarmSounds ────────────────────────────────────────────
+    // Returns an array of {uri, title} objects for all system alarm sounds
+    // plus the bundled default. Uses RingtoneManager.TYPE_ALARM.
+    AsyncFunction("getAvailableAlarmSounds") {
+      val sounds = mutableListOf<Map<String, String>>()
+
+      // First entry: bundled default alarm.wav
+      val resId = context.resources.getIdentifier("alarm", "raw", context.packageName)
+      if (resId != 0) {
+        sounds.add(mapOf(
+          "uri" to "",
+          "title" to "Pill O-Clock"
+        ))
+      }
+
+      // System alarm sounds via RingtoneManager
+      val ringtoneManager = RingtoneManager(context)
+      ringtoneManager.setType(RingtoneManager.TYPE_ALARM)
+      val cursor = ringtoneManager.cursor
+      while (cursor.moveToNext()) {
+        val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX)
+        val uri = ringtoneManager.getRingtoneUri(cursor.position).toString()
+        sounds.add(mapOf("uri" to uri, "title" to title))
+      }
+
+      sounds
+    }
+
+    // ── previewAlarmSound ──────────────────────────────────────────────────
+    // Plays a short preview of the given sound URI on STREAM_ALARM.
+    // Pass empty string or null to preview the bundled default.
+    AsyncFunction("previewAlarmSound") { uri: String ->
+      stopPreviewInternal()
+
+      val resolvedUri = if (uri.isEmpty()) {
+        val resId = context.resources.getIdentifier("alarm", "raw", context.packageName)
+        if (resId != 0) Uri.parse("android.resource://${context.packageName}/$resId")
+        else android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI
+      } else {
+        Uri.parse(uri)
+      }
+
+      previewPlayer = MediaPlayer().apply {
+        setAudioAttributes(
+          AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .setLegacyStreamType(AudioManager.STREAM_ALARM)
+            .build()
+        )
+        setDataSource(context, resolvedUri)
+        isLooping = false
+        setOnCompletionListener { stopPreviewInternal() }
+        prepare()
+        start()
+      }
+    }
+
+    // ── stopSoundPreview ───────────────────────────────────────────────────
+    AsyncFunction("stopSoundPreview") {
+      stopPreviewInternal()
+    }
+
+    // ── setAlarmSound ──────────────────────────────────────────────────────
+    // Persists the user's alarm sound choice to SharedPreferences.
+    // Empty uri = revert to bundled default.
+    AsyncFunction("setAlarmSound") { uri: String, title: String ->
+      AlarmPreferences.setSound(context, uri.ifEmpty { null }, title.ifEmpty { null })
+    }
+
+    // ── getAlarmSound ──────────────────────────────────────────────────────
+    // Returns the current selection {uri, title} or {uri: "", title: ""} for default.
+    AsyncFunction("getAlarmSound") {
+      mapOf(
+        "uri" to (AlarmPreferences.getSoundUri(context) ?: ""),
+        "title" to (AlarmPreferences.getSoundTitle(context) ?: "")
+      )
+    }
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  private fun stopPreviewInternal() {
+    previewPlayer?.runCatching { if (isPlaying) stop(); release() }
+    previewPlayer = null
   }
 }
