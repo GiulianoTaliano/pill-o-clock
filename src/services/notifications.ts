@@ -722,6 +722,18 @@ export async function cancelScheduleNotifications(scheduleId: string): Promise<v
     "SELECT * FROM notification_map WHERE schedule_id = ?",
     [scheduleId]
   );
+
+  // On Android, cancel AlarmManager alarms for every scheduled date tracked
+  // in the notification map.  Without this, deleting a medication only
+  // cancelled expo-notifications but left AlarmManager alarms intact, causing
+  // phantom alarms to fire for deleted medications.
+  if (Platform.OS === "android") {
+    const dates = new Set(rows.map((r) => r.scheduled_date));
+    for (const scheduledDate of dates) {
+      await ExpoAlarm.cancelAlarm(scheduleId, scheduledDate);
+    }
+  }
+
   for (const row of rows) {
     await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(() => {});
   }

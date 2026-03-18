@@ -63,9 +63,19 @@ jest.mock("expo-notifications", () => ({
 
 // ─── expo-alarm (local native module) ─────────────────────────────────────
 jest.mock("expo-alarm", () => ({
-  setAlarm: jest.fn().mockResolvedValue(undefined),
+  isAvailable: true,
+  scheduleAlarm: jest.fn().mockResolvedValue(undefined),
   cancelAlarm: jest.fn().mockResolvedValue(undefined),
-  cancelAllAlarms: jest.fn().mockResolvedValue(undefined),
+  stopAlarm: jest.fn().mockResolvedValue(undefined),
+  checkFullScreenIntentPermission: jest.fn().mockResolvedValue(true),
+  requestFullScreenIntentPermission: jest.fn().mockResolvedValue(undefined),
+  setAlarmWindowFlags: jest.fn().mockResolvedValue(undefined),
+  clearAlarmWindowFlags: jest.fn().mockResolvedValue(undefined),
+  getAvailableAlarmSounds: jest.fn().mockResolvedValue([]),
+  previewAlarmSound: jest.fn().mockResolvedValue(undefined),
+  stopSoundPreview: jest.fn().mockResolvedValue(undefined),
+  setAlarmSound: jest.fn().mockResolvedValue(undefined),
+  getAlarmSound: jest.fn().mockResolvedValue({ uri: "", title: "Default" }),
 }));
 
 // ─── expo-device ──────────────────────────────────────────────────────────
