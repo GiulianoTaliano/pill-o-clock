@@ -14,7 +14,7 @@ import { useAppStore } from "../../src/store";
 import { Appointment, LocationCoords } from "../../src/types";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { EmptyState } from "../../components/EmptyState";
-import { today } from "../../src/utils";
+import { today, formatTimeForDisplay } from "../../src/utils";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { LocationPickerModal } from "../../components/LocationPickerModal";
 import { FlashList } from "@shopify/flash-list";
@@ -97,7 +97,7 @@ function AppointmentCard({
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
       activeOpacity={0.75}
       accessibilityRole="button"
-      accessibilityLabel={`${appt.title}${appt.time ? `, ${appt.time}` : ""}`}
+      accessibilityLabel={`${appt.title}${appt.time ? `, ${formatTimeForDisplay(appt.time)}` : ""}`}
       className={`bg-card rounded-2xl border border-border p-4 mb-3 shadow-sm ${isPast ? "opacity-60" : ""}`}
     >
       <View className="flex-row items-start justify-between">
@@ -109,7 +109,7 @@ function AppointmentCard({
           <View className="flex-1">
             <Text className="text-base font-bold text-text">{appt.title}</Text>
             <Text className="text-xs text-muted mt-0.5 font-medium">
-              {dateLabelCap}{appt.time ? ` · ${appt.time}` : ""}
+              {dateLabelCap}{appt.time ? ` · ${formatTimeForDisplay(appt.time)}` : ""}
             </Text>
             {appt.doctor ? (
               <View className="flex-row items-center gap-1 mt-1">
@@ -570,7 +570,6 @@ export default function AppointmentsScreen() {
                   <DateTimePicker
                     value={timeDateObj}
                     mode="time"
-                    is24Hour
                     display={Platform.OS === "ios" ? "spinner" : "default"}
                     onChange={handleTimeChange}
                   />

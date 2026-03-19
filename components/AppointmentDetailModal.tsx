@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import { Appointment } from "../src/types";
+import { formatTimeForDisplay } from "../src/utils";
 import { useTranslation, getDateLocale } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { useAppStore } from "../src/store";
@@ -121,7 +122,7 @@ export function AppointmentDetailModal({
     const message = [
       appt.title,
       appt.doctor ? `${t("appointments.fieldDoctor").replace(" (optional)", "")}: ${appt.doctor}` : null,
-      `${dateLabelCap}${appt.time ? ` · ${appt.time}` : ""}`,
+      `${dateLabelCap}${appt.time ? ` · ${formatTimeForDisplay(appt.time)}` : ""}`,
       appt.location ? appt.location : null,
       mapsUrl,
     ]
@@ -255,7 +256,7 @@ export function AppointmentDetailModal({
               <DetailRow
                 icon="calendar-outline"
                 label={t("appointments.fieldDate")}
-                value={`${dateLabelCap}${appt.time ? `  ·  ${appt.time}` : ""}`}
+                value={`${dateLabelCap}${appt.time ? `  ·  ${formatTimeForDisplay(appt.time)}` : ""}`}
                 color="#4f9cff"
               />
 

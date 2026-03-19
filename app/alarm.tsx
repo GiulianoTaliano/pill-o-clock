@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../src/store";
-import { getColorConfig } from "../src/utils";
+import { getColorConfig, formatTimeForDisplay } from "../src/utils";
 import { SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
@@ -175,7 +175,7 @@ export default function AlarmScreen() {
     >
       {/* Top: time */}
       <View className="items-center">
-        <Text className="text-6xl font-black text-text">{time ?? schedule.time}</Text>
+        <Text className="text-6xl font-black text-text">{formatTimeForDisplay(time ?? schedule.time)}</Text>
         <Text className="text-base text-muted mt-1">{t('alarm.subtitle')}</Text>
       </View>
 

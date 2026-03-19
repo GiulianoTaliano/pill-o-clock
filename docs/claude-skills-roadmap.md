@@ -3,7 +3,7 @@
 > Source of truth para la integración de capacidades avanzadas de Claude en el
 > ciclo de desarrollo de Pill O-Clock.
 >
-> Revisión: marzo 2026 · 9 skills identificadas · 6 completadas
+> Revisión: marzo 2026 · 9 skills identificadas · 5 completadas
 
 ---
 
@@ -19,7 +19,7 @@
 
 | # | Skill | Impacto | Esfuerzo | Estado |
 |---|-------|---------|----------|--------|
-| S1 | Vision — Revisión de UI en tiempo real | Alto | Medio | ✅ |
+| S1 | Vision — Revisión de UI en tiempo real | Alto | Medio | ⬚ |
 | S2 | GitHub MCP — Del análisis a la acción | Alto | Bajo | ✅ |
 | S3 | Extended Context — Auditoría de seguridad del ciclo de medicación | Alto | Bajo | ✅ |
 | S4 | Generación de tests con Extended Thinking | Crítico | Bajo | ✅ |
@@ -33,7 +33,7 @@
 
 ## S1 — Vision: Revisión de UI en tiempo real
 
-- **Estado:** ✅ Completada
+- **Estado:** ⬚ Pendiente
 - **Categoría:** Calidad de UI · Accesibilidad · QA visual
 - **Dependencias:** Emulador Android corriendo o dispositivo conectado via ADB
 
@@ -87,94 +87,6 @@ cada pantalla y genera hallazgos accionables con referencia a archivo y línea.
 - Script de captura (`scripts/capture-screenshots.ps1`)
 - Prompt template para auditoría visual
 - Issues creados automáticamente en GitHub
-
-### Implementación (marzo 2026)
-
-Auditía de UI ejecutada por Claude Opus vía análisis de código de los 9 screens
-principales. Infraestructura de captura automatizada creada para futuras
-revisiones con screenshots reales.
-
-#### Archivos creados
-
-| Archivo | Propósito |
-|---|---|
-| `scripts/capture-screenshots.ps1` | Captura automatizada via ADB (9 pantallas × 2 temas) |
-| `scripts/run-vision-review.ps1` | Orquestador end-to-end: captura → audit manual o automático |
-| `scripts/vision-review.mjs` | Pipeline automático: GitHub Models API → análisis IA → issues → reporte |
-| `.github/agents/vision-reviewer.agent.md` | Custom agent para auditorías interactivas manuales |
-| `docs/vision-review-s1.md` | Documentación completa de hallazgos y proceso |
-
-#### Pipeline automatizado (S1d — marzo 2026)
-
-Pipeline Node.js sin intervención humana que usa la API de GitHub Models
-(incluida en Copilot subscription) para analizar screenshots con visión de IA.
-
-```powershell
-# Captura + análisis + creación de issues (zero intervención manual)
-.\scripts\run-vision-review.ps1 -Auto
-
-# Solo análisis, sin crear issues
-.\scripts\run-vision-review.ps1 -Auto -DryRun
-
-# Modelo específico (por defecto: openai/gpt-4.1)
-.\scripts\run-vision-review.ps1 -Auto -Model "openai/gpt-5-mini"
-```
-
-**Requisitos:** Variable de entorno `GITHUB_TOKEN` con scopes `models:read` + `repo`.
-
-**Flujo:** Carga screenshots → analiza por pantalla (1 request por screen, 2 imágenes light+dark) →
-agrupa hallazgos similares → deduplica contra issues existentes → crea issues CRITICAL/HIGH →
-genera reporte markdown.
-
-#### Resultado
-
-**43 hallazgos (7 CRITICAL · 12 HIGH · 14 MEDIUM · 10 LOW) · 5 issues creados en GitHub**
-
-| Issue | Título | Severidad |
-|---|---|---|
-| [#5](https://github.com/GiulianoTaliano/pill-o-clock/issues/5) | Touch targets below 44×44 pt minimum | CRITICAL |
-| [#6](https://github.com/GiulianoTaliano/pill-o-clock/issues/6) | Hardcoded colors break dark mode / WCAG contrast | CRITICAL |
-| [#7](https://github.com/GiulianoTaliano/pill-o-clock/issues/7) | Missing empty states on Home, Health, History | CRITICAL |
-| [#8](https://github.com/GiulianoTaliano/pill-o-clock/issues/8) | Medication name truncation/overflow | CRITICAL |
-| [#9](https://github.com/GiulianoTaliano/pill-o-clock/issues/9) | Button spacing, badge contrast, icon sizes | HIGH |
-
-Labels creados: `ui`, `accessibility`, `visual-bug`
-
-#### S1b — Re-Auditoría con Screenshots Reales (marzo 2026)
-
-Captura verificada (18 PNGs, Pixel 9 1080×2424) + análisis programático WCAG.
-Reconciliación de los 43 hallazgos contra código actual (post-S5).
-
-> Nota: `scripts/analyze-screenshots.ps1` fue eliminado en S1c — superseded
-> por el agente `@vision-reviewer` que analiza los screenshots directamente.
-
-**Resultado de re-auditoría:** 9 findings FIXED · 9 STILL VALID · 1 issue cerrado (#7) · 1 issue nuevo (#10)
-
-| Issue | Título | Acción |
-|---|---|---|
-| [#7](https://github.com/GiulianoTaliano/pill-o-clock/issues/7) | Missing empty states | **CERRADO** — resuelto |
-| [#10](https://github.com/GiulianoTaliano/pill-o-clock/issues/10) | Muted text WCAG FAIL (2.36:1) | **NUEVO** — confirmado programáticamente |
-| #5, #6, #8, #9 | Issues existentes | Actualizados con estado actual |
-
-#### S1c — Auditoría Visual Directa con Claude Vision (marzo 2026)
-
-18 screenshots adjuntados directamente a Copilot Chat para análisis visual por
-Claude Opus. Primera auditoría con percepción real de los píxeles renderizados.
-
-**Resultado:** 22 hallazgos (3 CRITICAL · 7 HIGH · 8 MEDIUM · 4 LOW) · 2 issues nuevos · 1 issue actualizado
-
-| Issue | Título | Acción |
-|---|---|---|
-| [#11](https://github.com/GiulianoTaliano/pill-o-clock/issues/11) | Low contrast: secondary text, chevrons, radio buttons | **NUEVO** |
-| [#12](https://github.com/GiulianoTaliano/pill-o-clock/issues/12) | Small targets: onboarding Skip, calendar headers, color picker | **NUEVO** |
-| [#9](https://github.com/GiulianoTaliano/pill-o-clock/issues/9) | Dosage scroller sin affordance | **ACTUALIZADO** — elevado a CRITICAL |
-
-**Método vs resultados:** Code (S1a) = 43 hallazgos, Programático (S1b) = validación objetiva,
-Vision (S1c) = 22 hallazgos nuevos que solo un ojo humano (o IA visual) detecta. Los tres son complementarios.
-
-### Referencia
-
-→ [docs/vision-review-s1.md](vision-review-s1.md)
 
 ---
 
@@ -751,7 +663,7 @@ S4 ✅  Generación de tests ────────→ cobertura mínima antes
  │
 S5 ⬚   Refactoring MedicationForm
  │
-S1 ✅  Vision UI review ─────────→ puede ejecutarse en paralelo con S6
+S1 ⬚   Vision UI review ─────────→ puede ejecutarse en paralelo con S6
  │
 S6 ⬚   Multilingüe + médico
  │
@@ -795,4 +707,3 @@ S8 ⬚   Health Connect / Apple Health ───→ feature grande, al final
 | Fecha | Cambio |
 |---|---|
 | 2026-03-14 | Documento creado con 9 skills. S2 y S9 marcadas como completadas. |
-| 2026-03-14 | S1 Vision UI Review completada. 43 hallazgos, 5 issues, 3 scripts, 3 labels. |

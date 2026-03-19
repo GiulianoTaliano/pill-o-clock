@@ -32,6 +32,7 @@ import {
   today,
   toDateString,
   parseTime,
+  formatTimeForDisplay,
 } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
@@ -96,7 +97,7 @@ function ApptMiniCard({
       <View className="flex-1">
         <Text className="text-sm font-bold text-text" numberOfLines={1}>{appt.title}</Text>
         <Text className="text-xs text-muted mt-0.5" numberOfLines={1}>
-          {dateCap}{appt.time ? ` · ${appt.time}` : ""}{appt.doctor ? ` · ${appt.doctor}` : ""}
+          {dateCap}{appt.time ? ` · ${formatTimeForDisplay(appt.time)}` : ""}{appt.doctor ? ` · ${appt.doctor}` : ""}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={14} color="#cbd5e1" />

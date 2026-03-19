@@ -17,7 +17,7 @@ import { Medication, DosageUnit, MedicationCategory } from "../src/types";
 import { ColorPicker } from "./ColorPicker";
 import { DayToggle } from "./DayToggle";
 import { format } from "date-fns";
-import { DOSAGE_UNITS, CATEGORY_CONFIG, getCategoryLabel, getDosageLabel } from "../src/utils";
+import { DOSAGE_UNITS, CATEGORY_CONFIG, getCategoryLabel, getDosageLabel, formatTimeForDisplay } from "../src/utils";
 import { useTranslation } from "../src/i18n";
 import * as Haptics from "expo-haptics";
 import { useToast } from "../src/context/ToastContext";
@@ -78,7 +78,7 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
           className="flex-row items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5"
         >
           <Ionicons name="alarm-outline" size={16} color={theme.primary} />
-          <Text className="text-base font-bold text-primary">{schedule.time}</Text>
+          <Text className="text-base font-bold text-primary">{formatTimeForDisplay(schedule.time)}</Text>
         </TouchableOpacity>
       </View>
 
@@ -86,7 +86,6 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
         <DateTimePicker
           value={timeDate}
           mode="time"
-          is24Hour
           display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={handleTimeChange}
         />

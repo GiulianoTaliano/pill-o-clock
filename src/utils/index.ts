@@ -1,4 +1,4 @@
-import { format, addDays, startOfDay } from "date-fns";
+import { format, addDays, startOfDay, parse } from "date-fns";
 import type { TFunction } from "i18next";
 import { Medication, Schedule, DosageUnit, MedicationCategory } from "../types";
 
@@ -40,6 +40,19 @@ export function toISOString(date: Date): string {
 export function parseTime(time: string): { hours: number; minutes: number } {
   const [hours, minutes] = time.split(":").map(Number);
   return { hours, minutes };
+}
+
+/**
+ * Formats a stored "HH:mm" time string for display according to
+ * the device locale (12h with AM/PM or 24h).
+ */
+export function formatTimeForDisplay(time: string): string {
+  const date = parse(time, "HH:mm", new Date());
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: undefined, // let the system decide
+  }).format(date);
 }
 
 /** Return true if a schedule is active on a given Date */

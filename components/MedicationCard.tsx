@@ -2,7 +2,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Medication, Schedule, DoseLog } from "../src/types";
-import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig, isScheduleActiveOnDate, toDateString } from "../src/utils";
+import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig, isScheduleActiveOnDate, toDateString, formatTimeForDisplay } from "../src/utils";
 import { format } from "date-fns";
 import { useTranslation, getDateLocale } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -31,12 +31,12 @@ export function MedicationCard({
 
   function scheduleLabel(s: Schedule): string {
     const dayNames = getDayNamesShort(t);
-    if (s.days.length === 0) return t('medications.scheduleDaily', { time: s.time });
+    if (s.days.length === 0) return t('medications.scheduleDaily', { time: formatTimeForDisplay(s.time) });
     const dayStr = s.days
       .sort((a, b) => a - b)
       .map((d) => dayNames[d])
       .join(", ");
-    return `${dayStr} Â· ${s.time}`;
+    return `${dayStr} · ${formatTimeForDisplay(s.time)}`;
   }
 
   // Compute next-dose indicator
@@ -67,7 +67,7 @@ export function MedicationCard({
 
     // Next upcoming time (could be future or already past but not yet taken)
     const upcoming = pending.find((s) => s.time >= nowHHmm) ?? pending[0];
-    return t('medicationCard.nextDose', { time: upcoming.time });
+    return t('medicationCard.nextDose', { time: formatTimeForDisplay(upcoming.time) });
   })();
 
   return (

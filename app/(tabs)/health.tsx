@@ -17,7 +17,7 @@ import { SimpleLineChart } from "../../components/SimpleLineChart";
 import { CheckinModal } from "../../components/CheckinModal";
 import { EmptyState } from "../../components/EmptyState";
 import { useToast } from "../../src/context/ToastContext";
-import { today } from "../../src/utils";
+import { today, formatTimeForDisplay } from "../../src/utils";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import {
   scheduleHealthReminder,
@@ -316,7 +316,7 @@ function ReminderActiveRow({
     <View className="flex-row items-center gap-2">
       <View className="flex-1 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl px-3 py-2">
         <Text className="text-sm font-bold text-green-700 dark:text-green-400">
-          {t("health.reminderActive", { time: reminderTime })}
+          {t("health.reminderActive", { time: formatTimeForDisplay(reminderTime) })}
         </Text>
       </View>
       <TouchableOpacity
@@ -661,7 +661,6 @@ export default function HealthScreen() {
                         return new Date();
                       })()}
                       mode="time"
-                      is24Hour
                       display={Platform.OS === "ios" ? "spinner" : "default"}
                       onChange={handleReminderChange}
                     />
@@ -811,14 +810,13 @@ export default function HealthScreen() {
                 >
                   <Ionicons name="time-outline" size={16} color="#4f9cff" />
                   <Text className="text-text font-semibold">
-                    {format(addForm.measuredAt, "HH:mm")}
+                    {formatTimeForDisplay(format(addForm.measuredAt, "HH:mm"))}
                   </Text>
                 </TouchableOpacity>
                 {addForm.showTimePicker && (
                   <DateTimePicker
                     value={addForm.measuredAt}
                     mode="time"
-                    is24Hour
                     display={Platform.OS === "ios" ? "spinner" : "default"}
                     onChange={handleTimeChange}
                   />

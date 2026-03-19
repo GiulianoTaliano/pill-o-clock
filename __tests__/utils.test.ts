@@ -4,6 +4,7 @@ import {
   toDateString,
   toISOString,
   parseTime,
+  formatTimeForDisplay,
   isScheduleActiveOnDate,
   getNextDates,
   getColorConfig,
@@ -282,5 +283,62 @@ describe("getDosageLabel", () => {
     expect(getDosageLabel("mg", mockT as any)).toBe("mg");
     expect(getDosageLabel("ml", mockT as any)).toBe("ml");
     expect(getDosageLabel("g", mockT as any)).toBe("g");
+  });
+});
+
+// ─── formatTimeForDisplay ──────────────────────────────────────────────────
+
+describe("formatTimeForDisplay", () => {
+  it("returns a non-empty string for a valid HH:mm input", () => {
+    expect(formatTimeForDisplay("08:00")).toBeTruthy();
+    expect(formatTimeForDisplay("20:30")).toBeTruthy();
+  });
+
+  it("formats midnight (00:00) without error", () => {
+    const result = formatTimeForDisplay("00:00");
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("formats 23:59 without error", () => {
+    const result = formatTimeForDisplay("23:59");
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("includes minutes in the output", () => {
+    // Regardless of 12h/24h format, "08:30" should include "30" in the output
+    expect(formatTimeForDisplay("08:30")).toContain("30");
+    expect(formatTimeForDisplay("14:45")).toContain("45");
+  });
+
+  it("produces different output for AM and PM times in 12h locales", () => {
+    const originalDTF = Intl.DateTimeFormat;
+    // Force 12h format
+    jest.spyOn(Intl, "DateTimeFormat").mockImplementation(
+      (_locale, options) => new originalDTF("en-US", { ...options, hour12: true })
+    );
+
+    const morning = formatTimeForDisplay("08:00");
+    const evening = formatTimeForDisplay("20:00");
+    expect(morning).not.toBe(evening);
+    expect(morning).toMatch(/AM/i);
+    expect(evening).toMatch(/PM/i);
+
+    jest.restoreAllMocks();
+  });
+
+  it("works with 24h locale formatting", () => {
+    const originalDTF = Intl.DateTimeFormat;
+    // Force 24h format
+    jest.spyOn(Intl, "DateTimeFormat").mockImplementation(
+      (_locale, options) => new originalDTF("en-GB", { ...options, hour12: false })
+    );
+
+    const result = formatTimeForDisplay("20:30");
+    expect(result).toContain("20");
+    expect(result).toContain("30");
+
+    jest.restoreAllMocks();
   });
 });

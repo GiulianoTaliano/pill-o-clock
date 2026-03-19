@@ -15,7 +15,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { CheckinModal } from "../../components/CheckinModal";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { TodayDose, SkipReason } from "../../src/types";
-import { CATEGORY_CONFIG, getColorConfig } from "../../src/utils";
+import { CATEGORY_CONFIG, getColorConfig, formatTimeForDisplay } from "../../src/utils";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
@@ -469,7 +469,7 @@ export default function HomeScreen() {
                   {rescheduleTarget.medication.name}
                 </Text>
                 <Text className="text-sm text-muted mt-0.5">
-                  {t('doseCard.rescheduleOriginal', { time: rescheduleTarget.scheduledTime })}
+                  {t('doseCard.rescheduleOriginal', { time: formatTimeForDisplay(rescheduleTarget.scheduledTime) })}
                 </Text>
               </View>
 
@@ -477,7 +477,6 @@ export default function HomeScreen() {
               <DateTimePicker
                 value={pickerDraft}
                 mode="time"
-                is24Hour
                 display="spinner"
                 onChange={handlePickerDraftChange}
               />
@@ -505,7 +504,6 @@ export default function HomeScreen() {
         <DateTimePicker
           value={pickerDraft}
           mode="time"
-          is24Hour
           display="default"
           onChange={handleRescheduleChange}
         />

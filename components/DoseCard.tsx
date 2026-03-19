@@ -9,7 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useState, useRef } from "react";
 import { TodayDose, SkipReason } from "../src/types";
-import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig } from "../src/utils";
+import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig, formatTimeForDisplay } from "../src/utils";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { AppPressable } from "./AppPressable";
@@ -43,6 +43,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
   const isMissed  = dose.status === "missed";
   const isSnoozed = !!dose.snoozedUntil;
   const displayTime = dose.snoozedUntil ?? dose.scheduledTime;
+  const displayTimeFormatted = formatTimeForDisplay(displayTime);
 
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [noteDraft, setNoteDraft] = useState(dose.notes ?? "");
@@ -145,7 +146,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
         {/* Time badge â€” tappable when pending + onReschedule provided */}
         <AppPressable
           accessibilityRole="button"
-          accessibilityLabel={displayTime}
+          accessibilityLabel={displayTimeFormatted}
           accessibilityHint={isPending && onReschedule ? t('doseCard.rescheduleTitle') : undefined}
           
           onPress={() => {
@@ -173,7 +174,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               : colors.text }}
             className="text-sm font-bold"
           >
-            {displayTime}
+            {displayTimeFormatted}
           </Text>
           {isPending && onReschedule && (
             <Ionicons
