@@ -158,12 +158,12 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           style={{
             backgroundColor: isSnoozed
               ? (theme.isDark ? "#451a03" : "#fef3c7")
-              : colors.light,
+              : (theme.isDark ? colors.bg + "50" : colors.bg + "18"),
             borderColor: isSnoozed
               ? (theme.isDark ? "#92400e" : "#fcd34d")
-              : colors.border,
+              : (theme.isDark ? colors.bg + "90" : colors.bg + "60"),
           }}
-          className="rounded-xl px-3 py-1 border flex-row items-center gap-1"
+          className="rounded-xl px-3 py-1.5 border flex-row items-center gap-1"
         >
           {isSnoozed && (
             <Ionicons name="alarm-outline" size={11} color={theme.amber} />
