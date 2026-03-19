@@ -402,7 +402,7 @@ class AlarmAudioService : Service() {
         if (canFullScreen) setFullScreenIntent(contentPendingIntent, /* highPriority= */ true)
       }
       // Quick-action buttons
-      .addAction(android.R.drawable.ic_menu_send,               "✅ Tomé el medicamento", takenPI)
+      .addAction(android.R.drawable.ic_menu_send,               "✅ Confirmar", takenPI)
       .addAction(android.R.drawable.ic_popup_reminder,          "⏰ Posponer 15 min",     snoozePI)
       .addAction(android.R.drawable.ic_menu_close_clear_cancel, "❌ Omitir",              skipPI)
       // Sound is handled by MediaPlayer on STREAM_ALARM — setting it on the

@@ -182,7 +182,7 @@ const es = {
   alarm: {
     subtitle: "Recordatorio de medicamento",
     dose: "Dosis",
-    takeMed: "Tomé el medicamento",
+    takeMed: "Confirmar",
     snooze: "Posponer {{minutes}} min",
     skip: "Omitir esta dosis",
   },
@@ -229,7 +229,7 @@ const es = {
     body: "Dosis: {{dose}}",
     bodyWithNotes: "Dosis: {{dose}} · {{notes}}",
     bodyActions: " · Expande para ver opciones",
-    actionTaken: "✅ Tomé el medicamento",
+    actionTaken: "✅ Confirmar",
     actionSnooze: "⏰ Posponer {{minutes}} min",
     actionSkip: "❌ Omitir",
     channelName: "Recordatorios de medicamentos",

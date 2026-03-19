@@ -184,7 +184,7 @@ const en: TranslationShape = {
   alarm: {
     subtitle: "Medication reminder",
     dose: "Dose",
-    takeMed: "I took my medication",
+    takeMed: "Confirm",
     snooze: "Snooze {{minutes}} min",
     skip: "Skip this dose",
   },
@@ -231,7 +231,7 @@ const en: TranslationShape = {
     body: "Dose: {{dose}}",
     bodyWithNotes: "Dose: {{dose}} · {{notes}}",
     bodyActions: " · Expand to see options",
-    actionTaken: "✅ I took my medication",
+    actionTaken: "✅ Confirm",
     actionSnooze: "⏰ Snooze {{minutes}} min",
     actionSkip: "❌ Skip",
     channelName: "Medication reminders",

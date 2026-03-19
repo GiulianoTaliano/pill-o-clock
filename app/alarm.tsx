@@ -249,11 +249,20 @@ export default function AlarmScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('alarm.takeMed')}
           onPress={handleTake}
-          style={{ backgroundColor: colors.bg }}
-          className="rounded-2xl py-4 items-center flex-row justify-center gap-3 shadow"
+          style={{
+            backgroundColor: "#fff",
+            elevation: 8,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            borderWidth: 3,
+            borderColor: colors.bg,
+          }}
+          className="rounded-2xl py-4 items-center flex-row justify-center gap-3"
         >
-          <Ionicons name="checkmark-circle" size={24} color="#fff" />
-          <Text className="text-white text-lg font-black">{t('alarm.takeMed')}</Text>
+          <Ionicons name="checkmark-circle" size={24} color={colors.bg} />
+          <Text style={{ color: colors.bg }} className="text-lg font-black">{t('alarm.takeMed')}</Text>
         </AppPressable>
 
         {/* Snooze */}
