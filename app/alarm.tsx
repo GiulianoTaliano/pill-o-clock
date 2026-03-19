@@ -65,6 +65,7 @@ export default function AlarmScreen() {
   // so they don't bleed into other app screens.
   useEffect(() => {
     setAlarmWindowFlags().catch(() => {});
+    stopAlarm().catch(() => {}); // stop audio as soon as the screen mounts
     return () => {
       clearAlarmWindowFlags().catch(() => {});
     };
