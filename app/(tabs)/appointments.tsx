@@ -5,6 +5,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as DocumentPicker from "expo-document-picker";
+import * as Sharing from "expo-sharing";
+import * as IntentLauncher from "expo-intent-launcher";
+import { getContentUriAsync } from "expo-file-system/legacy";
 import { useState, useEffect, useRef } from "react";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
@@ -224,6 +228,10 @@ export default function AppointmentsScreen() {
   const addAppointment = useAppStore((s) => s.addAppointment);
   const updateAppointment = useAppStore((s) => s.updateAppointment);
   const deleteAppointment = useAppStore((s) => s.deleteAppointment);
+  const appointmentDocuments = useAppStore((s) => s.appointmentDocuments);
+  const loadAppointmentDocuments = useAppStore((s) => s.loadAppointmentDocuments);
+  const addAppointmentDocument = useAppStore((s) => s.addAppointmentDocument);
+  const removeAppointmentDocument = useAppStore((s) => s.removeAppointmentDocument);
   const pendingEditAppointmentId = useAppStore((s) => s.pendingEditAppointmentId);
   const setPendingEditAppointmentId = useAppStore((s) => s.setPendingEditAppointmentId);
   const setSelectedAppointmentId = useAppStore((s) => s.setSelectedAppointmentId);
@@ -268,6 +276,12 @@ export default function AppointmentsScreen() {
       loadAppointments();
     }, [loadAppointments])
   );
+
+  // ── Load documents when editing an existing appointment ─────────────
+
+  useEffect(() => {
+    if (editingId) loadAppointmentDocuments(editingId);
+  }, [editingId, loadAppointmentDocuments]);
 
   // ── Respond to pending edit from detail modal ──────────────────────────
 
@@ -369,6 +383,76 @@ export default function AppointmentsScreen() {
       ]
     );
   };
+
+  // ─── Document handlers (edit form) ──────────────────────────────────────
+
+  async function handleAttachEditDocument() {
+    if (!editingId) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      await addAppointmentDocument(editingId, {
+        uri: asset.uri,
+        name: asset.name,
+        mimeType: asset.mimeType ?? undefined,
+        size: asset.size ?? undefined,
+      });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      Alert.alert(t("appointments.docPickerError"));
+    }
+  }
+
+  async function handleOpenEditDocument(fileUri: string, mimeType: string) {
+    try {
+      if (Platform.OS === "android") {
+        const contentUri = await getContentUriAsync(fileUri);
+        await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
+          data: contentUri,
+          type: mimeType,
+          flags: 1,
+        });
+      } else {
+        await Sharing.shareAsync(fileUri, { mimeType });
+      }
+    } catch {
+      // Fallback to share sheet if no viewer is available
+      try {
+        await Sharing.shareAsync(fileUri, { mimeType });
+      } catch {
+        Alert.alert(t("appointments.docOpenError"));
+      }
+    }
+  }
+
+  function handleDeleteEditDocument(docId: string) {
+    Alert.alert(
+      t("appointments.deleteDocTitle"),
+      t("appointments.deleteDocMessage"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            removeAppointmentDocument(docId);
+          },
+        },
+      ]
+    );
+  }
+
+  function formatFileSize(bytes?: number): string {
+    if (bytes == null) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 
   // ── Date / Time picker handlers ────────────────────────────────────────
 
@@ -610,6 +694,60 @@ export default function AppointmentsScreen() {
                   multiline
                   numberOfLines={3}
                 />
+
+                {/* Documents (only when editing an existing appointment) */}
+                {editingId && (
+                  <View className="mb-4">
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center gap-1.5">
+                        <Ionicons name="attach-outline" size={16} color={theme.muted} />
+                        <Text className="text-sm font-semibold text-text">{t("appointments.documentsTitle")}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={handleAttachEditDocument}
+                        className="flex-row items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/30"
+                      >
+                        <Ionicons name="add" size={14} color="#4f9cff" />
+                        <Text className="text-xs font-semibold" style={{ color: "#4f9cff" }}>
+                          {t("appointments.attachDocument")}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {appointmentDocuments.length === 0 ? (
+                      <Text className="text-xs text-muted italic py-1">{t("appointments.noDocuments")}</Text>
+                    ) : (
+                      appointmentDocuments.map((doc) => (
+                        <View
+                          key={doc.id}
+                          className="flex-row items-center py-2.5 border-b border-border gap-2.5"
+                        >
+                          <View className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 items-center justify-center">
+                            <Ionicons
+                              name={doc.mimeType.startsWith("image/") ? "image-outline" : "document-outline"}
+                              size={16}
+                              color={theme.muted}
+                            />
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleOpenEditDocument(doc.fileUri, doc.mimeType)}
+                            className="flex-1"
+                          >
+                            <Text className="text-sm font-semibold text-text" numberOfLines={1}>{doc.fileName}</Text>
+                            <Text className="text-xs text-muted">
+                              {formatFileSize(doc.fileSize)}
+                              {doc.fileSize ? " · " : ""}
+                              {format(new Date(doc.createdAt), "PP", { locale: getDateLocale() })}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleDeleteEditDocument(doc.id)} className="p-1.5">
+                            <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                          </TouchableOpacity>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                )}
 
                 {/* Actions */}
                 <View className="flex-row gap-3 mb-8">

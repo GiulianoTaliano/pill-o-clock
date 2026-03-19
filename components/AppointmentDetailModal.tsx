@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,10 @@ import {
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as DocumentPicker from "expo-document-picker";
+import * as Sharing from "expo-sharing";
+import * as IntentLauncher from "expo-intent-launcher";
+import { getContentUriAsync } from "expo-file-system/legacy";
 import { format } from "date-fns";
 import { Appointment } from "../src/types";
 import { formatTimeForDisplay } from "../src/utils";
@@ -78,6 +82,16 @@ export function AppointmentDetailModal({
 }: Props) {
   const { t } = useTranslation();
   const theme = useAppTheme();
+  const appointmentDocuments = useAppStore((s) => s.appointmentDocuments);
+  const loadAppointmentDocuments = useAppStore((s) => s.loadAppointmentDocuments);
+  const addAppointmentDocument = useAppStore((s) => s.addAppointmentDocument);
+  const removeAppointmentDocument = useAppStore((s) => s.removeAppointmentDocument);
+
+  useEffect(() => {
+    if (visible && appt) {
+      loadAppointmentDocuments(appt.id);
+    }
+  }, [visible, appt?.id]);
 
   const dismissPan = useRef(
     PanResponder.create({
@@ -149,6 +163,76 @@ export function AppointmentDetailModal({
       ]
     );
   };
+
+  // ─── Document handlers ──────────────────────────────────────────────────
+
+  async function handleAttachDocument() {
+    if (!appt) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      await addAppointmentDocument(appt.id, {
+        uri: asset.uri,
+        name: asset.name,
+        mimeType: asset.mimeType ?? undefined,
+        size: asset.size ?? undefined,
+      });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      Alert.alert(t("appointments.docPickerError"));
+    }
+  }
+
+  async function handleOpenDocument(fileUri: string, mimeType: string) {
+    try {
+      if (Platform.OS === "android") {
+        const contentUri = await getContentUriAsync(fileUri);
+        await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
+          data: contentUri,
+          type: mimeType,
+          flags: 1,
+        });
+      } else {
+        await Sharing.shareAsync(fileUri, { mimeType });
+      }
+    } catch {
+      // Fallback to share sheet if no viewer is available
+      try {
+        await Sharing.shareAsync(fileUri, { mimeType });
+      } catch {
+        Alert.alert(t("appointments.docOpenError"));
+      }
+    }
+  }
+
+  function handleDeleteDocument(docId: string) {
+    Alert.alert(
+      t("appointments.deleteDocTitle"),
+      t("appointments.deleteDocMessage"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            removeAppointmentDocument(docId);
+          },
+        },
+      ]
+    );
+  }
+
+  function formatFileSize(bytes?: number): string {
+    if (bytes == null) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 
   const borderColor = theme.isDark ? "#1e293b" : "#e2e8f0";
 
@@ -377,6 +461,94 @@ export function AppointmentDetailModal({
                 </TouchableOpacity>
               </View>
             ) : null}
+
+            {/* ── Documents section ─────────────────────────────────── */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Ionicons name="attach-outline" size={18} color={theme.isDark ? "#94a3b8" : "#64748b"} />
+                  <Text style={{ color: theme.isDark ? "#f8fafc" : "#1e293b", fontWeight: "700", fontSize: 14 }}>
+                    {t("appointments.documentsTitle")}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleAttachDocument}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 10,
+                    backgroundColor: theme.isDark ? "#1e3a5f" : "#dbeafe",
+                  }}
+                >
+                  <Ionicons name="add" size={16} color="#4f9cff" />
+                  <Text style={{ color: "#4f9cff", fontWeight: "600", fontSize: 12 }}>
+                    {t("appointments.attachDocument")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {appointmentDocuments.length === 0 ? (
+                <Text style={{ color: theme.muted, fontSize: 13, fontStyle: "italic", paddingVertical: 8 }}>
+                  {t("appointments.noDocuments")}
+                </Text>
+              ) : (
+                appointmentDocuments.map((doc) => (
+                  <View
+                    key={doc.id}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 10,
+                      borderBottomWidth: 1,
+                      borderBottomColor: borderColor,
+                      gap: 10,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        backgroundColor: theme.isDark ? "#1e293b" : "#f1f5f9",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Ionicons
+                        name={doc.mimeType.startsWith("image/") ? "image-outline" : "document-outline"}
+                        size={18}
+                        color={theme.isDark ? "#94a3b8" : "#64748b"}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleOpenDocument(doc.fileUri, doc.mimeType)}
+                      style={{ flex: 1 }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={{ color: theme.isDark ? "#f8fafc" : "#1e293b", fontSize: 13, fontWeight: "600" }}
+                      >
+                        {doc.fileName}
+                      </Text>
+                      <Text style={{ color: theme.muted, fontSize: 11 }}>
+                        {formatFileSize(doc.fileSize)}
+                        {doc.fileSize ? " · " : ""}
+                        {format(new Date(doc.createdAt), "PP", { locale: getDateLocale() })}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteDocument(doc.id)}
+                      style={{ padding: 6 }}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </View>
 
             {/* ── Edit / Delete actions ─────────────────────────────── */}
             <View

@@ -76,6 +76,24 @@ export const appointments = sqliteTable("appointments", {
   createdAt: text("created_at").notNull(),
 });
 
+// ─── Appointment documents ─────────────────────────────────────────────────
+
+export const appointmentDocuments = sqliteTable(
+  "appointment_documents",
+  {
+    id: text("id").primaryKey(),
+    appointmentId: text("appointment_id")
+      .notNull()
+      .references(() => appointments.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    fileUri: text("file_uri").notNull(),
+    fileSize: integer("file_size"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("idx_appointment_docs_appointment_id").on(t.appointmentId)]
+);
+
 // ─── Health measurements ───────────────────────────────────────────────────
 
 export const healthMeasurements = sqliteTable(

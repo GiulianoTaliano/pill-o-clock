@@ -310,6 +310,14 @@ const en: TranslationShape = {
     locationPermTitle: "Location permission",
     locationLoading: "Getting your location…",
     locationClear: "Clear location",
+    // Documents
+    documentsTitle: "Documents",
+    attachDocument: "Attach document",
+    noDocuments: "No attached documents",
+    deleteDocTitle: "Delete document",
+    deleteDocMessage: "Delete this document?",
+    docPickerError: "Could not attach the document. Please try again.",
+    docOpenError: "Could not open the document.",
   },
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────

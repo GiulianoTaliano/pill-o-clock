@@ -2,13 +2,14 @@ import { File, Paths } from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system/src/legacy";
 import * as DocumentPicker from "expo-document-picker";
 import { z } from "zod";
-import { Medication, Schedule, DoseLog, Appointment, HealthMeasurement, DailyCheckin } from "../types";
+import { Medication, Schedule, DoseLog, Appointment, AppointmentDocument, HealthMeasurement, DailyCheckin } from "../types";
 import {
   getDb,
   getMedications,
   getAllSchedules,
   getAllDoseLogs,
   getAppointments,
+  getAllAppointmentDocuments,
   getHealthMeasurements,
   getDailyCheckins,
   clearAllData,
@@ -16,6 +17,7 @@ import {
   insertSchedule,
   upsertDoseLog,
   insertAppointment,
+  insertAppointmentDocument,
   insertHealthMeasurement,
   upsertDailyCheckin,
 } from "../db/database";
@@ -76,6 +78,16 @@ const appointmentSchema = z.object({
   createdAt: z.string(),
 });
 
+const appointmentDocumentSchema = z.object({
+  id: z.string(),
+  appointmentId: z.string(),
+  fileName: z.string(),
+  mimeType: z.string(),
+  fileUri: z.string(),
+  fileSize: z.number().optional(),
+  createdAt: z.string(),
+});
+
 const healthMeasurementSchema = z.object({
   id: z.string(),
   type: z.enum(["blood_pressure", "glucose", "weight", "spo2", "heart_rate"]),
@@ -104,6 +116,7 @@ const backupSchema = z.object({
     schedules: z.array(scheduleSchema).default([]),
     doseLogs: z.array(doseLogSchema).default([]),
     appointments: z.array(appointmentSchema).default([]),
+    appointmentDocuments: z.array(appointmentDocumentSchema).default([]),
     healthMeasurements: z.array(healthMeasurementSchema).default([]),
     dailyCheckins: z.array(dailyCheckinSchema).default([]),
   }),
@@ -118,11 +131,12 @@ export type BackupData = z.infer<typeof backupSchema>;
 /** Serialises the entire database into a JSON file and lets the user
  *  pick a folder via the system file picker (SAF) to save it. */
 export async function exportBackup(): Promise<void> {
-  const [medications, schedules, doseLogs, appointments, healthMeasurements, dailyCheckins] = await Promise.all([
+  const [medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins] = await Promise.all([
     getMedications(),
     getAllSchedules(),
     getAllDoseLogs(),
     getAppointments(),
+    getAllAppointmentDocuments(),
     getHealthMeasurements(undefined, 9999),
     getDailyCheckins(),
   ]);
@@ -131,7 +145,7 @@ export async function exportBackup(): Promise<void> {
     version: 2,
     exportedAt: new Date().toISOString(),
     app: "pill-o-clock",
-    data: { medications, schedules, doseLogs, appointments, healthMeasurements, dailyCheckins },
+    data: { medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins },
   };
 
   const json = JSON.stringify(backup, null, 2);
@@ -232,6 +246,14 @@ export async function importBackup(
     for (const appt of backup.data.appointments) {
       try {
         await insertAppointment(appt as Appointment);
+      } catch {
+        // Skip duplicates on merge.
+      }
+    }
+
+    for (const doc of backup.data.appointmentDocuments) {
+      try {
+        await insertAppointmentDocument(doc as AppointmentDocument);
       } catch {
         // Skip duplicates on merge.
       }

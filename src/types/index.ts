@@ -128,6 +128,19 @@ export interface Appointment {
   createdAt: string;
 }
 
+// ─── Appointment documents ──────────────────────────────────────────────────
+
+export interface AppointmentDocument {
+  id: string;
+  appointmentId: string;
+  fileName: string;
+  mimeType: string;
+  /** Path inside FileSystem.documentDirectory */
+  fileUri: string;
+  fileSize?: number;
+  createdAt: string;
+}
+
 // ─── Health measurements ─────────────────────────────────────────────────────
 
 export type MeasurementType =

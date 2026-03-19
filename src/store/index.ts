@@ -88,7 +88,7 @@ export const useAppStore = create<AppState>()((...a) => {
       await unregisterBackgroundFetch();
       const [meds, schedules] = await Promise.all([getMedications(), getAllActiveSchedules()]);
       const logs = await getDoseLogsByDate(today());
-      set({ medications: meds, schedules, todayLogs: logs, appointments: [], healthMeasurements: [], dailyCheckins: [], snoozedTimes: {} });
+      set({ medications: meds, schedules, todayLogs: logs, appointments: [], appointmentDocuments: [], healthMeasurements: [], dailyCheckins: [], snoozedTimes: {} });
     },
   };
 });

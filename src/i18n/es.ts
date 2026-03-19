@@ -308,6 +308,14 @@ const es = {
     locationPermTitle: "Permiso de ubicación",
     locationLoading: "Obteniendo ubicación…",
     locationClear: "Borrar ubicación",
+    // Documents
+    documentsTitle: "Documentos",
+    attachDocument: "Adjuntar documento",
+    noDocuments: "Sin documentos adjuntos",
+    deleteDocTitle: "Eliminar documento",
+    deleteDocMessage: "¿Eliminar este documento?",
+    docPickerError: "No se pudo adjuntar el documento. Intentá de nuevo.",
+    docOpenError: "No se pudo abrir el documento.",
   },
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────

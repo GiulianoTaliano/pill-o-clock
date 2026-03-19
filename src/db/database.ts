@@ -10,6 +10,7 @@ import type {
   DosageUnit,
   MedicationCategory,
   Appointment,
+  AppointmentDocument,
   HealthMeasurement,
   MeasurementType,
   DailyCheckin,
@@ -99,6 +100,18 @@ function toAppointment(row: typeof schema.appointments.$inferSelect): Appointmen
     time: row.time ?? undefined,
     reminderMinutes: row.reminderMinutes ?? undefined,
     notificationId: row.notificationId ?? undefined,
+    createdAt: row.createdAt,
+  };
+}
+
+function toAppointmentDocument(row: typeof schema.appointmentDocuments.$inferSelect): AppointmentDocument {
+  return {
+    id: row.id,
+    appointmentId: row.appointmentId,
+    fileName: row.fileName,
+    mimeType: row.mimeType,
+    fileUri: row.fileUri,
+    fileSize: row.fileSize ?? undefined,
     createdAt: row.createdAt,
   };
 }
@@ -306,6 +319,24 @@ export async function initDatabase(): Promise<void> {
         ON schedules(medication_id);
     `);
     expoDb.execSync("PRAGMA user_version = 9");
+  }
+
+  if (user_version < 10) {
+    expoDb.execSync(`
+      CREATE TABLE IF NOT EXISTS appointment_documents (
+        id               TEXT PRIMARY KEY,
+        appointment_id   TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+        file_name        TEXT NOT NULL,
+        mime_type        TEXT NOT NULL,
+        file_uri         TEXT NOT NULL,
+        file_size        INTEGER,
+        created_at       TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_appointment_docs_appointment_id
+        ON appointment_documents(appointment_id);
+    `);
+    expoDb.execSync("PRAGMA user_version = 10");
   }
 }
 
@@ -520,6 +551,7 @@ export async function clearAllData(): Promise<void> {
   db.delete(schema.doseLogs).run();
   db.delete(schema.schedules).run();
   db.delete(schema.medications).run();
+  db.delete(schema.appointmentDocuments).run();
   db.delete(schema.appointments).run();
   db.delete(schema.healthMeasurements).run();
   db.delete(schema.dailyCheckins).run();
@@ -568,6 +600,39 @@ export async function updateAppointment(appt: Appointment): Promise<void> {
 
 export async function deleteAppointment(id: string): Promise<void> {
   db.delete(schema.appointments).where(eq(schema.appointments.id, id)).run();
+}
+
+// ─── Appointment documents ─────────────────────────────────────────────────
+
+export async function getAppointmentDocuments(appointmentId: string): Promise<AppointmentDocument[]> {
+  const rows = db.select().from(schema.appointmentDocuments)
+    .where(eq(schema.appointmentDocuments.appointmentId, appointmentId))
+    .orderBy(desc(schema.appointmentDocuments.createdAt))
+    .all();
+  return rows.map(toAppointmentDocument);
+}
+
+export async function getAllAppointmentDocuments(): Promise<AppointmentDocument[]> {
+  const rows = db.select().from(schema.appointmentDocuments)
+    .orderBy(desc(schema.appointmentDocuments.createdAt))
+    .all();
+  return rows.map(toAppointmentDocument);
+}
+
+export async function insertAppointmentDocument(doc: AppointmentDocument): Promise<void> {
+  db.insert(schema.appointmentDocuments).values({
+    id: doc.id,
+    appointmentId: doc.appointmentId,
+    fileName: doc.fileName,
+    mimeType: doc.mimeType,
+    fileUri: doc.fileUri,
+    fileSize: doc.fileSize ?? null,
+    createdAt: doc.createdAt,
+  }).run();
+}
+
+export async function deleteAppointmentDocument(id: string): Promise<void> {
+  db.delete(schema.appointmentDocuments).where(eq(schema.appointmentDocuments.id, id)).run();
 }
 
 export async function updateMedicationStock(id: string, newQuantity: number): Promise<void> {

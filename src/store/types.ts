@@ -1,4 +1,4 @@
-import type { Medication, Schedule, DoseLog, TodayDose, Appointment, HealthMeasurement, MeasurementType, DailyCheckin, SkipReason } from "../types";
+import type { Medication, Schedule, DoseLog, TodayDose, Appointment, AppointmentDocument, HealthMeasurement, MeasurementType, DailyCheckin, SkipReason } from "../types";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 
@@ -42,10 +42,14 @@ export interface MedicationsSlice {
 
 export interface AppointmentsSlice {
   appointments: Appointment[];
+  appointmentDocuments: AppointmentDocument[];
   loadAppointments: () => Promise<void>;
   addAppointment: (data: Omit<Appointment, "id" | "createdAt" | "notificationId">) => Promise<void>;
   updateAppointment: (appt: Omit<Appointment, "notificationId">) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
+  loadAppointmentDocuments: (appointmentId: string) => Promise<void>;
+  addAppointmentDocument: (appointmentId: string, pickerAsset: { uri: string; name: string; mimeType?: string; size?: number }) => Promise<void>;
+  removeAppointmentDocument: (docId: string) => Promise<void>;
 }
 
 export interface HealthSlice {
