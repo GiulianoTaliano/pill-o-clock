@@ -43,6 +43,8 @@ jest.mock("../../src/services/notifications", () => ({
   scheduleStockAlert: jest.fn().mockResolvedValue(undefined),
   rescheduleAllNotifications: jest.fn().mockResolvedValue(undefined),
   SNOOZE_MINUTES: 15,
+  DEFAULT_SNOOZE_MINUTES: 15,
+  SNOOZE_OPTIONS: [5, 10, 15, 20, 25, 30, 45, 60],
 }));
 
 import * as db from "../../src/db/database";

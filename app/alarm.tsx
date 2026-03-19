@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../src/store";
 import { getColorConfig, formatTimeForDisplay } from "../src/utils";
-import { SNOOZE_MINUTES } from "../src/services/notifications";
+import { SNOOZE_OPTIONS, DEFAULT_SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
 import { AppPressable } from "../components/AppPressable";
@@ -56,6 +56,7 @@ export default function AlarmScreen() {
   const snoozeDose = useAppStore((s) => s.snoozeDose);
   const [noteText, setNoteText] = useState("");
   const [showNote, setShowNote] = useState(false);
+  const [showSnoozeOptions, setShowSnoozeOptions] = useState(false);
 
   const schedule = schedules.find((s) => s.id === scheduleId);
   const medication = schedule ? medications.find((m) => m.id === schedule.medicationId) : null;
@@ -163,9 +164,9 @@ export default function AlarmScreen() {
     router.back();
   };
 
-  const handleSnooze = async () => {
+  const handleSnooze = async (minutes: number = DEFAULT_SNOOZE_MINUTES) => {
     await stopAlarm();
-    await snoozeDose(dose);
+    await snoozeDose(dose, minutes);
     router.back();
   };
 
@@ -267,17 +268,65 @@ export default function AlarmScreen() {
         </AppPressable>
 
         {/* Snooze */}
-        <AppPressable
-          accessibilityRole="button"
-          accessibilityLabel={t('alarm.snooze', { minutes: SNOOZE_MINUTES })}
-          onPress={handleSnooze}
-          className="rounded-2xl py-4 items-center flex-row justify-center gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700"
-        >
-          <Ionicons name="alarm-outline" size={20} color={theme.amber} />
-          <Text className="text-amber-700 dark:text-amber-400 text-base font-bold">
-            {t('alarm.snooze', { minutes: SNOOZE_MINUTES })}
-          </Text>
-        </AppPressable>
+        {!showSnoozeOptions ? (
+          <AppPressable
+            accessibilityRole="button"
+            accessibilityLabel={t('alarm.snooze')}
+            onPress={() => setShowSnoozeOptions(true)}
+            className="rounded-2xl py-4 items-center flex-row justify-center gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700"
+          >
+            <Ionicons name="alarm-outline" size={20} color={theme.amber} />
+            <Text className="text-amber-700 dark:text-amber-400 text-base font-bold">
+              {t('alarm.snooze')}
+            </Text>
+          </AppPressable>
+        ) : (
+          <View className="rounded-2xl py-4 px-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
+            <Text className="text-amber-700 dark:text-amber-400 text-sm font-bold text-center mb-3">
+              {t('alarm.snoozePickerTitle')}
+            </Text>
+            <View className="flex-row flex-wrap justify-center gap-2.5">
+              {SNOOZE_OPTIONS.map((min) => {
+                const isDefault = min === DEFAULT_SNOOZE_MINUTES;
+                return (
+                  <AppPressable
+                    key={min}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('alarm.snoozeOption', { minutes: min })}
+                    onPress={() => handleSnooze(min)}
+                    style={{ width: 72 }}
+                    className={`rounded-xl py-3.5 items-center ${
+                      isDefault
+                        ? 'bg-amber-500 dark:bg-amber-600 border-2 border-amber-600 dark:border-amber-500'
+                        : 'bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700'
+                    }`}
+                  >
+                    <Text className={`font-bold text-base ${
+                      isDefault ? 'text-white' : 'text-amber-700 dark:text-amber-300'
+                    }`}>
+                      {min}
+                    </Text>
+                    <Text className={`text-[10px] ${
+                      isDefault ? 'text-amber-100' : 'text-amber-500 dark:text-amber-400'
+                    }`}>
+                      min
+                    </Text>
+                  </AppPressable>
+                );
+              })}
+            </View>
+            <AppPressable
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+              onPress={() => setShowSnoozeOptions(false)}
+              className="mt-3 items-center py-2"
+            >
+              <Text className="text-amber-600 dark:text-amber-400 text-sm font-medium">
+                {t('common.cancel')}
+              </Text>
+            </AppPressable>
+          </View>
+        )}
 
         {/* Skip */}
         <AppPressable

@@ -31,7 +31,7 @@ export interface MedicationsSlice {
   ) => Promise<void>;
 
   updateDoseNote: (scheduleId: string, scheduledDate: string, notes: string) => Promise<void>;
-  snoozeDose: (dose: TodayDose) => Promise<void>;
+  snoozeDose: (dose: TodayDose, minutes?: number) => Promise<void>;
   rescheduleOnce: (dose: TodayDose, newTime: string) => Promise<void>;
   revertDose: (dose: TodayDose) => Promise<void>;
   revertSnooze: (dose: TodayDose) => Promise<void>;

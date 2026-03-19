@@ -403,7 +403,7 @@ class AlarmAudioService : Service() {
       }
       // Quick-action buttons
       .addAction(android.R.drawable.ic_menu_send,               "✅ Confirmar", takenPI)
-      .addAction(android.R.drawable.ic_popup_reminder,          "⏰ Posponer 15 min",     snoozePI)
+      .addAction(android.R.drawable.ic_popup_reminder,          "⏰ Posponer",     snoozePI)
       .addAction(android.R.drawable.ic_menu_close_clear_cancel, "❌ Omitir",              skipPI)
       // Sound is handled by MediaPlayer on STREAM_ALARM — setting it on the
       // notification would play it twice and through the wrong audio channel.

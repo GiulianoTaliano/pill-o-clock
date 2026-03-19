@@ -15,7 +15,9 @@ import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb } 
 export const NOTIFICATION_CHANNEL_ID = "pill-reminders-v2";
 // v2: correct sound reference (alarm.wav) + bypassDnd. Android channel settings are
 // immutable after creation, so a new ID forces a fresh channel on existing devices.
-export const SNOOZE_MINUTES = 15;
+export const SNOOZE_OPTIONS = [5, 10, 15, 20, 25, 30, 45, 60] as const;
+export const DEFAULT_SNOOZE_MINUTES = 15;
+export const SNOOZE_MINUTES = DEFAULT_SNOOZE_MINUTES;
 export const REPEAT_INTERVAL_MINUTES = 5;
 /**
  * How many repeat reminders to schedule after the initial notification.

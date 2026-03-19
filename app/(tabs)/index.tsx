@@ -167,10 +167,10 @@ export default function HomeScreen() {
     markDose(dose, status, undefined, skipReason);
   };
 
-  const handleSnooze = (dose: TodayDose) => {
+  const handleSnooze = (dose: TodayDose, minutes?: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    snoozeDose(dose);
-    showToast(t('doseCard.snoozeConfirm'), 'info');
+    snoozeDose(dose, minutes);
+    showToast(t('doseCard.snoozeConfirm', { minutes: minutes ?? 15 }), 'info');
   };
 
   const handleRevert = (dose: TodayDose) => {
@@ -345,7 +345,7 @@ export default function HomeScreen() {
                     dose={dose}
                     onTake={() => handleMarkDose(dose, "taken")}
                     onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
-                    onSnooze={() => handleSnooze(dose)}
+                    onSnooze={(minutes) => handleSnooze(dose, minutes)}
                     onReschedule={() => openReschedule(dose)}
                     onRevert={dose.snoozedUntil ? () => handleRevertSnooze(dose) : undefined}
                   />
@@ -370,7 +370,7 @@ export default function HomeScreen() {
                     dose={dose}
                     onTake={() => handleMarkDose(dose, "taken")}
                     onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
-                    onSnooze={() => handleSnooze(dose)}
+                    onSnooze={(minutes) => handleSnooze(dose, minutes)}
                   />
                 ))}
               </>
@@ -393,7 +393,7 @@ export default function HomeScreen() {
                     dose={dose}
                     onTake={() => handleMarkDose(dose, "taken")}
                     onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
-                    onSnooze={() => handleSnooze(dose)}
+                    onSnooze={(minutes) => handleSnooze(dose, minutes)}
                     onRevert={() => handleRevert(dose)}
                     onUpdateNote={(note) => handleUpdateNote(dose, note)}
                   />

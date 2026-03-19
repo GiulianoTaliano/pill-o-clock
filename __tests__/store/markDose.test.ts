@@ -40,6 +40,8 @@ jest.mock("../../src/services/notifications", () => ({
   scheduleStockAlert: jest.fn().mockResolvedValue(undefined),
   rescheduleAllNotifications: jest.fn().mockResolvedValue(undefined),
   SNOOZE_MINUTES: 15,
+  DEFAULT_SNOOZE_MINUTES: 15,
+  SNOOZE_OPTIONS: [5, 10, 15, 20, 25, 30, 45, 60],
 }));
 
 // ─── Typed references to mocked modules ────────────────────────────────────
@@ -318,5 +320,56 @@ describe("snoozeDose", () => {
     // Second snooze: 08:15 + 15 = 08:30
     await store.getState().snoozeDose(dose);
     expect(store.getState().snoozedTimes["sch-1-2025-06-16"]).toBe("08:30");
+  });
+
+  it("snoozes with custom minutes (5 min)", async () => {
+    jest.setSystemTime(new Date(2025, 5, 16, 7, 0, 0, 0));
+    const store = makeTestStore();
+    const dose = makeTodayDose({
+      scheduledDate: "2025-06-16",
+      scheduledTime: "08:00",
+      schedule: makeSchedule({ time: "08:00" }),
+    });
+
+    await store.getState().snoozeDose(dose, 5);
+    expect(store.getState().snoozedTimes["sch-1-2025-06-16"]).toBe("08:05");
+  });
+
+  it("snoozes with custom minutes (30 min)", async () => {
+    jest.setSystemTime(new Date(2025, 5, 16, 7, 0, 0, 0));
+    const store = makeTestStore();
+    const dose = makeTodayDose({
+      scheduledDate: "2025-06-16",
+      scheduledTime: "08:00",
+      schedule: makeSchedule({ time: "08:00" }),
+    });
+
+    await store.getState().snoozeDose(dose, 30);
+    expect(store.getState().snoozedTimes["sch-1-2025-06-16"]).toBe("08:30");
+  });
+
+  it("snoozes with custom minutes (60 min) when dose is past", async () => {
+    jest.setSystemTime(new Date(2025, 5, 16, 9, 0, 0, 0));
+    const store = makeTestStore();
+    const dose = makeTodayDose({
+      schedule: makeSchedule({ time: "08:00" }),
+    });
+
+    await store.getState().snoozeDose(dose, 60);
+    expect(store.getState().snoozedTimes["sch-1-2025-06-16"]).toBe("10:00");
+  });
+
+  it("stacks snoozes with custom minutes", async () => {
+    jest.setSystemTime(new Date(2025, 5, 16, 7, 0, 0, 0));
+    const store = makeTestStore();
+    const dose = makeTodayDose({ schedule: makeSchedule({ time: "08:00" }) });
+
+    // First snooze: 08:00 + 10 = 08:10
+    await store.getState().snoozeDose(dose, 10);
+    expect(store.getState().snoozedTimes["sch-1-2025-06-16"]).toBe("08:10");
+
+    // Second snooze with 30 min: 08:10 + 30 = 08:40
+    await store.getState().snoozeDose(dose, 30);
+    expect(store.getState().snoozedTimes["sch-1-2025-06-16"]).toBe("08:40");
   });
 });

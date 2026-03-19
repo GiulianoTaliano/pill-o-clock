@@ -32,7 +32,7 @@ import {
   cancelDoseNotifications,
   cancelScheduleNotifications,
   snoozeDose,
-  SNOOZE_MINUTES,
+  DEFAULT_SNOOZE_MINUTES,
   scheduleStockAlert,
 } from "../../services/notifications";
 
@@ -213,7 +213,7 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
 
   // ── Snooze ─────────────────────────────────────────────────────────────
 
-  async snoozeDose(dose) {
+  async snoozeDose(dose, minutes = DEFAULT_SNOOZE_MINUTES) {
     const now = new Date();
     const [sh, sm] = dose.schedule.time.split(":").map(Number);
     const originalDateTime = new Date(
@@ -229,13 +229,13 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
             return new Date(now.getFullYear(), now.getMonth(), now.getDate(), bh, bm);
           })()
         : originalDateTime;
-      const fireDate = addMinutes(baseDate, SNOOZE_MINUTES);
+      const fireDate = addMinutes(baseDate, minutes);
       const snoozeHHmm = format(fireDate, "HH:mm");
 
       await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate, fireDate);
       set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: snoozeHHmm } }));
     } else {
-      const snoozeDate = addMinutes(new Date(), SNOOZE_MINUTES);
+      const snoozeDate = addMinutes(new Date(), minutes);
       const snoozeHHmm = format(snoozeDate, "HH:mm");
       await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate);
       set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: snoozeHHmm } }));

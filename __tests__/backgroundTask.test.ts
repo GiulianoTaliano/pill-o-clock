@@ -37,6 +37,8 @@ jest.mock("../src/services/notifications", () => ({
   snoozeDose: jest.fn().mockResolvedValue(undefined),
   scheduleStockAlert: jest.fn().mockResolvedValue(undefined),
   SNOOZE_MINUTES: 15,
+  DEFAULT_SNOOZE_MINUTES: 15,
+  SNOOZE_OPTIONS: [5, 10, 15, 20, 25, 30, 45, 60],
 }));
 
 // ─── Typed references ──────────────────────────────────────────────────────
