@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Schedule, Medication, NotificationMap, Appointment } from "../types";
-import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString } from "../utils";
+import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocalizedDosage } from "../utils";
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb } from "../db/database";
@@ -320,8 +320,8 @@ async function scheduleOneNotification(
         : i18n.t("notifications.reminderTitle", { name: medication.name }),
       body:
         (medication.notes
-          ? i18n.t("notifications.bodyWithNotes", { dose: medication.dosage, notes: medication.notes })
-          : i18n.t("notifications.body", { dose: medication.dosage }))
+          ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
+          : i18n.t("notifications.body", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)) }))
         + i18n.t("notifications.bodyActions"),
       sound: "alarm.wav",
       categoryIdentifier: "DOSE_REMINDER",
@@ -365,7 +365,7 @@ export async function scheduleDoseChain(
       scheduledDate,
       scheduledTime:  schedule.time,
       medicationName: medication.name,
-      dose:           medication.dosage,
+      dose:           getLocalizedDosage(medication, i18n.t.bind(i18n)),
       fireTimestamp:  baseDate.getTime(),
     });
     // Track in the notification map so rescheduleAllNotifications can detect
@@ -437,7 +437,7 @@ export async function snoozeDose(
       scheduledDate,
       scheduledTime:  displayTime,
       medicationName: medication.name,
-      dose:           medication.dosage,
+      dose:           getLocalizedDosage(medication, i18n.t.bind(i18n)),
       fireTimestamp:  snoozeDate.getTime(),
     });
     // Track in the notification map so rescheduleAllNotifications can detect
@@ -462,8 +462,8 @@ export async function snoozeDose(
       title: i18n.t("notifications.snoozeTitle", { name: medication.name }),
       body:
         (medication.notes
-          ? i18n.t("notifications.bodyWithNotes", { dose: medication.dosage, notes: medication.notes })
-          : i18n.t("notifications.body", { dose: medication.dosage }))
+          ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
+          : i18n.t("notifications.body", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)) }))
         + i18n.t("notifications.bodyActions"),
       sound: "alarm.wav",
       categoryIdentifier: "DOSE_REMINDER",

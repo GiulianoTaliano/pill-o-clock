@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../src/store";
-import { getColorConfig, formatTimeForDisplay } from "../src/utils";
+import { getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
 import { SNOOZE_OPTIONS, DEFAULT_SNOOZE_MINUTES } from "../src/services/notifications";
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
@@ -178,7 +178,7 @@ export default function AlarmScreen() {
       {/* Top: time */}
       <View className="items-center">
         <Text className="text-6xl font-black text-text">{formatTimeForDisplay(time ?? schedule.time)}</Text>
-        <Text className="text-base text-muted mt-1">{t('alarm.subtitle')}</Text>
+        <Text className="text-base text-muted mt-1">{t('alarm.subtitle', { name: medication.name })}</Text>
       </View>
 
       {/* Center: pill icon */}
@@ -206,7 +206,7 @@ export default function AlarmScreen() {
           className="mt-2 px-4 py-1 rounded-full border"
         >
           <Text style={{ color: colors.text }} className="text-sm font-semibold text-center">
-            {medication.dosage}
+            {getLocalizedDosage(medication, t)}
           </Text>
         </View>
         {medication.notes ? (
@@ -218,14 +218,14 @@ export default function AlarmScreen() {
           accessibilityRole="button"
           accessibilityLabel={showNote ? t('common.cancel') : t('doseCard.addNote')}
           onPress={() => setShowNote((v) => !v)}
-          className="mt-4 flex-row items-center gap-1 self-center py-2 px-3"
+          className="mt-4 flex-row items-center justify-center gap-2 self-center py-3 px-5 min-h-[44px]"
         >
           <Ionicons
             name={showNote ? "chevron-up" : "create-outline"}
-            size={16}
+            size={20}
             color={theme.muted}
           />
-          <Text className="text-xs text-muted">
+          <Text className="text-sm text-muted">
             {showNote ? t('common.cancel') : t('doseCard.addNote')}
           </Text>
         </AppPressable>

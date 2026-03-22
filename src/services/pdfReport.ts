@@ -5,7 +5,7 @@ import { Medication, DoseLog, HealthMeasurement, DailyCheckin, MeasurementType }
 import { getDoseLogsByDateRange, getHealthMeasurements, getDailyCheckins } from "../db/database";
 import { getMedications } from "../db/database";
 import i18n from "../i18n";
-import { today, toDateString } from "../utils";
+import { today, toDateString, getLocalizedDosage } from "../utils";
 import { addDays } from "date-fns";
 import { getDateLocale } from "../i18n";
 
@@ -77,7 +77,7 @@ function buildHtml(
     ? activeMeds.map((m) => `
       <tr>
         <td><strong>${m.name}</strong></td>
-        <td>${m.dosage}</td>
+        <td>${getLocalizedDosage(m, t)}</td>
         <td>${t(`categories.${m.category}`)}</td>
         <td>${m.notes ?? "—"}</td>
       </tr>`).join("")

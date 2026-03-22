@@ -80,7 +80,7 @@ export default function MedicationsScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('form.addButton')}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
-          className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
+          className="bg-primary w-11 h-11 rounded-full items-center justify-center shadow-sm"
         >
           <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>

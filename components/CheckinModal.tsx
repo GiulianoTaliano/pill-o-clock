@@ -2,6 +2,7 @@ import {
   Modal, View, Text, TouchableOpacity, TextInput,
   ScrollView, KeyboardAvoidingView, Platform, PanResponder, Pressable,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "../src/i18n";
@@ -35,6 +36,7 @@ interface CheckinModalProps {
 export function CheckinModal({ visible, onClose, existing }: CheckinModalProps) {
   const theme = useAppTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const saveDailyCheckin = useAppStore((s) => s.saveDailyCheckin);
   const { showToast } = require("../src/context/ToastContext").useToast();
 
@@ -168,7 +170,7 @@ export function CheckinModal({ visible, onClose, existing }: CheckinModalProps) 
               />
 
               {/* Actions */}
-              <View className="flex-row gap-3 mb-8">
+              <View className="flex-row gap-3" style={{ marginBottom: Math.max(insets.bottom, 16) + 12 }}>
                 <TouchableOpacity
                   onPress={onClose}
                   className="flex-1 py-3.5 border border-border rounded-2xl items-center"

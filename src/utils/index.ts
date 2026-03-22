@@ -121,6 +121,11 @@ export function getDosageLabel(unit: DosageUnit, t: TFunction): string {
   return localized[unit] ?? unit;
 }
 
+/** Build a translated dosage string (e.g. "500 mg", "3 drops") at display time. */
+export function getLocalizedDosage(med: { dosageAmount: number; dosageUnit: DosageUnit }, t: TFunction): string {
+  return `${med.dosageAmount} ${getDosageLabel(med.dosageUnit, t)}`;
+}
+
 /** Color palette for preset medication colors */
 export const MEDICATION_COLORS: Record<string, { bg: string; light: string; text: string; border: string }> = {
   blue:   { bg: "#3b82f6", light: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },

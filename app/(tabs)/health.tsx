@@ -2,7 +2,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput, Modal,
   Alert, Platform, KeyboardAvoidingView, useWindowDimensions, PanResponder, Pressable,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useState, useCallback, useRef, useMemo } from "react";
@@ -336,6 +336,7 @@ export default function HealthScreen() {
   const { showToast } = useToast();
   const { width } = useWindowDimensions();
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
 
   const healthMeasurements = useAppStore((s) => s.healthMeasurements);
   const loadHealthMeasurements = useAppStore((s) => s.loadHealthMeasurements);
@@ -726,7 +727,7 @@ export default function HealthScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable className="flex-1 justify-end bg-black/50" onPress={() => setAddModalVisible(false)}>
-          <Pressable onPress={() => {}} className="bg-background rounded-t-3xl">
+          <Pressable onPress={() => {}} className="bg-background rounded-t-3xl max-h-[90%]">
               <View className="items-center pt-3 pb-1" {...measurementPan.panHandlers}>
                 <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
               </View>
@@ -835,7 +836,7 @@ export default function HealthScreen() {
                 />
 
                 {/* Actions */}
-                <View className="flex-row gap-3 mb-8">
+                <View className="flex-row gap-3" style={{ marginBottom: Math.max(insets.bottom, 16) + 12 }}>
                   <TouchableOpacity
                     onPress={() => setAddModalVisible(false)}
                     className="flex-1 py-3.5 border border-border rounded-2xl items-center"

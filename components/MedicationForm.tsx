@@ -6,9 +6,12 @@ import {
   TouchableOpacity,
   Platform,
   Image,
+  FlatList,
+  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { useState, useRef, useCallback, Fragment } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -31,6 +34,50 @@ import { useAppTheme } from "../src/hooks/useAppTheme";
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <Text className="text-danger text-xs mt-1">{message}</Text>;
+}
+// ─── Tip block ──────────────────────────────────────────────────────────────────────
+
+function TipBlock({ text, theme }: { text: string; theme: ReturnType<typeof useAppTheme> }) {
+  return (
+    <View className="flex-row items-start gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5 mb-4">
+      <Ionicons name="information-circle-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
+      <Text className="text-sm text-muted flex-1 leading-5">{text}</Text>
+    </View>
+  );
+}
+// ─── Step indicator ────────────────────────────────────────────────────────
+
+interface StepIndicatorProps {
+  current: number;
+  total: number;
+}
+
+function StepIndicator({ current, total }: StepIndicatorProps) {
+  return (
+    <View className="flex-row items-center justify-center px-8 py-4 gap-1">
+      {Array.from({ length: total }).map((_, i) => (
+        <Fragment key={i}>
+          <View
+            className={`w-3 h-3 rounded-full ${
+              i < current
+                ? "bg-primary"
+                : i === current
+                  ? "bg-primary"
+                  : "bg-border"
+            }`}
+            style={i === current ? { borderWidth: 2, borderColor: "rgba(79,156,255,0.4)" } : undefined}
+          />
+          {i < total - 1 && (
+            <View
+              className={`flex-1 h-0.5 ${
+                i < current ? "bg-primary" : "bg-border"
+              }`}
+            />
+          )}
+        </Fragment>
+      ))}
+    </View>
+  );
 }
 
 // ─── Schedule row ──────────────────────────────────────────────────────────
@@ -131,11 +178,6 @@ function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowPr
 
   const dateObj = value ? new Date(value + "T12:00") : (minimumDate ?? new Date());
 
-  // Pre-fill on first open:
-  // – use minimumDate if provided (e.g. end-date picker defaults to start date)
-  // – otherwise use today
-  // This fixes the iOS spinner not firing onChange when the initial value
-  // already equals the picker's internal default.
   const handleOpen = () => {
     if (!value) {
       const fallback = minimumDate ?? new Date();
@@ -152,8 +194,6 @@ function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowPr
   };
 
   return (
-    // Outer wrapper – DateTimePicker is a sibling of the label/button row
-    // so it cannot overflow the row's flex layout (fixes iPhone overflow).
     <View className="py-2.5">
       <View className="flex-row items-center justify-between mb-2">
         <Text className="text-sm font-semibold text-text">{label}</Text>
@@ -231,6 +271,16 @@ function normalizeScheduleDays(s: ScheduleInput): ScheduleInput {
   return s.days.length === 0 ? { ...s, days: ALL_DAYS } : s;
 }
 
+// ─── Per-slide field mapping for validation ─────────────────────────────────
+
+const SLIDE_FIELDS: Record<number, (keyof MedicationFormData)[]> = {
+  0: ["name", "dosageAmount", "dosageUnit", "category"],
+  1: [],
+  2: ["repeatMode"],
+  3: ["schedules"],
+  4: [],
+};
+
 export function MedicationForm({
   initialValues,
   existingNames = [],
@@ -240,15 +290,19 @@ export function MedicationForm({
 }: MedicationFormProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const flatListRef = useRef<FlatList>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const isEditMode = !!initialValues;
 
   // ─ Frecuencia ────────────────────────────────────────────────────────────
   const todayStr = format(new Date(), "yyyy-MM-dd");
-  // Detect "once" mode from initial values (startDate === endDate, both set)
   const isInitiallyOnce = !!(
     initialValues?.startDate && initialValues.startDate === initialValues.endDate
   );
 
-  const { control, handleSubmit: rhfHandleSubmit, watch, setValue, formState: { errors } } = useForm<MedicationFormData>({
+  const { control, handleSubmit: rhfHandleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<MedicationFormData>({
     resolver: zodResolver(medicationFormSchema),
     defaultValues: {
       name: initialValues?.name ?? "",
@@ -285,6 +339,16 @@ export function MedicationForm({
   const onceDate = watch("onceDate");
   const watchedSchedules = watch("schedules");
 
+  const isPRN = repeatMode === "prn";
+  const totalSlides = isPRN ? 4 : 5;
+
+  // Map visual slide index to logical slide index
+  // When PRN, slide 3 (alarms) is skipped: [0,1,2,4] → logical [0,1,2,3]
+  const getLogicalSlide = useCallback((visualIdx: number) => {
+    if (!isPRN) return visualIdx;
+    return visualIdx >= 3 ? visualIdx + 1 : visualIdx;
+  }, [isPRN]);
+
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -305,7 +369,6 @@ export function MedicationForm({
   const { showToast } = useToast();
 
   const handleFormSubmit = async (data: MedicationFormData) => {
-    // Duplicate-name check (case-insensitive)
     const trimmedName = data.name.trim().toLowerCase();
     if (existingNames.some((n) => n.toLowerCase() === trimmedName)) {
       showToast(t('form.errorDuplicateMsg', { name: data.name.trim() }), "error");
@@ -323,7 +386,6 @@ export function MedicationForm({
       startDate: data.repeatMode === "once" ? data.onceDate : data.repeatMode === "prn" ? undefined : data.startDate,
       endDate:   data.repeatMode === "once" ? data.onceDate : data.repeatMode === "prn" ? undefined : data.endDate,
       schedules: data.repeatMode === "prn" ? [] : data.schedules.map((s) => {
-        // Normalize back: all 7 days → [] (DB convention for "daily")
         const days = data.repeatMode === "once" || s.days.length === 7 ? [] : s.days;
         return { ...s, days };
       }),
@@ -335,7 +397,6 @@ export function MedicationForm({
   };
 
   const handleValidationError = () => {
-    // Show the first error as a toast for visibility
     const firstError = Object.values(errors)[0];
     if (firstError?.message) {
       showToast(t(firstError.message as any), "error");
@@ -354,123 +415,445 @@ export function MedicationForm({
     removeScheduleAt(idx);
   };
 
-  return (
-    <ScrollView className="flex-1 bg-background" showsVerticalScrollIndicator={false}>
-      <View className="px-5 pt-4 pb-8">
+  // ─── Wizard navigation ─────────────────────────────────────────────────
 
-        {/* Section: Basic info */}
-        <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
-          {t('form.sectionInfo')}
-        </Text>
+  const scrollToSlide = useCallback((index: number) => {
+    flatListRef.current?.scrollToIndex({ index, animated: true });
+  }, []);
 
-        <View className="bg-card rounded-2xl border border-border p-4 mb-4 gap-4">
-          {/* Name */}
-          <View>
-            <Text className="text-sm font-semibold text-text mb-1.5">
-              {t('form.fieldName')} <Text className="text-danger">{t('common.required')}</Text>
-            </Text>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { onChange, value } }) => (
-                <TextInput
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder={t('form.fieldNamePlaceholder')}
-                  placeholderTextColor={theme.muted}
-                  className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
-                  autoCapitalize="words"
-                />
-              )}
-            />
-            <FieldError message={errors.name?.message ? t(errors.name.message as any) : undefined} />
-          </View>
+  const goNext = useCallback(async () => {
+    if (currentSlide >= totalSlides - 1) return;
 
-          {/* Dosage */}
-          <View>
-            <Text className="text-sm font-semibold text-text mb-1.5">
-              {t('form.fieldDose')} <Text className="text-danger">{t('common.required')}</Text>
-            </Text>
-            {/* Amount row */}
-            <View className="flex-row items-center gap-2 mb-2">
+    // In edit mode, skip validation when navigating forward
+    if (!isEditMode) {
+      const logicalSlide = getLogicalSlide(currentSlide);
+      const fields = SLIDE_FIELDS[logicalSlide] ?? [];
+      if (fields.length > 0) {
+        const valid = await trigger(fields);
+        if (!valid) {
+          const firstError = Object.values(errors)[0];
+          if (firstError?.message) {
+            showToast(t(firstError.message as any), "error");
+          }
+          return;
+        }
+      }
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = currentSlide + 1;
+    setCurrentSlide(next);
+    scrollToSlide(next);
+  }, [currentSlide, totalSlides, isEditMode, getLogicalSlide, trigger, errors, showToast, t, scrollToSlide]);
+
+  const goBack = useCallback(() => {
+    if (currentSlide <= 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const prev = currentSlide - 1;
+    setCurrentSlide(prev);
+    scrollToSlide(prev);
+  }, [currentSlide, scrollToSlide]);
+
+  const handleSkip = useCallback(() => {
+    if (currentSlide >= totalSlides - 1) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = currentSlide + 1;
+    setCurrentSlide(next);
+    scrollToSlide(next);
+  }, [currentSlide, totalSlides, scrollToSlide]);
+
+  const handleSubmitPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    rhfHandleSubmit(handleFormSubmit, handleValidationError)();
+  }, [rhfHandleSubmit, handleFormSubmit, handleValidationError]);
+
+  const handleSkipAndSave = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    rhfHandleSubmit(handleFormSubmit, handleValidationError)();
+  }, [rhfHandleSubmit, handleFormSubmit, handleValidationError]);
+
+  const isLastSlide = currentSlide === totalSlides - 1;
+  const logicalCurrent = getLogicalSlide(currentSlide);
+  const canSkip = logicalCurrent === 1 || logicalCurrent === 4;
+
+  // ─── Slide contents ─────────────────────────────────────────────────────
+
+  function SlideIdentity() {
+    return (
+      <ScrollView style={{ width: screenWidth }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 pt-2 pb-8">
+          <Text className="text-xl font-bold text-text mb-1">{t('wizard.slideIdentityTitle')}</Text>
+          <Text className="text-sm text-muted mb-5">{t('wizard.slideIdentitySubtitle')}</Text>
+
+          <View className="bg-card rounded-2xl border border-border p-4 gap-4">
+            {/* Name */}
+            <View>
+              <Text className="text-sm font-semibold text-text mb-1.5">
+                {t('form.fieldName')} <Text className="text-danger">{t('common.required')}</Text>
+              </Text>
               <Controller
                 control={control}
-                name="dosageAmount"
+                name="name"
                 render={({ field: { onChange, value } }) => (
                   <TextInput
                     value={value}
                     onChangeText={onChange}
-                    placeholder={t('form.fieldDoseAmountPlaceholder')}
+                    placeholder={t('form.fieldNamePlaceholder')}
                     placeholderTextColor={theme.muted}
-                    keyboardType="decimal-pad"
-                    className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
+                    className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
+                    autoCapitalize="words"
                   />
                 )}
               />
-              <Text className="text-muted text-sm">{t('form.fieldDoseAmountLabel')}</Text>
+              <FieldError message={errors.name?.message ? t(errors.name.message as any) : undefined} />
             </View>
-            <FieldError message={errors.dosageAmount?.message ? t(errors.dosageAmount.message as any) : undefined} />
-            {/* Unit chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row gap-2 pb-1">
-                {DOSAGE_UNITS.map((u) => (
-                  <TouchableOpacity
-                    key={u.value}
-                    onPress={() => setValue("dosageUnit", u.value)}
-                    className={`rounded-xl px-4 py-3 min-h-[44px] items-center justify-center border ${
-                      dosageUnit === u.value
-                        ? "bg-primary border-primary"
-                        : "bg-card-alt border-border"
-                    }`}
-                  >
-                    <Text
-                      className={`text-sm font-bold ${
-                        dosageUnit === u.value ? "text-white" : "text-text"
+
+            {/* Dosage */}
+            <View>
+              <Text className="text-sm font-semibold text-text mb-1.5">
+                {t('form.fieldDose')} <Text className="text-danger">{t('common.required')}</Text>
+              </Text>
+              <View className="flex-row items-center gap-2 mb-2">
+                <Controller
+                  control={control}
+                  name="dosageAmount"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder={t('form.fieldDoseAmountPlaceholder')}
+                      placeholderTextColor={theme.muted}
+                      keyboardType="decimal-pad"
+                      className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
+                    />
+                  )}
+                />
+                <Text className="text-muted text-sm">{t('form.fieldDoseAmountLabel')}</Text>
+              </View>
+              <FieldError message={errors.dosageAmount?.message ? t(errors.dosageAmount.message as any) : undefined} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View className="flex-row gap-2 pb-1">
+                  {DOSAGE_UNITS.map((u) => (
+                    <TouchableOpacity
+                      key={u.value}
+                      onPress={() => setValue("dosageUnit", u.value)}
+                      className={`rounded-xl px-4 py-3 min-h-[44px] items-center justify-center border ${
+                        dosageUnit === u.value
+                          ? "bg-primary border-primary"
+                          : "bg-card-alt border-border"
                       }`}
                     >
-                      {getDosageLabel(u.value, t)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        className={`text-sm font-bold ${
+                          dosageUnit === u.value ? "text-white" : "text-text"
+                        }`}
+                      >
+                        {getDosageLabel(u.value, t)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* Category */}
+            <View>
+              <Text className="text-sm font-semibold text-text mb-2">{t('form.fieldCategory')}</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {(Object.entries(CATEGORY_CONFIG) as [MedicationCategory, typeof CATEGORY_CONFIG[MedicationCategory]][]).map(
+                  ([key, cfg]) => (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => setValue("category", key)}
+                      className={`flex-row items-center gap-1.5 rounded-xl px-4 py-3 min-h-[44px] border ${
+                        category === key
+                          ? "border-primary bg-blue-50 dark:bg-blue-950/30"
+                          : "border-border bg-card-alt"
+                      }`}
+                    >
+                      <Ionicons
+                        name={cfg.icon as any}
+                        size={14}
+                        color={category === key ? theme.primary : theme.muted}
+                      />
+                      <Text
+                        className={`text-sm font-semibold ${
+                          category === key ? "text-primary" : "text-text"
+                        }`}
+                      >
+                        {getCategoryLabel(key, t)}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                )}
               </View>
-            </ScrollView>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  function SlideAppearance() {
+    return (
+      <ScrollView style={{ width: screenWidth }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 pt-2 pb-8">
+          <Text className="text-xl font-bold text-text mb-1">{t('wizard.slideAppearanceTitle')}</Text>
+          <Text className="text-sm text-muted mb-5">{t('wizard.slideAppearanceSubtitle')}</Text>
+
+          {/* Color */}
+          <View className="bg-card rounded-2xl border border-border p-4 mb-4">
+            <Text className="text-sm font-semibold text-text mb-2">{t('form.fieldColor')}</Text>
+            <ColorPicker value={color} onChange={(c) => setValue("color", c)} />
           </View>
 
-          {/* Category */}
-          <View>
-            <Text className="text-sm font-semibold text-text mb-2">{t('form.fieldCategory')}</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {(Object.entries(CATEGORY_CONFIG) as [MedicationCategory, typeof CATEGORY_CONFIG[MedicationCategory]][]).map(
-                ([key, cfg]) => (
+          {/* Photo */}
+          <View className="bg-card rounded-2xl border border-border p-4 items-center">
+            <Text className="text-sm font-semibold text-text mb-3 self-start">{t('form.sectionPhoto')}</Text>
+            {photoUri ? (
+              <View className="items-center gap-3">
+                <Image
+                  source={{ uri: photoUri }}
+                  className="w-24 h-24 rounded-2xl"
+                  resizeMode="cover"
+                />
+                <View className="flex-row gap-3">
                   <TouchableOpacity
-                    key={key}
-                    onPress={() => setValue("category", key)}
-                    className={`flex-row items-center gap-1.5 rounded-xl px-4 py-3 min-h-[44px] border ${
-                      category === key
-                        ? "border-primary bg-blue-50 dark:bg-blue-950/30"
-                        : "border-border bg-card-alt"
-                    }`}
+                    onPress={pickPhoto}
+                    className="flex-row items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2"
                   >
-                    <Ionicons
-                      name={cfg.icon as any}
-                      size={14}
-                      color={category === key ? theme.primary : theme.muted}
-                    />
-                    <Text
-                      className={`text-sm font-semibold ${
-                        category === key ? "text-primary" : "text-text"
-                      }`}
-                    >
-                      {getCategoryLabel(key, t)}
-                    </Text>
+                    <Ionicons name="image-outline" size={14} color={theme.primary} />
+                    <Text className="text-blue-600 dark:text-blue-400 text-xs font-semibold">{t('form.changePhoto')}</Text>
                   </TouchableOpacity>
-                )
-              )}
-            </View>
+                  <TouchableOpacity
+                    onPress={() => setValue("photoUri", undefined)}
+                    className="flex-row items-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2"
+                  >
+                    <Ionicons name="trash-outline" size={14} color={theme.danger} />
+                    <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('form.removePhoto')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={pickPhoto}
+                className="flex-row items-center gap-2 bg-card-alt border border-dashed border-border rounded-2xl px-6 py-4"
+              >
+                <Ionicons name="camera-outline" size={20} color={theme.muted} />
+                <Text className="text-muted font-semibold">{t('form.addPhoto')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  function SlideFrequency() {
+    return (
+      <ScrollView style={{ width: screenWidth }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 pt-2 pb-8">
+          <Text className="text-xl font-bold text-text mb-1">{t('wizard.slideFrequencyTitle')}</Text>
+          <Text className="text-sm text-muted mb-5">{t('wizard.slideFrequencySubtitle')}</Text>
+
+          <View className="flex-row gap-2 mb-4">
+            {/* Once */}
+            <TouchableOpacity
+              onPress={() => setValue("repeatMode", "once")}
+              className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3 border ${
+                repeatMode === "once"
+                  ? "bg-primary border-primary"
+                  : "bg-card border-border"
+              }`}
+            >
+              <Ionicons
+                name="time-outline"
+                size={16}
+                color={repeatMode === "once" ? "#fff" : theme.muted}
+              />
+              <View>
+                <Text
+                  className={`text-sm font-bold ${
+                    repeatMode === "once" ? "text-white" : "text-text"
+                  }`}
+                >
+                  {t('form.modeOnce')}
+                </Text>
+                <Text
+                  className={`text-xs ${
+                    repeatMode === "once" ? "text-blue-100" : "text-muted"
+                  }`}
+                >
+                  {t('form.modeOnceSub')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Repeat */}
+            <TouchableOpacity
+              onPress={() => setValue("repeatMode", "repeat")}
+              className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3 border ${
+                repeatMode === "repeat"
+                  ? "bg-primary border-primary"
+                  : "bg-card border-border"
+              }`}
+            >
+              <Ionicons
+                name="repeat-outline"
+                size={16}
+                color={repeatMode === "repeat" ? "#fff" : theme.muted}
+              />
+              <View>
+                <Text
+                  className={`text-sm font-bold ${
+                    repeatMode === "repeat" ? "text-white" : "text-text"
+                  }`}
+                >
+                  {t('form.modeRepeat')}
+                </Text>
+                <Text
+                  className={`text-xs ${
+                    repeatMode === "repeat" ? "text-blue-100" : "text-muted"
+                  }`}
+                >
+                  {t('form.modeRepeatSub')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* PRN row */}
+          <TouchableOpacity
+            onPress={() => setValue("repeatMode", "prn")}
+            className={`flex-row items-center gap-2 rounded-2xl py-3 px-4 border mb-4 ${
+              repeatMode === "prn"
+                ? "bg-primary border-primary"
+                : "bg-card border-border"
+            }`}
+          >
+            <Ionicons
+              name="hand-left-outline"
+              size={16}
+              color={repeatMode === "prn" ? "#fff" : theme.muted}
+            />
+            <View>
+              <Text
+                className={`text-sm font-bold ${
+                  repeatMode === "prn" ? "text-white" : "text-text"
+                }`}
+              >
+                {t('form.modePRN')}
+              </Text>
+              <Text
+                className={`text-xs ${
+                  repeatMode === "prn" ? "text-blue-100" : "text-muted"
+                }`}
+              >
+                {t('form.modePRNSub')}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Contextual tip */}
+          {repeatMode === "repeat" && <TipBlock text={t('form.tipRepeatDates')} theme={theme} />}
+          {repeatMode === "once" && <TipBlock text={t('form.tipOnceDateRequired')} theme={theme} />}
+
+          {/* Date pickers for once / repeat */}
+          {repeatMode === "once" && (
+            <View className="bg-card rounded-2xl border border-border px-4">
+              <DateRow label={t('form.fieldDate')} value={onceDate} onChange={(v) => v && setValue("onceDate", v)} />
+            </View>
+          )}
+
+          {repeatMode === "repeat" && (
+            <View className="bg-card rounded-2xl border border-border px-4">
+              <DateRow
+                label={t('form.fieldStartDate')}
+                value={startDate}
+                onChange={(v) => {
+                  setValue("startDate", v);
+                  if (v && endDate && endDate < v) setValue("endDate", undefined);
+                }}
+                maximumDate={endDate ? new Date(endDate + "T12:00") : undefined}
+              />
+              <View className="border-b border-border" />
+              <DateRow
+                label={t('form.fieldEndDate')}
+                value={endDate}
+                onChange={(v) => setValue("endDate", v)}
+                minimumDate={startDate ? new Date(startDate + "T12:00") : undefined}
+              />
+              <FieldError message={errors.endDate?.message ? t(errors.endDate.message as any) : undefined} />
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    );
+  }
+
+  function SlideAlarms() {
+    return (
+      <ScrollView style={{ width: screenWidth }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 pt-2 pb-8">
+          <Text className="text-xl font-bold text-text mb-1">{t('wizard.slideAlarmsTitle')}</Text>
+          <Text className="text-sm text-muted mb-5">{t('wizard.slideAlarmsSubtitle')}</Text>
+
+          {/* Contextual tip */}
+          {repeatMode === "once"
+            ? <TipBlock text={t('form.tipAlarmsOnce')} theme={theme} />
+            : <TipBlock text={t('form.tipAlarmsDays')} theme={theme} />
+          }
+
+          {repeatMode === "once" ? (
+            <>
+              {scheduleFields.slice(0, 1).map((field, idx) => (
+                <ScheduleRow
+                  key={field.id}
+                  schedule={watchedSchedules[idx] ?? field}
+                  showDays={false}
+                  onChange={(updated) => updateSchedule(idx, updated)}
+                  onRemove={() => removeSchedule(idx)}
+                />
+              ))}
+            </>
+          ) : (
+            <>
+              <View className="flex-row items-center justify-between mb-3">
+                <Text className="text-xs font-bold text-muted uppercase tracking-widest">
+                  {t('form.sectionAlarms', { count: scheduleFields.length })}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => appendSchedule(newSchedule())}
+                  className="flex-row items-center gap-1 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5"
+                >
+                  <Ionicons name="add" size={14} color={theme.primary} />
+                  <Text className="text-blue-600 dark:text-blue-400 text-xs font-bold">{t('form.addAlarm')}</Text>
+                </TouchableOpacity>
+              </View>
+              {scheduleFields.map((field, idx) => (
+                <ScheduleRow
+                  key={field.id}
+                  schedule={watchedSchedules[idx] ?? field}
+                  onChange={(updated) => updateSchedule(idx, updated)}
+                  onRemove={() => removeSchedule(idx)}
+                />
+              ))}
+            </>
+          )}
+        </View>
+      </ScrollView>
+    );
+  }
+
+  function SlideExtras() {
+    return (
+      <ScrollView style={{ width: screenWidth }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 pt-2 pb-8">
+          <Text className="text-xl font-bold text-text mb-1">{t('wizard.slideExtrasTitle')}</Text>
+          <Text className="text-sm text-muted mb-5">{t('wizard.slideExtrasSubtitle')}</Text>
 
           {/* Notes */}
-          <View>
+          <View className="bg-card rounded-2xl border border-border p-4 mb-4">
             <Text className="text-sm font-semibold text-text mb-1.5">
               {t('form.fieldNotes')}
             </Text>
@@ -485,265 +868,24 @@ export function MedicationForm({
                   placeholderTextColor={theme.muted}
                   className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
                   multiline
-                  numberOfLines={2}
+                  numberOfLines={3}
                 />
               )}
             />
           </View>
 
-          {/* Color */}
-          <View>
-            <Text className="text-sm font-semibold text-text mb-2">{t('form.fieldColor')}</Text>
-            <ColorPicker value={color} onChange={(c) => setValue("color", c)} />
-          </View>
-        </View>
-
-        {/* Section: Photo */}
-        <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
-          {t('form.sectionPhoto')}
-        </Text>
-        <View className="bg-card rounded-2xl border border-border p-4 mb-4 items-center">
-          {photoUri ? (
-            <View className="items-center gap-3">
-              <Image
-                source={{ uri: photoUri }}
-                className="w-24 h-24 rounded-2xl"
-                resizeMode="cover"
-              />
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  onPress={pickPhoto}
-                  className="flex-row items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2"
-                >
-                  <Ionicons name="image-outline" size={14} color={theme.primary} />
-                  <Text className="text-blue-600 dark:text-blue-400 text-xs font-semibold">{t('form.changePhoto')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setValue("photoUri", undefined)}
-                  className="flex-row items-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2"
-                >
-                  <Ionicons name="trash-outline" size={14} color={theme.danger} />
-                  <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('form.removePhoto')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={pickPhoto}
-              className="flex-row items-center gap-2 bg-card-alt border border-dashed border-border rounded-2xl px-6 py-4"
-            >
-              <Ionicons name="camera-outline" size={20} color={theme.muted} />
-              <Text className="text-muted font-semibold">{t('form.addPhoto')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Section: Frecuencia */}
-        <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
-          {t('form.sectionFrequency')}
-        </Text>
-
-        <View className="flex-row gap-2 mb-4">
-          {/* Once */}
-          <TouchableOpacity
-            onPress={() => setValue("repeatMode", "once")}
-            className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3 border ${
-              repeatMode === "once"
-                ? "bg-primary border-primary"
-                : "bg-card border-border"
-            }`}
-          >
-            <Ionicons
-              name="time-outline"
-              size={16}
-              color={repeatMode === "once" ? "#fff" : theme.muted}
-            />
+          {/* Stock */}
+          <View className="bg-card rounded-2xl border border-border p-4 gap-4">
+            <Text className="text-xs font-bold text-muted uppercase tracking-widest">
+              {t('form.sectionStock')}
+            </Text>
             <View>
-              <Text
-                className={`text-sm font-bold ${
-                  repeatMode === "once" ? "text-white" : "text-text"
-                }`}
-              >
-                {t('form.modeOnce')}
-              </Text>
-              <Text
-                className={`text-xs ${
-                  repeatMode === "once" ? "text-blue-100" : "text-muted"
-                }`}
-              >
-                {t('form.modeOnceSub')}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Repeat */}
-          <TouchableOpacity
-            onPress={() => setValue("repeatMode", "repeat")}
-            className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3 border ${
-              repeatMode === "repeat"
-                ? "bg-primary border-primary"
-                : "bg-card border-border"
-            }`}
-          >
-            <Ionicons
-              name="repeat-outline"
-              size={16}
-              color={repeatMode === "repeat" ? "#fff" : theme.muted}
-            />
-            <View>
-              <Text
-                className={`text-sm font-bold ${
-                  repeatMode === "repeat" ? "text-white" : "text-text"
-                }`}
-              >
-                {t('form.modeRepeat')}
-              </Text>
-              <Text
-                className={`text-xs ${
-                  repeatMode === "repeat" ? "text-blue-100" : "text-muted"
-                }`}
-              >
-                {t('form.modeRepeatSub')}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* PRN row */}
-        <TouchableOpacity
-          onPress={() => setValue("repeatMode", "prn")}
-          className={`flex-row items-center gap-2 rounded-2xl py-3 px-4 border mb-4 ${
-            repeatMode === "prn"
-              ? "bg-primary border-primary"
-              : "bg-card border-border"
-          }`}
-        >
-          <Ionicons
-            name="hand-left-outline"
-            size={16}
-            color={repeatMode === "prn" ? "#fff" : theme.muted}
-          />
-          <View>
-            <Text
-              className={`text-sm font-bold ${
-                repeatMode === "prn" ? "text-white" : "text-text"
-              }`}
-            >
-              {t('form.modePRN')}
-            </Text>
-            <Text
-              className={`text-xs ${
-                repeatMode === "prn" ? "text-blue-100" : "text-muted"
-              }`}
-            >
-              {t('form.modePRNSub')}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {repeatMode === "once" ? (
-          /* ── Única vez ──────────────────────────────────────────── */
-          <>
-            <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
-              {t('form.sectionWhen')}
-            </Text>
-            <View className="bg-card rounded-2xl border border-border px-4 mb-4">
-              <DateRow label={t('form.fieldDate')} value={onceDate} onChange={(v) => v && setValue("onceDate", v)} />
-            </View>
-
-            <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
-              {t('form.sectionAlarm')}
-            </Text>
-            {scheduleFields.slice(0, 1).map((field, idx) => (
-              <ScheduleRow
-                key={field.id}
-                schedule={watchedSchedules[idx] ?? field}
-                showDays={false}
-                onChange={(updated) => updateSchedule(idx, updated)}
-                onRemove={() => removeSchedule(idx)}
-              />
-            ))}
-          </>
-        ) : repeatMode === "prn" ? (
-          /* ── A demanda (PRN) ────────────────────────────────────── */
-          null
-        ) : (
-          /* ── Repetir ───────────────────────────────────────────── */
-          <>
-            <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
-              {t('form.sectionPeriod')}
-            </Text>
-            <View className="bg-card rounded-2xl border border-border px-4 mb-4">
-              <DateRow
-                label={t('form.fieldStartDate')}
-                value={startDate}
-                onChange={(v) => {
-                  setValue("startDate", v);
-                  // If the current end date is now before the new start, clear it
-                  if (v && endDate && endDate < v) setValue("endDate", undefined);
-                }}
-                maximumDate={endDate ? new Date(endDate + "T12:00") : undefined}
-              />
-              <View className="border-b border-border" />
-              <DateRow
-                label={t('form.fieldEndDate')}
-                value={endDate}
-                onChange={(v) => setValue("endDate", v)}
-                minimumDate={startDate ? new Date(startDate + "T12:00") : undefined}
-              />
-              <FieldError message={errors.endDate?.message ? t(errors.endDate.message as any) : undefined} />
-            </View>
-
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-xs font-bold text-muted uppercase tracking-widest">
-                {t('form.sectionAlarms', { count: scheduleFields.length })}
-              </Text>
-              <TouchableOpacity
-                onPress={() => appendSchedule(newSchedule())}
-                className="flex-row items-center gap-1 bg-blue-50 rounded-xl px-3 py-2.5"
-              >
-                <Ionicons name="add" size={14} color={theme.primary} />
-                <Text className="text-blue-600 dark:text-blue-400 text-xs font-bold">{t('form.addAlarm')}</Text>
-              </TouchableOpacity>
-            </View>
-            {scheduleFields.map((field, idx) => (
-              <ScheduleRow
-                key={field.id}
-                schedule={watchedSchedules[idx] ?? field}
-                onChange={(updated) => updateSchedule(idx, updated)}
-                onRemove={() => removeSchedule(idx)}
-              />
-            ))}
-          </>
-        )}
-
-        {/* Section: Stock */}
-        <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-3">
-          {t('form.sectionStock')}
-        </Text>
-        <View className="bg-card rounded-2xl border border-border p-4 mb-4 gap-4">
-          <View>
-            <Text className="text-sm font-semibold text-text mb-1.5">{t('form.fieldStock')}</Text>
-            <View className="flex-row items-center gap-2">
-              <TextInput
-                value={stockQtyStr}
-                onChangeText={(v) => { setValue("stockQtyStr", v); if (!v.trim()) setValue("stockThreshStr", ""); }}
-                placeholder={t('form.fieldStockPlaceholder')}
-                placeholderTextColor={theme.muted}
-                keyboardType="number-pad"
-                className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
-              />
-              <Text className="text-muted text-sm">{t('form.fieldStockUnit')}</Text>
-            </View>
-          </View>
-          {!!stockQtyStr.trim() && (
-            <View>
-              <Text className="text-sm font-semibold text-text mb-1.5">{t('form.fieldStockThreshold')}</Text>
+              <Text className="text-sm font-semibold text-text mb-1.5">{t('form.fieldStock')}</Text>
               <View className="flex-row items-center gap-2">
                 <TextInput
-                  value={stockThreshStr}
-                  onChangeText={(v) => setValue("stockThreshStr", v)}
-                  placeholder={t('form.fieldStockThresholdPlaceholder')}
+                  value={stockQtyStr}
+                  onChangeText={(v) => { setValue("stockQtyStr", v); if (!v.trim()) setValue("stockThreshStr", ""); }}
+                  placeholder={t('form.fieldStockPlaceholder')}
                   placeholderTextColor={theme.muted}
                   keyboardType="number-pad"
                   className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
@@ -751,20 +893,126 @@ export function MedicationForm({
                 <Text className="text-muted text-sm">{t('form.fieldStockUnit')}</Text>
               </View>
             </View>
+            {!!stockQtyStr?.trim() && (
+              <View>
+                <Text className="text-sm font-semibold text-text mb-1.5">{t('form.fieldStockThreshold')}</Text>
+                <View className="flex-row items-center gap-2">
+                  <TextInput
+                    value={stockThreshStr}
+                    onChangeText={(v) => setValue("stockThreshStr", v)}
+                    placeholder={t('form.fieldStockThresholdPlaceholder')}
+                    placeholderTextColor={theme.muted}
+                    keyboardType="number-pad"
+                    className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
+                  />
+                  <Text className="text-muted text-sm">{t('form.fieldStockUnit')}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // ─── Build slides array ─────────────────────────────────────────────────
+
+  const slides = isPRN
+    ? [SlideIdentity, SlideAppearance, SlideFrequency, SlideExtras]
+    : [SlideIdentity, SlideAppearance, SlideFrequency, SlideAlarms, SlideExtras];
+
+  const renderSlide = useCallback(({ item: SlideComponent, index }: { item: () => React.JSX.Element; index: number }) => (
+    <View style={{ width: screenWidth }}>
+      <SlideComponent />
+    </View>
+  ), [screenWidth]);
+
+  const keyExtractor = useCallback((_: any, index: number) => String(index), []);
+
+  const getItemLayout = useCallback((_: any, index: number) => ({
+    length: screenWidth,
+    offset: screenWidth * index,
+    index,
+  }), [screenWidth]);
+
+  // ─── Render ─────────────────────────────────────────────────────────────
+
+  return (
+    <View className="flex-1 bg-background">
+      {/* Progress indicator */}
+      <StepIndicator current={currentSlide} total={totalSlides} />
+
+      {/* Slides */}
+      <FlatList
+        ref={flatListRef}
+        data={slides}
+        horizontal
+        pagingEnabled
+        scrollEnabled={false}
+        showsHorizontalScrollIndicator={false}
+        renderItem={renderSlide}
+        keyExtractor={keyExtractor}
+        getItemLayout={getItemLayout}
+      />
+
+      {/* Navigation footer */}
+      <View className="px-5 pt-3 border-t border-border bg-background" style={{ paddingBottom: Math.max(insets.bottom, 12) + 12 }}>
+        <View className="flex-row items-center gap-3">
+          {/* Back button */}
+          {currentSlide > 0 && (
+            <TouchableOpacity
+              onPress={goBack}
+              className="rounded-2xl py-3.5 px-5 border border-border bg-card"
+            >
+              <Text className="text-text font-bold text-base">{t('wizard.back')}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Skip button (slides 1=Appearance, last=Extras) */}
+          {canSkip && !isLastSlide && (
+            <TouchableOpacity
+              onPress={handleSkip}
+              className="py-3.5 px-4"
+            >
+              <Text className="text-muted font-semibold text-sm">{t('wizard.skip')}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Spacer */}
+          <View className="flex-1" />
+
+          {/* Skip and save (last slide only, when skippable) */}
+          {isLastSlide && (
+            <TouchableOpacity
+              onPress={handleSkipAndSave}
+              disabled={isSubmitting}
+              className="py-3.5 px-4"
+            >
+              <Text className="text-muted font-semibold text-sm">{t('wizard.skipAndSave')}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Next / Submit button */}
+          {isLastSlide ? (
+            <TouchableOpacity
+              onPress={handleSubmitPress}
+              disabled={isSubmitting}
+              className={`rounded-2xl py-3.5 px-6 ${isSubmitting ? "bg-slate-300" : "bg-primary"}`}
+            >
+              <Text className="text-white font-bold text-base">
+                {isSubmitting ? t('common.saving') : submitLabel}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={goNext}
+              className="rounded-2xl py-3.5 px-6 bg-primary"
+            >
+              <Text className="text-white font-bold text-base">{t('wizard.next')}</Text>
+            </TouchableOpacity>
           )}
         </View>
-
-        {/* Submit */}
-        <TouchableOpacity
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); rhfHandleSubmit(handleFormSubmit, handleValidationError)(); }}
-          disabled={isSubmitting}
-          className={`rounded-2xl py-4 items-center mt-2 ${isSubmitting ? "bg-slate-300" : "bg-primary"}`}
-        >
-          <Text className="text-white font-bold text-base">
-            {isSubmitting ? t('common.saving') : submitLabel}
-          </Text>
-        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }

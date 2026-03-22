@@ -67,7 +67,7 @@ function SettingRow({
     <View className="flex-row items-center px-5 py-4 bg-card" style={{ minHeight: 60 }}>
       {/* icon pill */}
       <View
-        className="w-9 h-9 rounded-xl items-center justify-center mr-4"
+        className="w-11 h-11 rounded-xl items-center justify-center mr-4"
         style={{ backgroundColor: resolvedIconColor + "18" }}
       >
         <Ionicons name={icon} size={20} color={resolvedIconColor} />

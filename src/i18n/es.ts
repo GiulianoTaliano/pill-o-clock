@@ -71,6 +71,10 @@ const es = {
     streak_one: "🔥 {{count}} día seguido",
     streak_other: "🔥 {{count}} días seguidos",
     prnLogDose: "Registrar dosis",
+    upcomingAppointments: "Próximas citas",
+    viewAllAppointments: "Ver todas",
+    noUpcomingAppointments: "Sin citas próximas",
+    viewCalendar: "Ver calendario de dosis",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
@@ -147,11 +151,15 @@ const es = {
     fieldDays: "Días",
     selectDate: "Seleccioná una fecha",
     modeOnce: "Única vez",
-    modeOnceSub: "Solo un día",
-    modeRepeat: "Repetir",
-    modeRepeatSub: "Varios días",
+    modeOnceSub: "Para una fecha puntual",
+    modeRepeat: "Diario / Recurrente",
+    modeRepeatSub: "Todos los días o días específicos",
     modePRN: "A demanda (PRN)",
     modePRNSub: "Sin horario fijo",
+    tipRepeatDates: "Las fechas son opcionales. Si no las definís, el recordatorio se mantiene indefinidamente.",
+    tipOnceDateRequired: "Elegí la fecha en la que necesitás tomar este medicamento.",
+    tipAlarmsDays: "Podés elegir días específicos para cada alarma, o dejarlo en \"Todos\" para recordatorios diarios.",
+    tipAlarmsOnce: "Elegí la hora a la que querés que te avisemos.",
     addAlarm: "Agregar",
     removeAlarm: "Quitar alarma",
     errorNameRequired: "Nombre requerido",
@@ -176,11 +184,34 @@ const es = {
     changePhoto: "Cambiar foto",
     removePhoto: "Quitar foto",
     errorPhotoPermission: "Se necesita permiso para acceder a la galería",
+    dayToggleAll: "Todos",
+    dayToggleEveryDay: "Todos los días",
+    dayToggleSelected_one: "{{count}} día seleccionado",
+    dayToggleSelected_other: "{{count}} días seleccionados",
+  },
+
+  // ─── Medication wizard ─────────────────────────────────────────────────────
+  wizard: {
+    slideIdentityTitle: "¿Qué medicamento es?",
+    slideIdentitySubtitle: "Ingresá el nombre y la dosis.",
+    slideAppearanceTitle: "Personalizá tu medicamento",
+    slideAppearanceSubtitle: "Elegí un color y opcionalmente sacale una foto.",
+    slideFrequencyTitle: "¿Cada cuánto lo tomás?",
+    slideFrequencySubtitle: "Elegí cómo vas a tomar este medicamento.",
+    slideAlarmsTitle: "¿A qué hora te recordamos?",
+    slideAlarmsSubtitle: "Definí en qué horarios querés que te recordemos.",
+    slideExtrasTitle: "Detalles adicionales",
+    slideExtrasSubtitle: "Todo es opcional. Podés guardar directamente.",
+    next: "Siguiente",
+    back: "Atrás",
+    skip: "Omitir",
+    skipAndSave: "Omitir y guardar",
+    stepOf: "Paso {{current}} de {{total}}",
   },
 
   // ─── Alarm screen ─────────────────────────────────────────────────────────
   alarm: {
-    subtitle: "Recordatorio de medicamento",
+    subtitle: "Recordatorio de {{name}}",
     dose: "Dosis",
     takeMed: "Confirmar",
     snooze: "Posponer",
@@ -308,6 +339,7 @@ const es = {
     locationPermTitle: "Permiso de ubicación",
     locationLoading: "Obteniendo ubicación…",
     locationClear: "Borrar ubicación",
+    recentLocations: "Recientes",
     // Documents
     documentsTitle: "Documentos",
     attachDocument: "Adjuntar documento",
@@ -543,15 +575,21 @@ const es = {
     // Paso 1 — Botón agregar medicamento
     step1Title: "Empezá aquí",
     step1Desc: "Tocá + para agregar tu primer medicamento. Configurá nombre, dosis, horario y alarma.",
-    // Paso 2 — Tab Calendario
-    step2Title: "Agenda y turnos",
-    step2Desc: "Acá ves tu plan de dosis del día. También podés agregar turnos médicos con recordatorios y ubicación.",
-    // Paso 3 — Tab Salud
-    step3Title: "Tu salud",
-    step3Desc: "Registrá presión arterial, glucosa, peso y más. Completá tu check-in diario de bienestar aquí.",
-    // Paso 4 — Tab Ajustes
-    step4Title: "Ajustes",
-    step4Desc: "Administrá tus datos, backup, preferencias de idioma y generá informes PDF para tu médico.",
+    // Paso 2 — Botón agenda (calendario)
+    step2Title: "Tu agenda",
+    step2Desc: "Consultá el calendario mensual con tus medicamentos y citas. Tocá un día para ver los detalles.",
+    // Paso 3 — Botón historial
+    step3Title: "Tu historial",
+    step3Desc: "Revisá tu adherencia con estadísticas y un mapa de calor por día.",
+    // Paso 4 — Tab Citas
+    step4Title: "Tus citas médicas",
+    step4Desc: "Acá gestionás todas tus citas médicas. Agregá turnos con recordatorios, ubicación y documentos.",
+    // Paso 5 — Tab Salud
+    step5Title: "Tu salud",
+    step5Desc: "Registrá presión arterial, glucosa, peso y más. Completá tu check-in diario de bienestar aquí.",
+    // Paso 6 — Tab Ajustes
+    step6Title: "Ajustes",
+    step6Desc: "Administrá tus datos, backup, preferencias de idioma y generá informes PDF para tu médico.",
   },
 
   // ─── Color picker ─────────────────────────────────────────────────────────

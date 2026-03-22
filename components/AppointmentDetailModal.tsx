@@ -12,6 +12,7 @@ import {
   PanResponder,
   Pressable,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -82,6 +83,7 @@ export function AppointmentDetailModal({
 }: Props) {
   const { t } = useTranslation();
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
   const appointmentDocuments = useAppStore((s) => s.appointmentDocuments);
   const loadAppointmentDocuments = useAppStore((s) => s.loadAppointmentDocuments);
   const addAppointmentDocument = useAppStore((s) => s.addAppointmentDocument);
@@ -307,13 +309,13 @@ export function AppointmentDetailModal({
                     style={{
                       marginTop: 4,
                       alignSelf: "flex-start",
-                      backgroundColor: theme.isDark ? "#1e293b" : "#f1f5f9",
+                      backgroundColor: theme.isDark ? "#334155" : "#e2e8f0",
                       borderRadius: 8,
                       paddingHorizontal: 8,
                       paddingVertical: 2,
                     }}
                   >
-                    <Text style={{ color: theme.muted, fontSize: 11, fontWeight: "600" }}>
+                    <Text style={{ color: theme.isDark ? "#e2e8f0" : "#334155", fontSize: 11, fontWeight: "600" }}>
                       Past
                     </Text>
                   </View>
@@ -555,7 +557,7 @@ export function AppointmentDetailModal({
               style={{
                 paddingHorizontal: 20,
                 paddingTop: 20,
-                paddingBottom: Platform.OS === "ios" ? 40 : 28,
+                paddingBottom: Math.max(insets.bottom, 16) + 12,
                 flexDirection: "row",
                 gap: 12,
               }}

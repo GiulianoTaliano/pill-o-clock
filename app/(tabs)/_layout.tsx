@@ -97,14 +97,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="calendar"
+        name="appointments"
         options={{
-          title: t('tabs.agenda'),
+          title: t('tabs.appointments'),
           tabBarIcon: ({ focused, color }) => (
             <CopilotStep
-              text="tour.step2Title||tour.step2Desc"
-              order={2}
-              name="agendaTab"
+              text="tour.step4Title||tour.step4Desc"
+              order={4}
+              name="appointmentsTab"
             >
               <WalkthroughableView className="items-center justify-center pt-1">
                 <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
@@ -123,6 +123,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="calendar"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="history"
         options={{ href: null }}
       />
@@ -132,8 +136,8 @@ export default function TabsLayout() {
           title: t('tabs.health'),
           tabBarIcon: ({ focused, color }) => (
             <CopilotStep
-              text="tour.step3Title||tour.step3Desc"
-              order={3}
+              text="tour.step5Title||tour.step5Desc"
+              order={5}
               name="healthTab"
             >
               <WalkthroughableView className="items-center justify-center pt-1">
@@ -148,17 +152,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="appointments"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
         name="settings"
         options={{
           title: t('tabs.settings'),
           tabBarIcon: ({ focused, color }) => (
             <CopilotStep
-              text="tour.step4Title||tour.step4Desc"
-              order={4}
+              text="tour.step6Title||tour.step6Desc"
+              order={6}
               name="settingsTab"
             >
               <WalkthroughableView className="items-center justify-center pt-1">

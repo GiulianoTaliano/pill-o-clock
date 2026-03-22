@@ -2,7 +2,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput, Modal,
   Alert, Platform, KeyboardAvoidingView, PanResponder, Pressable,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
@@ -11,7 +11,7 @@ import * as IntentLauncher from "expo-intent-launcher";
 import { getContentUriAsync } from "expo-file-system/legacy";
 import { useState, useEffect, useRef } from "react";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useAppStore } from "../../src/store";
@@ -223,6 +223,7 @@ function formFromAppointment(appt: Appointment): FormState {
 export default function AppointmentsScreen() {
   const { t } = useTranslation();
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
   const appointments = useAppStore((s) => s.appointments);
   const loadAppointments = useAppStore((s) => s.loadAppointments);
   const addAppointment = useAppStore((s) => s.addAppointment);
@@ -242,6 +243,22 @@ export default function AppointmentsScreen() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(defaultForm());
   const [locationPickerVisible, setLocationPickerVisible] = useState(false);
+
+  const recentLocations = useMemo(() => {
+    const seen = new Set<string>();
+    return appointments
+      .filter((a) => a.location && a.locationCoords)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .reduce<Array<{ label: string; coords: LocationCoords }>>((arr, a) => {
+        const key = a.location!.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          arr.push({ label: a.location!, coords: a.locationCoords! });
+        }
+        return arr;
+      }, [])
+      .slice(0, 10);
+  }, [appointments]);
 
   // iOS: two Modals cannot overlap. When the user taps "Pin on map" while the
   // form modal is visible, we must fully dismiss the form first, then present
@@ -546,7 +563,7 @@ export default function AppointmentsScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable className="flex-1 justify-end bg-black/50" onPress={closeModal}>
-            <Pressable onPress={() => {}} className="bg-background rounded-t-3xl">
+            <Pressable onPress={() => {}} className="bg-background rounded-t-3xl max-h-[90%]">
               {/* Handle */}
               <View className="items-center pt-3 pb-1" {...appointmentPan.panHandlers}>
                 <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
@@ -750,7 +767,7 @@ export default function AppointmentsScreen() {
                 )}
 
                 {/* Actions */}
-                <View className="flex-row gap-3 mb-8">
+                <View className="flex-row gap-3" style={{ marginBottom: Math.max(insets.bottom, 16) + 12 }}>
                   <TouchableOpacity
                     onPress={closeModal}
                     className="flex-1 py-3.5 border border-border rounded-2xl items-center"
@@ -777,6 +794,7 @@ export default function AppointmentsScreen() {
       <LocationPickerModal
         visible={locationPickerVisible}
         initial={form.locationCoords}
+        recentLocations={recentLocations}
         onConfirm={(coords, address) => {
           setForm((f) => ({
             ...f,

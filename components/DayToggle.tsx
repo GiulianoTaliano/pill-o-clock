@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity } from "react-native";
-import { DAY_NAMES_SHORT } from "../src/utils";
+import { getDayNamesShort } from "../src/utils";
+import { useTranslation } from "../src/i18n";
 
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
@@ -9,6 +10,8 @@ interface DayToggleProps {
 }
 
 export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
+  const { t } = useTranslation();
+  const dayNames = getDayNamesShort(t);
   const isAllSelected = selectedDays.length === 7;
 
   const toggleAll = () => {
@@ -30,11 +33,11 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
   return (
     <View>
       <View className="flex-row gap-1.5 flex-wrap">
-        {/* "Todos" shortcut chip */}
+        {/* "All" shortcut chip */}
         <TouchableOpacity
           accessibilityRole="checkbox"
           accessibilityState={{ checked: isAllSelected }}
-          accessibilityLabel="Todos"
+          accessibilityLabel={t('form.dayToggleAll')}
           onPress={toggleAll}
           className={`rounded-full px-3 py-1.5 ${
             isAllSelected ? "bg-primary" : "bg-slate-100 dark:bg-slate-700"
@@ -45,12 +48,12 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
               isAllSelected ? "text-white" : "text-muted"
             }`}
           >
-            Todos
+            {t('form.dayToggleAll')}
           </Text>
         </TouchableOpacity>
 
         {/* Individual day chips */}
-        {DAY_NAMES_SHORT.map((label, idx) => {
+        {dayNames.map((label, idx) => {
           const active = selectedDays.includes(idx);
           return (
             <TouchableOpacity
@@ -76,8 +79,8 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
       </View>
       <Text className="text-xs text-muted mt-1">
         {isAllSelected
-          ? "Todos los días"
-          : `${selectedDays.length} día${selectedDays.length !== 1 ? "s" : ""} seleccionado${selectedDays.length !== 1 ? "s" : ""}`}
+          ? t('form.dayToggleEveryDay')
+          : t('form.dayToggleSelected', { count: selectedDays.length })}
       </Text>
     </View>
   );

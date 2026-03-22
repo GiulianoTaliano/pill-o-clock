@@ -49,12 +49,15 @@ export function useAppTheme() {
       },
     },
 
+    // ── Higher-contrast secondary text (dosage, notes, separators) ─────────
+    secondaryText: dark ? "#cbd5e1" : "#475569",
+
     // ── Status badge (history rows + calendar detail) ─────────────────────
     statusBadge: {
       taken:   { bg: dark ? "#052e16" : "#dcfce7", color: dark ? "#4ade80" : "#16a34a" },
       skipped: { bg: dark ? "#450a0a" : "#fee2e2", color: dark ? "#f87171" : "#dc2626" },
       pending: { bg: dark ? "#292101" : "#fef3c7", color: dark ? "#fbbf24" : "#d97706" },
-      missed:  { bg: dark ? "#1e293b" : "#f1f5f9", color: dark ? "#94a3b8" : "#64748b" },
+      missed:  { bg: dark ? "#334155" : "#e2e8f0", color: dark ? "#e2e8f0" : "#334155" },
     },
   } as const;
 }

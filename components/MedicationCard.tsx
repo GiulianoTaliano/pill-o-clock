@@ -2,7 +2,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Medication, Schedule, DoseLog } from "../src/types";
-import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig, isScheduleActiveOnDate, toDateString, formatTimeForDisplay } from "../src/utils";
+import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig, isScheduleActiveOnDate, toDateString, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
 import { format } from "date-fns";
 import { useTranslation, getDateLocale } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -119,7 +119,7 @@ export function MedicationCard({
                 </Text>
               </View>
             </View>
-            <Text className="text-sm text-muted">{medication.dosage}</Text>
+            <Text className="text-sm text-muted">{getLocalizedDosage(medication, t)}</Text>
           </View>
         </View>
 
@@ -170,7 +170,7 @@ export function MedicationCard({
               className="text-xs font-semibold"
             >
               {t('stock.badge', { count: qty })}
-              {isLow ? ` Â· ${t('stock.low')}` : ""}
+              {isLow ? ` · ${t('stock.low')}` : ""}
             </Text>
           </View>
         );

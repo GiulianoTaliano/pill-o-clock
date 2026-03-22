@@ -9,7 +9,7 @@ import {
 } from "date-fns";
 import { useAppStore } from "../../src/store";
 import { DoseLog, Medication } from "../../src/types";
-import { getColorConfig, toDateString } from "../../src/utils";
+import { getColorConfig, toDateString, getLocalizedDosage } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { useSkeletonAnimation, SkeletonBox } from "../../components/Skeleton";
@@ -351,10 +351,10 @@ export default function HistoryScreen() {
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-bold text-text" numberOfLines={1}>
-                  {med?.name ?? "Medicamento"}
+                  {med?.name ?? "—"}
                 </Text>
                 <Text className="text-xs text-muted">
-                  {log.scheduledTime} · {med?.dosage}
+                  {log.scheduledTime} · {med ? getLocalizedDosage(med, t) : ''}
                 </Text>
                 {log.notes ? (
                   <View className="flex-row items-center gap-1 mt-0.5">

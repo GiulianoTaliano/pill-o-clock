@@ -73,6 +73,10 @@ const en: TranslationShape = {
     streak_one: "🔥 {{count}} day streak",
     streak_other: "🔥 {{count}} day streak",
     prnLogDose: "Log dose",
+    upcomingAppointments: "Upcoming appointments",
+    viewAllAppointments: "View all",
+    noUpcomingAppointments: "No upcoming appointments",
+    viewCalendar: "View dose calendar",
   },
 
   // ─── Medications screen ───────────────────────────────────────────────────
@@ -149,11 +153,15 @@ const en: TranslationShape = {
     fieldDays: "Days",
     selectDate: "Select a date",
     modeOnce: "One-time",
-    modeOnceSub: "Single day",
-    modeRepeat: "Recurring",
-    modeRepeatSub: "Multiple days",
+    modeOnceSub: "For a specific date",
+    modeRepeat: "Daily / Recurring",
+    modeRepeatSub: "Every day or specific days",
     modePRN: "On demand (PRN)",
     modePRNSub: "No fixed schedule",
+    tipRepeatDates: "Dates are optional. If you don't set them, reminders will continue indefinitely.",
+    tipOnceDateRequired: "Choose the date you need to take this medication.",
+    tipAlarmsDays: "You can pick specific days for each alarm, or leave it on \"All\" for daily reminders.",
+    tipAlarmsOnce: "Pick the time you'd like to be notified.",
     addAlarm: "Add",
     removeAlarm: "Remove alarm",
     errorNameRequired: "Name required",
@@ -178,11 +186,34 @@ const en: TranslationShape = {
     changePhoto: "Change photo",
     removePhoto: "Remove photo",
     errorPhotoPermission: "Gallery access permission is required",
+    dayToggleAll: "All",
+    dayToggleEveryDay: "Every day",
+    dayToggleSelected_one: "{{count}} day selected",
+    dayToggleSelected_other: "{{count}} days selected",
+  },
+
+  // ─── Medication wizard ─────────────────────────────────────────────────────
+  wizard: {
+    slideIdentityTitle: "What medication is it?",
+    slideIdentitySubtitle: "Enter the name and dosage.",
+    slideAppearanceTitle: "Customize your medication",
+    slideAppearanceSubtitle: "Choose a color and optionally add a photo.",
+    slideFrequencyTitle: "How often do you take it?",
+    slideFrequencySubtitle: "Choose how you'll take this medication.",
+    slideAlarmsTitle: "When should we remind you?",
+    slideAlarmsSubtitle: "Set the times you'd like to be reminded.",
+    slideExtrasTitle: "Additional details",
+    slideExtrasSubtitle: "Everything is optional. You can save right away.",
+    next: "Next",
+    back: "Back",
+    skip: "Skip",
+    skipAndSave: "Skip and save",
+    stepOf: "Step {{current}} of {{total}}",
   },
 
   // ─── Alarm screen ─────────────────────────────────────────────────────────
   alarm: {
-    subtitle: "Medication reminder",
+    subtitle: "Reminder for {{name}}",
     dose: "Dose",
     takeMed: "Confirm",
     snooze: "Snooze",
@@ -310,6 +341,7 @@ const en: TranslationShape = {
     locationPermTitle: "Location permission",
     locationLoading: "Getting your location…",
     locationClear: "Clear location",
+    recentLocations: "Recent",
     // Documents
     documentsTitle: "Documents",
     attachDocument: "Attach document",
@@ -545,15 +577,21 @@ const en: TranslationShape = {
     // Step 1 — Add medication button
     step1Title: "Start here",
     step1Desc: "Tap + to add your first medication. Set the name, dose, schedule and alarm.",
-    // Step 2 — Calendar tab
-    step2Title: "Agenda & appointments",
-    step2Desc: "Here you'll see your daily dose schedule. You can also add medical appointments with reminders and location.",
-    // Step 3 — Health tab
-    step3Title: "Your health",
-    step3Desc: "Track blood pressure, glucose, weight and more. Record your daily wellness check-in here.",
-    // Step 4 — Settings tab
-    step4Title: "Settings",
-    step4Desc: "Manage your data, backup, language preferences, and generate PDF reports for your doctor.",
+    // Step 2 — Agenda button (calendar)
+    step2Title: "Your agenda",
+    step2Desc: "Check the monthly calendar with your medications and appointments. Tap a day to see the details.",
+    // Step 3 — History button
+    step3Title: "Your history",
+    step3Desc: "Review your adherence with statistics and a daily heatmap.",
+    // Step 4 — Appointments tab
+    step4Title: "Your appointments",
+    step4Desc: "Manage all your medical appointments here. Add visits with reminders, location and documents.",
+    // Step 5 — Health tab
+    step5Title: "Your health",
+    step5Desc: "Track blood pressure, glucose, weight and more. Record your daily wellness check-in here.",
+    // Step 6 — Settings tab
+    step6Title: "Settings",
+    step6Desc: "Manage your data, backup, language preferences, and generate PDF reports for your doctor.",
   },
 
   // ─── Color picker ─────────────────────────────────────────────────────────

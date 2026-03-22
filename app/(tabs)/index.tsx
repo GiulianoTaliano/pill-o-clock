@@ -13,9 +13,10 @@ import { useAdherenceStreak } from "../../src/hooks/useAdherenceStreak";
 import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
 import { CheckinModal } from "../../components/CheckinModal";
+import { AppointmentMiniCard } from "../../components/AppointmentMiniCard";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { TodayDose, SkipReason } from "../../src/types";
-import { CATEGORY_CONFIG, getColorConfig, formatTimeForDisplay } from "../../src/utils";
+import { CATEGORY_CONFIG, getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../../src/utils";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
@@ -39,6 +40,8 @@ export default function HomeScreen() {
   const medications = useAppStore((s) => s.medications);
   const todayLogs = useAppStore((s) => s.todayLogs);
   const logPRNDose = useAppStore((s) => s.logPRNDose);
+  const appointments = useAppStore((s) => s.appointments);
+  const setSelectedAppointmentId = useAppStore((s) => s.setSelectedAppointmentId);
   const [refreshing, setRefreshing] = useState(false);
   const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(null);
 
@@ -155,6 +158,12 @@ export default function HomeScreen() {
   const todayCheckin = dailyCheckins.find((c) => c.date === todayStr);
   const showCheckinPrompt = !todayCheckin && !checkinDismissed;
 
+  // Upcoming appointments (today and future, max 2)
+  const upcomingAppointments = appointments
+    .filter((a) => a.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""))
+    .slice(0, 2);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -217,6 +226,14 @@ export default function HomeScreen() {
           <Text className="text-sm text-muted mt-0.5">{todayCap}</Text>
         </View>
         <View className="flex-row gap-2 items-center">
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('home.viewCalendar')}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/calendar"); }}
+            className="bg-card border border-border w-11 h-11 rounded-full items-center justify-center shadow-sm"
+          >
+            <Ionicons name="calendar-outline" size={20} color="#4f9cff" />
+          </TouchableOpacity>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t('history.title')}
@@ -310,6 +327,38 @@ export default function HomeScreen() {
             </View>
           </View>
         )}
+
+        {/* Upcoming appointments */}
+        {upcomingAppointments.length > 0 && (
+          <>
+            <View className="flex-row items-center justify-between mt-2 mb-2">
+              <Text className="text-xs font-bold text-muted uppercase tracking-widest">
+                {t('home.upcomingAppointments')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/(tabs)/appointments");
+                }}
+              >
+                <Text className="text-primary text-xs font-semibold">
+                  {t('home.viewAllAppointments')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {upcomingAppointments.map((appt) => (
+              <AppointmentMiniCard
+                key={appt.id}
+                appt={appt}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedAppointmentId(appt.id);
+                }}
+              />
+            ))}
+          </>
+        )}
+
         {doses.length === 0 ? (
           <EmptyState
             icon="medical-outline"
@@ -429,7 +478,7 @@ export default function HomeScreen() {
                       </View>
                       <View className="flex-1">
                         <Text className="text-sm font-bold text-text">{med.name}</Text>
-                        <Text className="text-xs text-muted">{med.dosage}</Text>
+                        <Text className="text-xs text-muted">{getLocalizedDosage(med, t)}</Text>
                         {todayDoseCount > 0 && (
                           <Text className="text-xs text-green-600 dark:text-green-400 mt-0.5 font-medium">
                             ×{todayDoseCount} {t('status.taken').toLowerCase()}
