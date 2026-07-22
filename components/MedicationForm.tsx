@@ -206,8 +206,8 @@ function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowPr
             accessibilityRole="button"
             accessibilityLabel={t('form.clearDate')}
             onPress={() => { onChange(undefined); setShow(false); }}
-            className="p-1"
-            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+            className="items-center justify-center"
+            style={{ minWidth: 44, minHeight: 44 }}
           >
             <Ionicons name="close-circle" size={16} color={theme.muted} />
           </TouchableOpacity>

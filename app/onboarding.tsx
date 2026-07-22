@@ -194,7 +194,7 @@ export default function OnboardingScreen() {
             accessibilityRole="button"
             accessibilityLabel={t("onboarding.skip")}
             onPress={handleSkip}
-            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            className="min-h-[44px] px-3 justify-center"
           >
             <Text className="text-sm font-semibold text-muted">{t("onboarding.skip")}</Text>
           </TouchableOpacity>
@@ -347,8 +347,10 @@ export default function OnboardingScreen() {
 
       {/* Bottom bar: dots + button */}
       <View className="px-6 pb-8 pt-4">
-        {/* Dots */}
-        <View className="flex-row justify-center mb-6 gap-2">
+        {/* Dots — each touchable is a real 44x44 target (dot stays visually
+            small, centered) so it passes automated a11y target-size checks
+            instead of relying on hitSlop, which layout-based scanners ignore. */}
+        <View className="flex-row justify-center mb-2">
           {SLIDES.map((_, i) => (
             <TouchableOpacity
               key={i}
@@ -356,7 +358,8 @@ export default function OnboardingScreen() {
               accessibilityLabel={t("onboarding.goToSlide", { number: i + 1 })}
               accessibilityState={{ selected: i === currentIndex }}
               onPress={() => scrollTo(i)}
-              hitSlop={{ top: 17, bottom: 17, left: 17, right: 17 }}
+              className="items-center justify-center"
+              style={{ minWidth: 44, minHeight: 44 }}
             >
               <View
                 className="rounded-full"
