@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform, Linking } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform, Linking, Switch } from "react-native";
 import { useToast } from "../../src/context/ToastContext";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +17,17 @@ import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { AlarmSoundPicker } from "../../components/AlarmSoundPicker";
 import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes, setDefaultSnoozeMinutes } from "../../src/services/snoozeSettings";
 import { refreshDoseReminderCategory } from "../../src/services/notifications";
+import * as LocalAuthentication from "expo-local-authentication";
+import {
+  isAppLockSupported,
+  isAppLockEnabled,
+  isBiometricPreferred,
+  setBiometricPreferred,
+  enableAppLock,
+  disableAppLock,
+  changePin,
+} from "../../src/services/appLock";
+import { PinModal } from "../../components/PinModal";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -141,6 +152,56 @@ export default function SettingsScreen() {
     // Fire-and-forget: refresh the notification quick-action label so the
     // ⏰ button shows the new interval on future reminders.
     refreshDoseReminderCategory().catch(() => {});
+  };
+
+  // App lock (F1)
+  const [appLockOn, setAppLockOn] = useState(isAppLockEnabled);
+  const [biometricOn, setBiometricOn] = useState(isBiometricPreferred);
+  const [biometricAvail, setBiometricAvail] = useState(false);
+  const [pinModal, setPinModal] = useState<null | { mode: "setup" | "verify" | "change"; intent: "enable" | "disable" | "change" }>(null);
+
+  useEffect(() => {
+    if (!isAppLockSupported()) return;
+    Promise.all([
+      LocalAuthentication.hasHardwareAsync(),
+      LocalAuthentication.isEnrolledAsync(),
+    ])
+      .then(([hw, enrolled]) => setBiometricAvail(hw && enrolled))
+      .catch(() => setBiometricAvail(false));
+  }, []);
+
+  const handleAppLockToggle = () => {
+    Haptics.selectionAsync();
+    // Enabling asks for a new PIN; disabling requires the current PIN so a
+    // passerby can't just switch the protection off.
+    setPinModal(appLockOn ? { mode: "verify", intent: "disable" } : { mode: "setup", intent: "enable" });
+  };
+
+  const handleBiometricToggle = (on: boolean) => {
+    Haptics.selectionAsync();
+    setBiometricOn(on);
+    setBiometricPreferred(on);
+  };
+
+  const handlePinSuccess = async (pin: string) => {
+    const intent = pinModal?.intent;
+    setPinModal(null);
+    try {
+      if (intent === "enable") {
+        await enableAppLock(pin);
+        setAppLockOn(true);
+        showToast(t("appLock.enabledToast"), "success");
+      } else if (intent === "disable") {
+        await disableAppLock();
+        setAppLockOn(false);
+        showToast(t("appLock.disabledToast"), "success");
+      } else if (intent === "change") {
+        await changePin(pin);
+        showToast(t("appLock.pinChangedToast"), "success");
+      }
+    } catch {
+      showToast(t("settings.exportErrorGeneric"), "error");
+    }
   };
 
   useFocusEffect(
@@ -388,6 +449,63 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
+
+        {/* ─── Security (F1: app lock) ─── */}
+        {isAppLockSupported() && (
+          <>
+            <SectionHeader title={t("settings.sectionSecurity")} />
+            <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+              <View className="flex-row items-center px-4 py-3.5 gap-3">
+                <Ionicons name="lock-closed-outline" size={20} color={theme.primary} />
+                <View className="flex-1">
+                  <Text className="text-[15px] font-semibold text-text">{t("settings.appLockTitle")}</Text>
+                  <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.appLockSubtitle")}</Text>
+                </View>
+                <Switch
+                  value={appLockOn}
+                  onValueChange={handleAppLockToggle}
+                  trackColor={{ false: undefined, true: theme.primary }}
+                  accessibilityLabel={t("settings.appLockTitle")}
+                />
+              </View>
+              {appLockOn && (
+                <>
+                  {biometricAvail && (
+                    <>
+                      <Divider />
+                      <View className="flex-row items-center px-4 py-3.5 gap-3">
+                        <Ionicons name="finger-print" size={20} color={theme.accent} />
+                        <View className="flex-1">
+                          <Text className="text-[15px] font-semibold text-text">{t("settings.appLockBiometric")}</Text>
+                          <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.appLockBiometricSubtitle")}</Text>
+                        </View>
+                        <Switch
+                          value={biometricOn}
+                          onValueChange={handleBiometricToggle}
+                          trackColor={{ false: undefined, true: theme.primary }}
+                          accessibilityLabel={t("settings.appLockBiometric")}
+                        />
+                      </View>
+                    </>
+                  )}
+                  <Divider />
+                  <SettingRow
+                    icon="key-outline"
+                    title={t("settings.appLockChangePin")}
+                    subtitle={t("settings.appLockChangePinSubtitle")}
+                    onPress={() => setPinModal({ mode: "change", intent: "change" })}
+                  />
+                </>
+              )}
+            </View>
+            <PinModal
+              visible={pinModal !== null}
+              mode={pinModal?.mode ?? "setup"}
+              onClose={() => setPinModal(null)}
+              onSuccess={handlePinSuccess}
+            />
+          </>
+        )}
 
         {/* ─── Your data ─── */}
         <SectionHeader title={t("settings.sectionData")} />

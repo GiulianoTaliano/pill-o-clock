@@ -488,6 +488,21 @@ const en: TranslationShape = {
   },
 
   // ─── Settings screen ──────────────────────────────────────────────────────
+  appLock: {
+    enterPin: "Enter your PIN",
+    wrongPin: "Wrong PIN",
+    tooManyAttempts: "Too many attempts. Wait {{seconds}} s",
+    biometricPrompt: "Unlock Pill O-Clock",
+    usePin: "Use PIN",
+    enterCurrentPin: "Enter your current PIN",
+    enterNewPin: "Choose a new PIN",
+    confirmNewPin: "Repeat the PIN",
+    pinMismatch: "PINs don't match. Try again.",
+    pinHint: "4-digit PIN",
+    enabledToast: "App lock enabled",
+    disabledToast: "App lock disabled",
+    pinChangedToast: "PIN updated",
+  },
   settings: {
     title: "Settings",
     // Data
@@ -532,6 +547,14 @@ const en: TranslationShape = {
     snoozeDefaultTitle: "Default interval",
     snoozeDefaultSubtitle: "How long a dose is snoozed with the notification's ⏰ button",
     snoozeOptionA11y: "Default snooze {{minutes}} minutes",
+    // Security
+    sectionSecurity: "Security",
+    appLockTitle: "App lock",
+    appLockSubtitle: "Require PIN or biometrics when opening the app",
+    appLockBiometric: "Biometric unlock",
+    appLockBiometricSubtitle: "Use fingerprint or face when available",
+    appLockChangePin: "Change PIN",
+    appLockChangePinSubtitle: "Replace your 4-digit PIN",
     // Appearance
     sectionAppearance: "Appearance",
     themeSystem: "Automatic (system)",

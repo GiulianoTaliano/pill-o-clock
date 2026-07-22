@@ -63,6 +63,13 @@
           "locationWhenInUsePermission": "Pill O-Clock uses your location to pin precise appointment locations on the map."
         }
       ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Pill O-Clock uses Face ID to unlock the app when app lock is enabled."
+        }
+      ],
+      "expo-secure-store",
       "./modules/expo-alarm/app.plugin.js",
       "./modules/expo-widget/app.plugin.js",
       [
