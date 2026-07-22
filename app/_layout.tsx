@@ -28,6 +28,7 @@ import { useNotificationResponseHandler } from "../src/hooks/useNotificationResp
 import { initI18n, useTranslation } from "../src/i18n";
 import { ToastProvider } from "../src/context/ToastContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { AppLockGate } from "../components/AppLockGate";
 import { CopilotProvider } from "react-native-copilot";
 import { CopilotTooltip } from "../components/CopilotTooltip";
 
@@ -210,6 +211,9 @@ export default function RootLayout() {
         >
         <ToastProvider>
         <StatusBar style="auto" />
+        {/* AppLockGate covers everything below with an unlock overlay when the
+            lock is engaged — except the /alarm route (see component docs). */}
+        <AppLockGate>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="onboarding" options={{ headerShown: false, animation: "fade" }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -244,6 +248,7 @@ export default function RootLayout() {
             }}
           />
         </Stack>
+        </AppLockGate>
           {/* <Redirect> removed — onboarding navigation is handled by the
               one-shot useEffect above, which avoids re-render loops. */}
         </ToastProvider>

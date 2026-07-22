@@ -40,6 +40,31 @@ jest.mock("expo-background-fetch", () => ({
   BackgroundFetchStatus: { Restricted: 1, Denied: 2, Available: 3 },
 }));
 
+// ─── expo-secure-store (in-memory) ─────────────────────────────────────────
+jest.mock("expo-secure-store", () => {
+  const store = new Map<string, string>();
+  return {
+    setItemAsync: jest.fn(async (k: string, v: string) => { store.set(k, v); }),
+    getItemAsync: jest.fn(async (k: string) => store.get(k) ?? null),
+    deleteItemAsync: jest.fn(async (k: string) => { store.delete(k); }),
+  };
+});
+
+// ─── expo-crypto (deterministic) ───────────────────────────────────────────
+jest.mock("expo-crypto", () => ({
+  CryptoDigestAlgorithm: { SHA256: "SHA-256" },
+  // Deterministic fake digest — good enough for hash-compare unit tests.
+  digestStringAsync: jest.fn(async (_alg: string, input: string) => `sha256(${input})`),
+  getRandomBytes: jest.fn((n: number) => new Uint8Array(n).fill(7)),
+}));
+
+// ─── expo-local-authentication ─────────────────────────────────────────────
+jest.mock("expo-local-authentication", () => ({
+  hasHardwareAsync: jest.fn().mockResolvedValue(false),
+  isEnrolledAsync: jest.fn().mockResolvedValue(false),
+  authenticateAsync: jest.fn().mockResolvedValue({ success: false }),
+}));
+
 // ─── expo-store-review ─────────────────────────────────────────────────────
 jest.mock("expo-store-review", () => ({
   isAvailableAsync: jest.fn().mockResolvedValue(false),
