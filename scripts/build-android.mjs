@@ -49,9 +49,13 @@ console.log("Sentry auth token found. Source maps will be uploaded.\n");
 
 // ─── Run Gradle bundleRelease ───────────────────────────────────────────────
 const androidDir = resolve("android");
+// Use an absolute, quoted path to the wrapper. A bare "gradlew.bat" relies on
+// cmd.exe searching the current directory, which fails when Windows has
+// NoDefaultCurrentDirectoryInExePath set.
+const gradlew = join(androidDir, "gradlew.bat");
 
 try {
-  execSync("gradlew.bat bundleRelease --console=plain", {
+  execSync(`"${gradlew}" bundleRelease --console=plain`, {
     cwd: androidDir,
     stdio: "inherit",
     env: {
