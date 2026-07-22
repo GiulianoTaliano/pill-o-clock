@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pill O-Clock",
     "slug": "pill-o-clock",
-    "version": "1.5.0",
+    "version": "1.6.1",
     "scheme": "pilloclock",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -31,7 +31,7 @@
     },
     "android": {
       "package": "com.pilloclock.app",
-      "versionCode": 1,
+      "versionCode": 21,
       "adaptiveIcon": {
         "backgroundColor": "#f0f6ff",
         "foregroundImage": "./assets/android-icon-foreground.png",
