@@ -230,7 +230,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('home.viewCalendar')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/calendar"); }}
-            className="bg-card border border-border w-11 h-11 rounded-full items-center justify-center shadow-sm"
+            className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm"
           >
             <Ionicons name="calendar-outline" size={20} color="#4f9cff" />
           </TouchableOpacity>
@@ -238,7 +238,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('history.title')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/history"); }}
-            className="bg-card border border-border w-11 h-11 rounded-full items-center justify-center shadow-sm"
+            className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm"
           >
             <Ionicons name="bar-chart-outline" size={20} color="#4f9cff" />
           </TouchableOpacity>
@@ -252,7 +252,7 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('form.addButton')}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
-                className="bg-primary w-11 h-11 rounded-full items-center justify-center shadow-sm"
+                className="bg-primary w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm"
               >
                 <Ionicons name="add" size={24} color="#fff" />
               </TouchableOpacity>
@@ -274,7 +274,7 @@ export default function HomeScreen() {
         {done.filter(d => d.status === "skipped").length > 0 && (
           <View className="bg-red-100 dark:bg-red-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
             <Ionicons name="close-circle-outline" size={14} color={theme.danger} />
-            <Text className="text-red-600 dark:text-red-400 text-xs font-bold">{t('home.chipSkipped', { count: done.filter(d => d.status === 'skipped').length })}</Text>
+            <Text className="text-red-700 dark:text-red-400 text-xs font-bold">{t('home.chipSkipped', { count: done.filter(d => d.status === 'skipped').length })}</Text>
           </View>
         )}
         {missed.length > 0 && (

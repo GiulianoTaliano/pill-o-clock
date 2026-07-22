@@ -164,15 +164,23 @@ export function MedicationCard({
         const threshold = medication.stockAlertThreshold;
         const isLow = threshold != null && qty <= threshold;
         const isWarning = threshold != null && qty <= threshold + 3 && !isLow;
+        // On the light card the bright status colors fail AA as text (green
+        // 2.28:1, orange 2.8:1); use darkened -700 variants in light, keep the
+        // dark-adaptive theme colors in dark mode (audit OM3).
+        const stockColor = isLow
+          ? (theme.isDark ? theme.danger : "#b91c1c")
+          : isWarning
+            ? (theme.isDark ? theme.warning : "#b45309")
+            : (theme.isDark ? theme.success : "#15803d");
         return (
           <View className="flex-row items-center gap-1.5 mt-2 ml-12">
             <Ionicons
               name="cube-outline"
               size={15}
-              color={isLow ? theme.danger : isWarning ? theme.warning : theme.success}
+              color={stockColor}
             />
             <Text
-              style={{ color: isLow ? theme.danger : isWarning ? theme.warning : theme.success }}
+              style={{ color: stockColor }}
               className="text-xs font-semibold"
             >
               {t('stock.badge', { count: qty })}

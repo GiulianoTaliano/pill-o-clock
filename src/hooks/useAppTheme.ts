@@ -19,10 +19,10 @@ export function useAppTheme() {
     cardAlt: dark ? "#1e293b" : "#f8fafc",  // inactive / secondary surface
 
     // -- Muted text / icon color (matches --color-muted in global.css) --------
-    muted: dark ? "#94a3b8" : "#64748b",
+    muted: dark ? "#94a3b8" : "#5b6675",     // light darkened to pass AA (OM2)
 
     // ── Accent / semantic colors (dark-adaptive for inline styles) ─────────
-    primary: dark ? "#60a5fa" : "#4f9cff",   // blue-400 / brand blue
+    primary: dark ? "#60a5fa" : "#2563eb",   // blue-400 / blue-600 (AA as text, OM1)
     danger:  dark ? "#f87171" : "#ef4444",   // red-400 / red-500
     warning: dark ? "#fb923c" : "#f97316",   // orange-400 / orange-500
     success: dark ? "#4ade80" : "#22c55e",   // green-400 / green-500
