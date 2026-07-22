@@ -93,6 +93,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
   const [noteDraft, setNoteDraft] = useState(dose.notes ?? "");
   const [skipReasonVisible, setSkipReasonVisible] = useState(false);
   const [snoozePickerVisible, setSnoozePickerVisible] = useState(false);
+  const [showCustomSnooze, setShowCustomSnooze] = useState(false);
 
   const notePan = useRef(
     PanResponder.create({
@@ -125,6 +126,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
 
   useEffect(() => {
     if (snoozePickerVisible) {
+      setShowCustomSnooze(false);
       setSelectedSnoozeIdx(SNOOZE_DEFAULT_IDX);
       snoozeScrollY.value = SNOOZE_DEFAULT_IDX * SNOOZE_ITEM_H;
       const timer = setTimeout(() => {
@@ -552,74 +554,112 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               {dose.medication.name} — {formatTimeForDisplay(dose.scheduledTime)}
             </Text>
 
-            {/* Wheel picker */}
-            <View style={{ height: SNOOZE_PICKER_H, position: 'relative' }} className="mx-4">
-              {/* Center highlight strip */}
-              <View
-                style={{
-                  position: 'absolute',
-                  top: SNOOZE_PAD,
-                  left: 0,
-                  right: 0,
-                  height: SNOOZE_ITEM_H,
-                  backgroundColor: theme.isDark ? 'rgba(245,158,11,0.14)' : 'rgba(245,158,11,0.10)',
-                  borderRadius: 14,
-                  borderWidth: 1.5,
-                  borderColor: theme.isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.18)',
-                }}
-                pointerEvents="none"
-              />
+            {/* Quick presets — the common case is a few minutes; big tappable
+                buttons beat scrubbing a fine wheel for elderly / motor-impaired
+                users (audit UX I6). The wheel is kept behind "Custom…". */}
+            {!showCustomSnooze && (
+              <>
+                <View className="flex-row gap-2 mt-1">
+                  {[10, 15, 30].map((min) => (
+                    <AppPressable
+                      key={min}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t('doseCard.snooze')} ${min} min`}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        setSnoozePickerVisible(false);
+                        onSnooze(min);
+                      }}
+                      className="flex-1 items-center justify-center py-4 rounded-2xl bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 min-h-[44px]"
+                    >
+                      <Text className="text-amber-700 dark:text-amber-300 text-xl font-black">{min}</Text>
+                      <Text className="text-amber-700 dark:text-amber-300 text-xs font-semibold">min</Text>
+                    </AppPressable>
+                  ))}
+                </View>
+                <AppPressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('doseCard.snoozeCustom')}
+                  onPress={() => setShowCustomSnooze(true)}
+                  className="mt-3 items-center justify-center py-3 min-h-[44px]"
+                >
+                  <Text className="text-muted font-semibold text-sm">{t('doseCard.snoozeCustom')}</Text>
+                </AppPressable>
+              </>
+            )}
 
-              <Animated.ScrollView
-                ref={snoozeListRef}
-                onScroll={snoozeScrollHandler}
-                scrollEventThrottle={16}
-                snapToInterval={SNOOZE_ITEM_H}
-                decelerationRate="fast"
-                bounces={false}
-                overScrollMode="never"
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingVertical: SNOOZE_PAD }}
-                onMomentumScrollEnd={(e: any) => {
-                  const idx = Math.round(e.nativeEvent.contentOffset.y / SNOOZE_ITEM_H);
-                  const clamped = Math.max(0, Math.min(idx, SNOOZE_OPTIONS.length - 1));
-                  if (clamped !== selectedSnoozeIdx) Haptics.selectionAsync();
-                  setSelectedSnoozeIdx(clamped);
-                }}
-              >
-                {SNOOZE_OPTIONS.map((min, i) => (
-                  <SnoozeWheelItem
-                    key={min}
-                    minutes={min}
-                    index={i}
-                    scrollY={snoozeScrollY}
-                    textColor={theme.isDark ? '#f1f5f9' : '#1e293b'}
-                    unitColor={theme.muted}
-                    onPress={() => {
-                      snoozeListRef.current?.scrollTo?.({ y: i * SNOOZE_ITEM_H, animated: true });
-                      setSelectedSnoozeIdx(i);
+            {showCustomSnooze && (
+              <>
+                {/* Wheel picker */}
+                <View style={{ height: SNOOZE_PICKER_H, position: 'relative' }} className="mx-4">
+                  {/* Center highlight strip */}
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: SNOOZE_PAD,
+                      left: 0,
+                      right: 0,
+                      height: SNOOZE_ITEM_H,
+                      backgroundColor: theme.isDark ? 'rgba(245,158,11,0.14)' : 'rgba(245,158,11,0.10)',
+                      borderRadius: 14,
+                      borderWidth: 1.5,
+                      borderColor: theme.isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.18)',
                     }}
+                    pointerEvents="none"
                   />
-                ))}
-              </Animated.ScrollView>
-            </View>
 
-            {/* Confirm */}
-            <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={`${t('doseCard.snooze')} ${SNOOZE_OPTIONS[selectedSnoozeIdx]} min`}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setSnoozePickerVisible(false);
-                onSnooze(SNOOZE_OPTIONS[selectedSnoozeIdx]);
-              }}
-              className="mt-5 rounded-2xl py-3.5 items-center flex-row justify-center gap-2 bg-amber-500 dark:bg-amber-600"
-            >
-              <Ionicons name="alarm-outline" size={18} color="#fff" />
-              <Text className="text-white font-bold text-base">
-                {t('doseCard.snooze')} {SNOOZE_OPTIONS[selectedSnoozeIdx]} min
-              </Text>
-            </AppPressable>
+                  <Animated.ScrollView
+                    ref={snoozeListRef}
+                    onScroll={snoozeScrollHandler}
+                    scrollEventThrottle={16}
+                    snapToInterval={SNOOZE_ITEM_H}
+                    decelerationRate="fast"
+                    bounces={false}
+                    overScrollMode="never"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingVertical: SNOOZE_PAD }}
+                    onMomentumScrollEnd={(e: any) => {
+                      const idx = Math.round(e.nativeEvent.contentOffset.y / SNOOZE_ITEM_H);
+                      const clamped = Math.max(0, Math.min(idx, SNOOZE_OPTIONS.length - 1));
+                      if (clamped !== selectedSnoozeIdx) Haptics.selectionAsync();
+                      setSelectedSnoozeIdx(clamped);
+                    }}
+                  >
+                    {SNOOZE_OPTIONS.map((min, i) => (
+                      <SnoozeWheelItem
+                        key={min}
+                        minutes={min}
+                        index={i}
+                        scrollY={snoozeScrollY}
+                        textColor={theme.isDark ? '#f1f5f9' : '#1e293b'}
+                        unitColor={theme.muted}
+                        onPress={() => {
+                          snoozeListRef.current?.scrollTo?.({ y: i * SNOOZE_ITEM_H, animated: true });
+                          setSelectedSnoozeIdx(i);
+                        }}
+                      />
+                    ))}
+                  </Animated.ScrollView>
+                </View>
+
+                {/* Confirm */}
+                <AppPressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('doseCard.snooze')} ${SNOOZE_OPTIONS[selectedSnoozeIdx]} min`}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setSnoozePickerVisible(false);
+                    onSnooze(SNOOZE_OPTIONS[selectedSnoozeIdx]);
+                  }}
+                  className="mt-5 rounded-2xl py-3.5 items-center flex-row justify-center gap-2 bg-amber-500 dark:bg-amber-600"
+                >
+                  <Ionicons name="alarm-outline" size={18} color="#fff" />
+                  <Text className="text-white font-bold text-base">
+                    {t('doseCard.snooze')} {SNOOZE_OPTIONS[selectedSnoozeIdx]} min
+                  </Text>
+                </AppPressable>
+              </>
+            )}
 
             {/* Cancel */}
             <AppPressable

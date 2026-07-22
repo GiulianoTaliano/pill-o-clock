@@ -17,6 +17,7 @@ export default function MedicationsScreen() {
   const todayLogs = useAppStore((s) => s.todayLogs);
   const deleteMedication = useAppStore((s) => s.deleteMedication);
   const toggleActive = useAppStore((s) => s.toggleMedicationActive);
+  const logPRNDose = useAppStore((s) => s.logPRNDose);
   const loadAll = useAppStore((s) => s.loadAll);
   const resetAllData = useAppStore((s) => s.resetAllData);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,6 +43,28 @@ export default function MedicationsScreen() {
           style: "destructive",
           onPress: () => {
             deleteMedication(id);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLogPRN = (id: string, name: string) => {
+    // Confirm before logging so an accidental tap can't record a phantom dose
+    // (as-needed logs are permanent and decrement stock) — audit UX I2.
+    Alert.alert(
+      t('medicationCard.logPRNTitle'),
+      t('medicationCard.logPRNConfirm', { name }),
+      [
+        { text: t('common.cancel'), style: "cancel" },
+        {
+          text: t('medicationCard.logPRNConfirmBtn'),
+          onPress: () => {
+            const med = medications.find((m) => m.id === id);
+            if (med) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              logPRNDose(med);
+            }
           },
         },
       ]
@@ -115,6 +138,7 @@ export default function MedicationsScreen() {
                     onEdit={() => router.push(`/medication/${med.id}`)}
                     onDelete={() => handleDelete(med.id, med.name)}
                     onToggleActive={(val) => handleToggleActive(med.id, val)}
+                    onLogPRN={() => handleLogPRN(med.id, med.name)}
                   />
                 ))}
               </>

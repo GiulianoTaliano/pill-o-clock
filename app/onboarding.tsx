@@ -19,7 +19,6 @@ import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { setupNotifications, openExactAlarmSettings } from "../src/services/notifications";
 import { checkFullScreenIntentPermission, stopSoundPreview } from "expo-alarm";
-import { AlarmSoundPicker } from "../components/AlarmSoundPicker";
 import * as Haptics from "expo-haptics";
 
 export const ONBOARDING_DONE_KEY = STORAGE_KEYS.ONBOARDING_DONE;
@@ -68,13 +67,6 @@ const SLIDES: SlideConfig[] = [
     descKey: "onboarding.slide4Desc",
   },
   {
-    icon: "musical-notes",
-    iconColor: "#8b5cf6",
-    iconBg: "#ede9fe",
-    titleKey: "onboarding.slide5Title",
-    descKey: "onboarding.slide5Desc",
-  },
-  {
     icon: "shield-checkmark",
     iconColor: "#4f9cff",
     iconBg: "#e0eeff",
@@ -98,8 +90,10 @@ export default function OnboardingScreen() {
   const [needsExactAlarm, setNeedsExactAlarm] = useState(false);
   const [needsFullScreen, setNeedsFullScreen] = useState(false);
 
-  // Sound slide index (Android-only alarm sound selection)
-  const SOUND_SLIDE_INDEX = 4;
+  // Alarm-sound selection was removed from onboarding (it forced a cryptic
+  // 15-item ringtone choice before the user had done anything — audit UX I3);
+  // it now lives only in Settings. -1 disables the old sound-slide logic.
+  const SOUND_SLIDE_INDEX = -1;
 
   // ── Navigation ──────────────────────────────────────────────────────────
 
@@ -264,12 +258,6 @@ export default function OnboardingScreen() {
               </View>
             )}
 
-            {/* Alarm sound picker (sound slide — Android only) */}
-            {i === SOUND_SLIDE_INDEX && Platform.OS === "android" && (
-              <View className="mt-6 w-full">
-                <AlarmSoundPicker maxHeight={220} />
-              </View>
-            )}
 
             {/* Permission button on last slide */}
             {i === LAST && (

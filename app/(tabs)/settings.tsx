@@ -341,6 +341,12 @@ export default function SettingsScreen() {
 
         {/* ─── Your data ─── */}
         <SectionHeader title={t("settings.sectionData")} />
+        {/* Local-first nudge: users are never told their data isn't backed up
+            anywhere and is lost with the phone (audit UX I11). */}
+        <View className="mx-5 mb-2 flex-row items-start gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5">
+          <Ionicons name="information-circle-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
+          <Text className="text-xs text-muted flex-1 leading-5">{t("settings.dataLocalNote")}</Text>
+        </View>
         <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
           <SettingRow
             icon="cloud-download-outline"

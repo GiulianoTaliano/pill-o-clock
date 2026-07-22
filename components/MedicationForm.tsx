@@ -541,6 +541,7 @@ export function MedicationForm({
                 <Text className="text-muted text-sm">{t('form.fieldDoseAmountLabel')}</Text>
               </View>
               <FieldError message={errors.dosageAmount?.message ? t(errors.dosageAmount.message as any) : undefined} />
+              <Text className="text-xs text-muted mt-1 mb-1">{t('form.doseHint')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View className="flex-row gap-2 pb-1">
                   {DOSAGE_UNITS.map((u) => (
@@ -767,6 +768,7 @@ export function MedicationForm({
           {/* Contextual tip */}
           {repeatMode === "repeat" && <TipBlock text={t('form.tipRepeatDates')} theme={theme} />}
           {repeatMode === "once" && <TipBlock text={t('form.tipOnceDateRequired')} theme={theme} />}
+          {repeatMode === "prn" && <TipBlock text={t('form.tipPRN')} theme={theme} />}
 
           {/* Date pickers for once / repeat */}
           {repeatMode === "once" && (

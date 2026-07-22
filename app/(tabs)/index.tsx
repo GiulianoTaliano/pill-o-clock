@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation, Platform, Modal, PanResponder, Pressable } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation, Platform, Modal, PanResponder, Pressable, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -225,22 +225,30 @@ export default function HomeScreen() {
           <Text className="text-2xl font-black text-text">{t('home.title')}</Text>
           <Text className="text-sm text-muted mt-0.5">{todayCap}</Text>
         </View>
-        <View className="flex-row gap-2 items-center">
+        {/* Labeled nav shortcuts. Calendar & History are otherwise hidden
+            (no tab) — visible text labels make them discoverable (audit UX I1). */}
+        <View className="flex-row gap-3 items-start">
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t('home.viewCalendar')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/calendar"); }}
-            className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm"
+            className="items-center"
           >
-            <Ionicons name="calendar-outline" size={20} color="#4f9cff" />
+            <View className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm">
+              <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+            </View>
+            <Text className="text-[10px] font-medium text-muted mt-1" numberOfLines={1}>{t('home.navCalendar')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t('history.title')}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/history"); }}
-            className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm"
+            className="items-center"
           >
-            <Ionicons name="bar-chart-outline" size={20} color="#4f9cff" />
+            <View className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm">
+              <Ionicons name="bar-chart-outline" size={20} color={theme.primary} />
+            </View>
+            <Text className="text-[10px] font-medium text-muted mt-1" numberOfLines={1}>{t('home.navHistory')}</Text>
           </TouchableOpacity>
           <CopilotStep
             text="tour.step1Title||tour.step1Desc"
@@ -252,9 +260,12 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('form.addButton')}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
-                className="bg-primary w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm"
+                className="items-center"
               >
-                <Ionicons name="add" size={24} color="#fff" />
+                <View className="bg-primary w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm">
+                  <Ionicons name="add" size={24} color="#fff" />
+                </View>
+                <Text className="text-[10px] font-medium text-primary mt-1" numberOfLines={1}>{t('home.navAdd')}</Text>
               </TouchableOpacity>
             </WalkthroughableView>
           </CopilotStep>
@@ -284,11 +295,18 @@ export default function HomeScreen() {
           </View>
         )}
         {streak >= 1 && (
-          <View className="bg-orange-100 dark:bg-orange-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('home.streak', { count: streak })}
+            accessibilityHint={t('home.streakInfo')}
+            onPress={() => Alert.alert(t('home.streakInfoTitle'), t('home.streakInfo'))}
+            className="bg-orange-100 dark:bg-orange-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1"
+          >
             <Text className="text-orange-700 dark:text-orange-400 text-xs font-bold">
               {t('home.streak', { count: streak })}
             </Text>
-          </View>
+            <Ionicons name="information-circle-outline" size={12} color={theme.warning} />
+          </TouchableOpacity>
         )}
       </View>
 
@@ -486,12 +504,28 @@ export default function HomeScreen() {
                         )}
                       </View>
                       <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={t('home.prnLogDose')}
                         onPress={() => {
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          logPRNDose(med);
+                          // Confirm so an accidental tap can't record a phantom
+                          // dose (permanent + decrements stock) — audit UX I2.
+                          Alert.alert(
+                            t('medicationCard.logPRNTitle'),
+                            t('medicationCard.logPRNConfirm', { name: med.name }),
+                            [
+                              { text: t('common.cancel'), style: "cancel" },
+                              {
+                                text: t('medicationCard.logPRNConfirmBtn'),
+                                onPress: () => {
+                                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                  logPRNDose(med);
+                                },
+                              },
+                            ]
+                          );
                         }}
                         style={{ backgroundColor: colors.bg }}
-                        className="rounded-xl px-3 py-2"
+                        className="rounded-xl px-3 py-2 min-h-[44px] justify-center"
                       >
                         <Text className="text-white text-xs font-bold">{t('home.prnLogDose')}</Text>
                       </TouchableOpacity>

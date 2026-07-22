@@ -15,6 +15,9 @@ interface MedicationCardProps {
   onToggleActive: (isActive: boolean) => void;
   /** Today's dose logs — used to compute the "next dose" indicator. */
   todayLogs?: DoseLog[];
+  /** When provided (and the med is PRN + active), shows a "Log a dose" button
+   *  so an as-needed dose can be recorded from where the med lives (audit UX I2). */
+  onLogPRN?: () => void;
 }
 
 export function MedicationCard({
@@ -24,6 +27,7 @@ export function MedicationCard({
   onDelete,
   onToggleActive,
   todayLogs = [],
+  onLogPRN,
 }: MedicationCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -219,6 +223,20 @@ export function MedicationCard({
             {t('medicationCard.nextDosePRN')}
           </Text>
         </View>
+      )}
+
+      {/* Log-a-dose action for as-needed meds — lets the user record a dose
+          from the Medications tab instead of hunting the bottom of Home (UX I2). */}
+      {medication.isPRN && medication.isActive && onLogPRN && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('medicationCard.logPRNDose')}
+          onPress={onLogPRN}
+          className="flex-row items-center justify-center gap-2 bg-primary rounded-xl px-4 py-3 min-h-[44px] mt-3"
+        >
+          <Ionicons name="add-circle-outline" size={18} color="#fff" />
+          <Text className="text-white text-sm font-bold">{t('medicationCard.logPRNDose')}</Text>
+        </TouchableOpacity>
       )}
 
       {/* Next dose indicator */}
