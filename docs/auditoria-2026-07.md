@@ -54,6 +54,19 @@ Decisión de producto del usuario sobre el cluster de privacidad: **divulgar amb
 
 Suite tras Sprint 2: **169 tests pasan**, módulo nativo compila. Pendiente Data Safety de Play Store (acción manual del usuario: declarar crash reporting + ubicación).
 
+### Estado de remediación — Sprint 3 (correctitud del streak + dark mode) · en curso
+
+| ID | Estado | Detalle |
+|---|---|---|
+| H6 · el streak ignora dosis 'missed' | ✅ Corregido | `useAdherenceStreak` rompe con `missed`; +7 tests de regresión |
+| M7 · PRN cuenta/enmascara adherencia | ✅ Corregido | se excluyen scheduleIds `prn-*` del cálculo del streak |
+| M8 · el streak colapsa a 0 cada mañana | ✅ Corregido | "hoy" es neutral: no rompe ni resetea hasta ser compliant |
+| H8 · tiempo de alarma ilegible en dark | ✅ Corregido | `colors.text` fijo sobre el fondo claro fijo de la alarma (tiempo/subtítulo/notas/add-note) |
+| H7 · header del modal claro en dark | ✅ Corregido | `_layout.tsx` usa `theme.card` + tint theme-aware |
+| M9 · pills de horario/PRN claros sobre cards oscuras | ✅ Corregido | tint tenue + texto brillante en dark (patrón DoseCard) |
+
+Suite tras Sprint 3 (parcial): **176 tests pasan**. **Pendiente de Sprint 3:** OM1–OM4 (contraste azul-como-texto, muted, stock, targets 38dp — conviene revalidar visualmente), y el resto de medium/low del backlog (p.ej. M5/M6 PDF, M11–M13 paridad web, M14/M16 error-handling, L1–L11).
+
 **Metodología de confianza:** 69 hallazgos reportados → **64 sobrevivieron la verificación adversarial** (5 refutados como falsos positivos). De los 64: **57 CONFIRMED** (reproducidos en el código actual) y **7 PLAUSIBLE** (defecto de código real, pero el disparo exacto depende de estado en runtime que no se puede observar estáticamente).
 
 ---

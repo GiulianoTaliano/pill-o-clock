@@ -188,11 +188,11 @@ export function MedicationCard({
           {schedules.map((s) => (
             <View
               key={s.id}
-              style={{ backgroundColor: colors.light }}
+              style={{ backgroundColor: theme.isDark ? colors.bg + "26" : colors.light }}
               className="flex-row items-center gap-2 rounded-xl px-3 py-1.5"
             >
-              <Ionicons name="alarm-outline" size={15} color={colors.text} />
-              <Text style={{ color: colors.text }} className="text-xs font-medium">
+              <Ionicons name="alarm-outline" size={15} color={theme.isDark ? colors.bg : colors.text} />
+              <Text style={{ color: theme.isDark ? colors.bg : colors.text }} className="text-xs font-medium">
                 {scheduleLabel(s)}
               </Text>
             </View>
@@ -203,11 +203,11 @@ export function MedicationCard({
       {/* PRN badge when no schedules */}
       {medication.isPRN && schedules.length === 0 && (
         <View
-          style={{ backgroundColor: colors.light }}
+          style={{ backgroundColor: theme.isDark ? colors.bg + "26" : colors.light }}
           className="flex-row items-center gap-2 rounded-xl px-3 py-1.5 mt-3 self-start"
         >
-          <Ionicons name="hand-left-outline" size={15} color={colors.text} />
-          <Text style={{ color: colors.text }} className="text-xs font-medium">
+          <Ionicons name="hand-left-outline" size={15} color={theme.isDark ? colors.bg : colors.text} />
+          <Text style={{ color: theme.isDark ? colors.bg : colors.text }} className="text-xs font-medium">
             {t('medicationCard.nextDosePRN')}
           </Text>
         </View>
