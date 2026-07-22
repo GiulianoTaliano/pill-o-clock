@@ -59,7 +59,8 @@ param(
     [string]$Serial,
     [switch]$SkipBuild,
     [switch]$SkipSeed,
-    [string]$SeedFile
+    [string]$SeedFile,
+    [switch]$SkipMeasure
 )
 
 # --- Configuration ---
@@ -70,8 +71,9 @@ $DEEP_LINK_SCHEME = "pilloclock"
 # Screen definitions: [name, deep-link path, description]
 $SCREENS = @(
     @{ Name = "home";              Path = "/";                  Desc = "Today's doses (home)" }
+    @{ Name = "appointments";      Path = "/appointments";      Desc = "Appointments manager" }
     @{ Name = "medications";       Path = "/medications";       Desc = "Medications list" }
-    @{ Name = "calendar";          Path = "/calendar";          Desc = "Calendar / appointments" }
+    @{ Name = "calendar";          Path = "/calendar";          Desc = "Calendar view" }
     @{ Name = "health";            Path = "/health";            Desc = "Health measurements" }
     @{ Name = "history";           Path = "/history";           Desc = "Adherence history" }
     @{ Name = "settings";          Path = "/settings";          Desc = "Settings" }
@@ -81,12 +83,13 @@ $SCREENS = @(
 
 # Screens to capture in empty state (before seed data import)
 $EMPTY_SCREENS = @(
-    @{ Name = "home-empty";         Path = "/";              Desc = "Home (empty state)" }
-    @{ Name = "medications-empty";  Path = "/medications";   Desc = "Medications (empty)" }
-    @{ Name = "calendar-empty";     Path = "/calendar";      Desc = "Calendar (empty)" }
-    @{ Name = "health-empty";       Path = "/health";        Desc = "Health (empty)" }
-    @{ Name = "history-empty";      Path = "/history";       Desc = "History (empty)" }
-    @{ Name = "settings-empty";     Path = "/settings";      Desc = "Settings (empty)" }
+    @{ Name = "home-empty";          Path = "/";              Desc = "Home (empty state)" }
+    @{ Name = "appointments-empty";  Path = "/appointments";  Desc = "Appointments (empty)" }
+    @{ Name = "medications-empty";   Path = "/medications";   Desc = "Medications (empty)" }
+    @{ Name = "calendar-empty";      Path = "/calendar";      Desc = "Calendar (empty)" }
+    @{ Name = "health-empty";        Path = "/health";        Desc = "Health (empty)" }
+    @{ Name = "history-empty";       Path = "/history";       Desc = "History (empty)" }
+    @{ Name = "settings-empty";      Path = "/settings";      Desc = "Settings (empty)" }
 )
 
 # --- Helpers ---
@@ -149,6 +152,36 @@ function Start-MetroIfNeeded {
     }
 
     Write-Error "Metro dev server did not start within ${maxWait}s. Start it manually: npx expo start --port $METRO_PORT"
+    return $false
+}
+
+function Set-AdbReverse {
+    # Set up reverse port forwarding so the emulator can reach Metro on
+    # localhost:METRO_PORT.  Without this, dev builds fail with "Unable to
+    # load script" because the emulator cannot connect to the host's Metro.
+    Invoke-Adb "reverse", "tcp:${METRO_PORT}", "tcp:${METRO_PORT}" | Out-Null
+    Write-Host "  adb reverse tcp:${METRO_PORT} -> tcp:${METRO_PORT}" -ForegroundColor DarkGray
+}
+
+function Test-MetroBundleHealth {
+    # Verify Metro can actually compile and serve the JS bundle (not just
+    # respond to /status).  A stale Metro cache or broken entry file will
+    # cause /status 200 but bundle requests to fail with HTTP 500.
+    Write-Host "  Verifying Metro can serve the JS bundle..." -ForegroundColor DarkGray
+    try {
+        $client = New-Object System.Net.WebClient
+        $url = "http://localhost:${METRO_PORT}/index.bundle?platform=android&dev=true&minify=false&lazy=true"
+        $bundle = $client.DownloadString($url)
+        if ($bundle.Length -gt 1000) {
+            Write-Host "  Bundle OK ($([math]::Round($bundle.Length / 1MB, 1)) MB)" -ForegroundColor Green
+            return $true
+        }
+    }
+    catch {
+        Write-Error "  Metro returned an error when building the JS bundle. Check Metro logs for details."
+        return $false
+    }
+    Write-Warning "  Bundle response was unexpectedly small."
     return $false
 }
 
@@ -318,6 +351,9 @@ function Set-ThemeMode {
     Invoke-Adb "shell", "run-as", $APP_PACKAGE, "sh", "-c",
         "rm -f files/mmkv/pilloclock files/mmkv/pilloclock.crc" | Out-Null
 
+    # Re-establish reverse port forwarding after force-stop (defensive)
+    Set-AdbReverse
+
     # Wake screen and dismiss keyguard (prevents black screenshots on idle emulator)
     Invoke-Adb "shell", "input", "keyevent", "KEYCODE_WAKEUP" | Out-Null
     Invoke-Adb "shell", "input", "keyevent", "82" | Out-Null
@@ -352,14 +388,15 @@ function Set-ThemeMode {
             Select-String "ACTIVITY $APP_PACKAGE" -SimpleMatch
         if ($topActivity) {
             # Activity is in foreground — give React Native extra time to mount
-            Start-Sleep -Seconds 4
+            Start-Sleep -Seconds 6
             break
         }
     }
     Write-Host "    App ready after ${elapsed}s" -ForegroundColor DarkGray
 
-    # Send a deep link to bypass onboarding and land on the home tab
-    Invoke-Adb "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "${DEEP_LINK_SCHEME}:///", $APP_PACKAGE | Out-Null
+    # Send a deep link to bypass onboarding and land on the home tab.
+    # Use -n to force the intent to our Activity (consistent with Invoke-DeepLink).
+    Invoke-Adb "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "'${DEEP_LINK_SCHEME}:///'", "-n", "$APP_PACKAGE/.MainActivity" | Out-Null
     Start-Sleep -Seconds 3
 }
 
@@ -377,6 +414,45 @@ function Invoke-DeepLink {
     Invoke-Adb "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "'$uri'", "-n", "$APP_PACKAGE/.MainActivity" | Out-Null
 }
 
+function Resize-ImageIfNeeded {
+    # Resizes a PNG so that neither dimension exceeds $MaxDimension pixels.
+    # Uses .NET System.Drawing (available in Windows PowerShell 5.1).
+    # This prevents "image dimensions exceed max allowed size" errors when
+    # sending many screenshots to vision APIs.
+    param(
+        [string]$ImagePath,
+        [int]$MaxDimension = 1920
+    )
+
+    Add-Type -AssemblyName System.Drawing
+
+    $img = [System.Drawing.Image]::FromFile($ImagePath)
+    $w = $img.Width
+    $h = $img.Height
+
+    if ($w -le $MaxDimension -and $h -le $MaxDimension) {
+        $img.Dispose()
+        return
+    }
+
+    $scale = [Math]::Min($MaxDimension / $w, $MaxDimension / $h)
+    $newW = [int][Math]::Floor($w * $scale)
+    $newH = [int][Math]::Floor($h * $scale)
+
+    $bmp = New-Object System.Drawing.Bitmap($newW, $newH)
+    $graphics = [System.Drawing.Graphics]::FromImage($bmp)
+    $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $graphics.DrawImage($img, 0, 0, $newW, $newH)
+
+    $img.Dispose()
+    $graphics.Dispose()
+
+    $bmp.Save($ImagePath, [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+
+    Write-Host "    Resized: ${w}x${h} -> ${newW}x${newH}" -ForegroundColor DarkGray
+}
+
 function Save-Screenshot {
     param([string]$FileName, [string]$DestDir)
 
@@ -388,6 +464,7 @@ function Save-Screenshot {
     Invoke-Adb "shell", "rm", $devicePath | Out-Null
 
     if (Test-Path $localPath) {
+        Resize-ImageIfNeeded -ImagePath $localPath
         Write-Host "    Saved: $localPath" -ForegroundColor Green
         return $localPath
     }
@@ -545,7 +622,32 @@ function Invoke-InteractionCaptures {
     $result = Save-Screenshot -FileName "${ThemeMode}_medication-form-filled" -DestDir $passDir
     if ($result) { $captured++ }
 
-    # --- 4. Calendar with appointments visible ---
+    # --- 4. Appointments: tap card to open detail modal ---
+    Write-Host "  [$ThemeMode] Appointment detail modal" -ForegroundColor Yellow
+    Invoke-DeepLink -RoutePath "/appointments"
+    Start-Sleep -Milliseconds $DelayMs
+    Dismiss-DevWarnings
+    # Tap the first appointment card in the list
+    Invoke-Tap -X 540 -Y 450
+    Start-Sleep -Milliseconds 1200
+    $result = Save-Screenshot -FileName "${ThemeMode}_appointment-detail" -DestDir $passDir
+    if ($result) { $captured++ }
+    # Close modal
+    Invoke-Back
+    Start-Sleep -Milliseconds 600
+
+    # --- 5. Appointments: open create/edit form modal ---
+    Write-Host "  [$ThemeMode] Appointment form (create)" -ForegroundColor Yellow
+    # Tap the "+" / Add button in the header (top-right area)
+    Invoke-Tap -X 980 -Y 150
+    Start-Sleep -Milliseconds 1200
+    $result = Save-Screenshot -FileName "${ThemeMode}_appointment-form" -DestDir $passDir
+    if ($result) { $captured++ }
+    # Close form modal
+    Invoke-Back
+    Start-Sleep -Milliseconds 600
+
+    # --- 6. Calendar with appointments visible ---
     Write-Host "  [$ThemeMode] Calendar with appointment detail" -ForegroundColor Yellow
     Invoke-DeepLink -RoutePath "/calendar"
     Start-Sleep -Milliseconds $DelayMs
@@ -556,7 +658,7 @@ function Invoke-InteractionCaptures {
     $result = Save-Screenshot -FileName "${ThemeMode}_calendar-detail" -DestDir $passDir
     if ($result) { $captured++ }
 
-    # --- 5. Health screen scrolled to chart ---
+    # --- 7. Health screen scrolled to chart ---
     Write-Host "  [$ThemeMode] Health chart view" -ForegroundColor Yellow
     Invoke-DeepLink -RoutePath "/health"
     Start-Sleep -Milliseconds $DelayMs
@@ -565,7 +667,7 @@ function Invoke-InteractionCaptures {
     $result = Save-Screenshot -FileName "${ThemeMode}_health-scrolled" -DestDir $passDir
     if ($result) { $captured++ }
 
-    # --- 6. History screen scrolled ---
+    # --- 8. History screen scrolled ---
     Write-Host "  [$ThemeMode] History scrolled" -ForegroundColor Yellow
     Invoke-DeepLink -RoutePath "/history"
     Start-Sleep -Milliseconds $DelayMs
@@ -574,7 +676,7 @@ function Invoke-InteractionCaptures {
     $result = Save-Screenshot -FileName "${ThemeMode}_history-scrolled" -DestDir $passDir
     if ($result) { $captured++ }
 
-    # --- 7. Settings screen scrolled ---
+    # --- 9. Settings screen scrolled ---
     Write-Host "  [$ThemeMode] Settings scrolled" -ForegroundColor Yellow
     Invoke-DeepLink -RoutePath "/settings"
     Start-Sleep -Milliseconds $DelayMs
@@ -583,7 +685,7 @@ function Invoke-InteractionCaptures {
     $result = Save-Screenshot -FileName "${ThemeMode}_settings-scrolled" -DestDir $passDir
     if ($result) { $captured++ }
 
-    # --- 8. Full-screen alarm (requires seed schedule params) ---
+    # --- 10. Full-screen alarm (requires seed schedule params) ---
     # The alarm screen needs scheduleId + date + time query params;
     # without them it redirects to home.  We use a known seed schedule
     # (Ibuprofeno 08:00) so the screen renders with realistic data.
@@ -610,7 +712,7 @@ function Invoke-InteractionCaptures {
     Invoke-DeepLink -RoutePath "/"
     Start-Sleep -Milliseconds 1500
 
-    # --- 9. Alarm with a different medication color ---
+    # --- 11. Alarm with a different medication color ---
     $alarmScheduleId2 = "seed-sch-006"   # Vitamina D3 (teal)
     $alarmTime2 = "09:00"
 
@@ -740,10 +842,14 @@ if ([string]::IsNullOrWhiteSpace($Serial)) {
 Set-AdbTarget -DeviceSerial $Serial
 Write-Host "  Target: $Serial" -ForegroundColor Green
 
+# Set up reverse port forwarding so the emulator can reach Metro
+Set-AdbReverse
+
 # Step: Ensure Metro dev server is running (required for dev builds)
 $step++
 Write-Host "[$step/$totalSteps] Checking Metro dev server..." -ForegroundColor White
 if (-not (Start-MetroIfNeeded)) { exit 1 }
+if (-not (Test-MetroBundleHealth)) { exit 1 }
 
 # Step: Check app installation and build/install as needed
 $step++
@@ -868,6 +974,27 @@ Restore-Mmkv
 Invoke-Adb "shell", "cmd", "uimode", "night", "no" | Out-Null
 Invoke-Adb "shell", "svc", "power", "stayon", "false" | Out-Null
 
+# ─── Objective a11y measurement pass ─────────────────────────────
+# The emulator, app, seed data and Metro are all up here, so this is the ideal
+# moment to also measure what a screenshot can't: real touch-target sizes and
+# accessible names (uiautomator) + sampled WCAG contrast per text node.
+if (-not $SkipMeasure) {
+    Write-Host ""
+    Write-Host "Running objective a11y measurement pass (measure-a11y.ps1)..." -ForegroundColor White
+    $measureScript = Join-Path (Split-Path -Parent $PSCommandPath) "measure-a11y.ps1"
+    if (Test-Path $measureScript) {
+        try {
+            & $measureScript -Serial $Serial -OutDir (Join-Path $OutputDir "a11y")
+        }
+        catch {
+            Write-Warning "  Measurement pass failed: $($_.Exception.Message)"
+        }
+    }
+    else {
+        Write-Warning "  measure-a11y.ps1 not found next to this script; skipping."
+    }
+}
+
 Write-Host ""
 Write-Host "=======================================================" -ForegroundColor Cyan
 Write-Host "  Done! Captured $totalCaptured screenshots" -ForegroundColor Green
@@ -896,12 +1023,10 @@ Write-Host "-------------------------------------------------------" -Foreground
 Write-Host "  NEXT STEP: Run the Vision Audit" -ForegroundColor Yellow
 Write-Host "-------------------------------------------------------" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  Option A: Fully automated (recommended)" -ForegroundColor White
-Write-Host '    .\scripts\run-vision-review.ps1 -Auto -SkipCapture' -ForegroundColor Cyan
+Write-Host "  Invoke @ui-auditor in Copilot Chat:" -ForegroundColor White
+Write-Host '    @ui-auditor audit UI — use existing screenshots' -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Option B: Manual with @vision-reviewer agent" -ForegroundColor White
-Write-Host "    1. Open Copilot Chat" -ForegroundColor DarkGray
-Write-Host "    2. Select @vision-reviewer" -ForegroundColor DarkGray
-Write-Host "    3. Attach screenshots from: $OutputDir" -ForegroundColor DarkGray
-Write-Host "    4. Type: audit these screenshots" -ForegroundColor DarkGray
+Write-Host "  Or for manual review with @vision-reviewer:" -ForegroundColor DarkGray
+Write-Host "    @vision-reviewer audit screenshots in $OutputDir" -ForegroundColor DarkGray
 Write-Host ""
+Write-Host "CAPTURE_DONE:SUCCESS" -ForegroundColor Green

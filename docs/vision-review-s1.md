@@ -19,6 +19,22 @@ via Expo deep links.
 
 ---
 
+## Migration to native Copilot vision (2026-03)
+
+The external GitHub Models API pipeline (`vision-review.mjs`) has been
+**deprecated** and replaced with native Copilot analysis:
+
+- **`@ui-auditor`** agent — full orchestrator using `view_image` + Claude
+  vision + GitHub MCP for issue management
+- **`.github/skills/vision-audit.md`** — reusable skill with 26 screen keys,
+  6 audit categories, per-screen source code cross-reference
+- **`@vision-reviewer`** agent — updated with directory mode (`view_image`) in
+  addition to paste mode
+
+Key benefits: simultaneous source code + screenshot analysis (old pipeline only
+saw images in isolation), no `GITHUB_TOKEN` `models:read` scope needed, no
+image resizing or base64 encoding.
+
 ## Infrastructure delivered
 
 ### Scripts
@@ -26,9 +42,11 @@ via Expo deep links.
 | File | Purpose |
 |------|---------|
 | `scripts/capture-screenshots.ps1` | ADB-powered screenshot capture across all screens in light/dark mode |
-| `scripts/run-vision-review.ps1` | End-to-end orchestrator: capture → manual or automated audit |
-| `scripts/vision-review.mjs` | Fully automated pipeline: AI analysis → GitHub issues → report |
-| `.github/agents/vision-reviewer.agent.md` | Custom Copilot agent for interactive manual audits |
+| `scripts/run-vision-review.ps1` | Capture-only wrapper (analysis now handled by `@ui-auditor`) |
+| `scripts/vision-review.mjs` | ⚠️ DEPRECATED — kept as reference only |
+| `.github/agents/ui-auditor.agent.md` | Full automated audit: capture → analyze → dedup → issues → report |
+| `.github/agents/vision-reviewer.agent.md` | Hybrid audit agent: directory mode or paste mode |
+| `.github/skills/vision-audit.md` | Reusable per-screen analysis skill |
 
 ### Capture script features
 

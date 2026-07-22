@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "exportedAt": "2026-03-22T04:20:01.866Z",
+  "exportedAt": "2026-07-22T01:29:59.453Z",
   "app": "pill-o-clock",
   "data": {
     "medications": [
@@ -13,9 +13,9 @@
         "category": "antiinflamatorio",
         "notes": "Tomar con comida para proteger el estómago",
         "color": "orange",
-        "startDate": "2026-02-10",
+        "startDate": "2026-06-12",
         "isActive": true,
-        "createdAt": "2026-02-10T04:20:01.866Z",
+        "createdAt": "2026-06-12T01:29:59.453Z",
         "stockQuantity": 20,
         "stockAlertThreshold": 5
       },
@@ -28,10 +28,10 @@
         "category": "antibiotico",
         "notes": "Ciclo de 7 días",
         "color": "red",
-        "startDate": "2026-03-15",
-        "endDate": "2026-03-22",
+        "startDate": "2026-07-15",
+        "endDate": "2026-07-22",
         "isActive": true,
-        "createdAt": "2026-03-15T04:20:01.866Z",
+        "createdAt": "2026-07-15T01:29:59.453Z",
         "stockQuantity": 3,
         "stockAlertThreshold": 2
       },
@@ -43,9 +43,9 @@
         "dosage": "2000 UI",
         "category": "vitamina",
         "color": "teal",
-        "startDate": "2026-01-21",
+        "startDate": "2026-05-23",
         "isActive": true,
-        "createdAt": "2026-01-21T04:20:01.866Z",
+        "createdAt": "2026-05-23T01:29:59.453Z",
         "stockQuantity": 45,
         "stockAlertThreshold": 10
       },
@@ -59,7 +59,7 @@
         "notes": "Tomar en ayunas, 30 min antes del desayuno",
         "color": "purple",
         "isActive": true,
-        "createdAt": "2025-12-22T04:20:01.866Z"
+        "createdAt": "2026-04-23T01:29:59.453Z"
       },
       {
         "id": "seed-med-005",
@@ -70,7 +70,7 @@
         "category": "analgesico",
         "color": "blue",
         "isActive": true,
-        "createdAt": "2026-02-20T04:20:01.866Z",
+        "createdAt": "2026-06-22T01:29:59.453Z",
         "isPRN": true
       },
       {
@@ -83,7 +83,7 @@
         "notes": "Tomar antes de dormir",
         "color": "green",
         "isActive": true,
-        "createdAt": "2026-02-10T04:20:01.866Z",
+        "createdAt": "2026-06-12T01:29:59.453Z",
         "stockQuantity": 30,
         "stockAlertThreshold": 8
       },
@@ -97,8 +97,8 @@
         "notes": "Ojo derecho solamente",
         "color": "pink",
         "isActive": false,
-        "createdAt": "2025-11-22T04:20:01.866Z",
-        "endDate": "2026-01-21"
+        "createdAt": "2026-03-24T01:29:59.453Z",
+        "endDate": "2026-05-23"
       }
     ],
     "schedules": [
@@ -176,116 +176,116 @@
         "id": "seed-log-001",
         "medicationId": "seed-med-004",
         "scheduleId": "seed-sch-007",
-        "scheduledDate": "2026-03-22",
+        "scheduledDate": "2026-07-22",
         "scheduledTime": "06:30",
         "status": "taken",
-        "createdAt": "2026-03-22T09:35:00.000Z",
-        "takenAt": "2026-03-22T09:34:00.000Z"
+        "createdAt": "2026-07-21T09:35:00.000Z",
+        "takenAt": "2026-07-21T09:36:00.000Z"
       },
       {
         "id": "seed-log-002",
         "medicationId": "seed-med-001",
         "scheduleId": "seed-sch-001",
-        "scheduledDate": "2026-03-22",
+        "scheduledDate": "2026-07-22",
         "scheduledTime": "08:00",
         "status": "taken",
-        "createdAt": "2026-03-22T11:05:00.000Z",
-        "takenAt": "2026-03-22T11:14:00.000Z"
+        "createdAt": "2026-07-21T11:05:00.000Z",
+        "takenAt": "2026-07-21T11:12:00.000Z"
       },
       {
         "id": "seed-log-003",
         "medicationId": "seed-med-002",
         "scheduleId": "seed-sch-003",
-        "scheduledDate": "2026-03-22",
+        "scheduledDate": "2026-07-22",
         "scheduledTime": "08:00",
         "status": "taken",
-        "createdAt": "2026-03-22T11:05:00.000Z",
-        "takenAt": "2026-03-22T11:03:00.000Z"
+        "createdAt": "2026-07-21T11:05:00.000Z",
+        "takenAt": "2026-07-21T11:05:00.000Z"
       },
       {
         "id": "seed-log-004",
         "medicationId": "seed-med-003",
         "scheduleId": "seed-sch-006",
-        "scheduledDate": "2026-03-22",
+        "scheduledDate": "2026-07-22",
         "scheduledTime": "09:00",
         "status": "pending",
-        "createdAt": "2026-03-22T12:05:00.000Z"
+        "createdAt": "2026-07-21T12:05:00.000Z"
       },
       {
         "id": "seed-log-005",
         "medicationId": "seed-med-002",
         "scheduleId": "seed-sch-004",
-        "scheduledDate": "2026-03-22",
+        "scheduledDate": "2026-07-22",
         "scheduledTime": "16:00",
         "status": "pending",
-        "createdAt": "2026-03-22T19:05:00.000Z"
+        "createdAt": "2026-07-21T19:05:00.000Z"
       },
       {
         "id": "seed-log-006",
         "medicationId": "seed-med-001",
         "scheduleId": "seed-sch-002",
-        "scheduledDate": "2026-03-22",
+        "scheduledDate": "2026-07-22",
         "scheduledTime": "20:00",
         "status": "pending",
-        "createdAt": "2026-03-22T23:05:00.000Z"
+        "createdAt": "2026-07-21T23:05:00.000Z"
       },
       {
         "id": "seed-log-007",
         "medicationId": "seed-med-006",
         "scheduleId": "seed-sch-008",
-        "scheduledDate": "2026-03-22",
+        "scheduledDate": "2026-07-22",
         "scheduledTime": "22:00",
         "status": "pending",
-        "createdAt": "2026-03-23T01:05:00.000Z"
+        "createdAt": "2026-07-22T01:05:00.000Z"
       },
       {
         "id": "seed-log-008",
         "medicationId": "seed-med-004",
         "scheduleId": "seed-sch-007",
-        "scheduledDate": "2026-03-21",
+        "scheduledDate": "2026-07-21",
         "scheduledTime": "06:30",
         "status": "taken",
-        "createdAt": "2026-03-21T09:35:00.000Z",
-        "takenAt": "2026-03-21T09:42:00.000Z"
+        "createdAt": "2026-07-20T09:35:00.000Z",
+        "takenAt": "2026-07-20T09:42:00.000Z"
       },
       {
         "id": "seed-log-009",
         "medicationId": "seed-med-001",
         "scheduleId": "seed-sch-001",
-        "scheduledDate": "2026-03-21",
+        "scheduledDate": "2026-07-21",
         "scheduledTime": "08:00",
         "status": "taken",
-        "createdAt": "2026-03-21T11:05:00.000Z",
-        "takenAt": "2026-03-21T11:14:00.000Z"
+        "createdAt": "2026-07-20T11:05:00.000Z",
+        "takenAt": "2026-07-20T11:13:00.000Z"
       },
       {
         "id": "seed-log-010",
         "medicationId": "seed-med-002",
         "scheduleId": "seed-sch-003",
-        "scheduledDate": "2026-03-21",
+        "scheduledDate": "2026-07-21",
         "scheduledTime": "08:00",
         "status": "taken",
-        "createdAt": "2026-03-21T11:05:00.000Z",
-        "takenAt": "2026-03-21T11:09:00.000Z"
+        "createdAt": "2026-07-20T11:05:00.000Z",
+        "takenAt": "2026-07-20T11:12:00.000Z"
       },
       {
         "id": "seed-log-011",
         "medicationId": "seed-med-003",
         "scheduleId": "seed-sch-006",
-        "scheduledDate": "2026-03-21",
+        "scheduledDate": "2026-07-21",
         "scheduledTime": "09:00",
         "status": "taken",
-        "createdAt": "2026-03-21T12:05:00.000Z",
-        "takenAt": "2026-03-21T12:02:00.000Z"
+        "createdAt": "2026-07-20T12:05:00.000Z",
+        "takenAt": "2026-07-20T12:06:00.000Z"
       },
       {
         "id": "seed-log-012",
         "medicationId": "seed-med-002",
         "scheduleId": "seed-sch-004",
-        "scheduledDate": "2026-03-21",
+        "scheduledDate": "2026-07-21",
         "scheduledTime": "16:00",
         "status": "skipped",
-        "createdAt": "2026-03-21T19:05:00.000Z",
+        "createdAt": "2026-07-20T19:05:00.000Z",
         "skipReason": "side_effect",
         "notes": "Malestar estomacal"
       },
@@ -293,131 +293,131 @@
         "id": "seed-log-013",
         "medicationId": "seed-med-001",
         "scheduleId": "seed-sch-002",
-        "scheduledDate": "2026-03-21",
+        "scheduledDate": "2026-07-21",
         "scheduledTime": "20:00",
         "status": "taken",
-        "createdAt": "2026-03-21T23:05:00.000Z",
-        "takenAt": "2026-03-21T23:01:00.000Z"
+        "createdAt": "2026-07-20T23:05:00.000Z",
+        "takenAt": "2026-07-20T23:11:00.000Z"
       },
       {
         "id": "seed-log-014",
         "medicationId": "seed-med-006",
         "scheduleId": "seed-sch-008",
-        "scheduledDate": "2026-03-21",
+        "scheduledDate": "2026-07-21",
         "scheduledTime": "22:00",
         "status": "missed",
-        "createdAt": "2026-03-22T03:00:00.000Z"
+        "createdAt": "2026-07-21T03:00:00.000Z"
       },
       {
         "id": "seed-log-015",
         "medicationId": "seed-med-004",
         "scheduleId": "seed-sch-007",
-        "scheduledDate": "2026-03-20",
+        "scheduledDate": "2026-07-20",
         "scheduledTime": "06:30",
         "status": "taken",
-        "createdAt": "2026-03-20T09:35:00.000Z",
-        "takenAt": "2026-03-20T09:30:00.000Z"
+        "createdAt": "2026-07-19T09:35:00.000Z",
+        "takenAt": "2026-07-19T09:36:00.000Z"
       },
       {
         "id": "seed-log-016",
         "medicationId": "seed-med-001",
         "scheduleId": "seed-sch-001",
-        "scheduledDate": "2026-03-20",
+        "scheduledDate": "2026-07-20",
         "scheduledTime": "08:00",
         "status": "taken",
-        "createdAt": "2026-03-20T11:05:00.000Z",
-        "takenAt": "2026-03-20T11:05:00.000Z"
+        "createdAt": "2026-07-19T11:05:00.000Z",
+        "takenAt": "2026-07-19T11:12:00.000Z"
       },
       {
         "id": "seed-log-017",
         "medicationId": "seed-med-002",
         "scheduleId": "seed-sch-003",
-        "scheduledDate": "2026-03-20",
+        "scheduledDate": "2026-07-20",
         "scheduledTime": "08:00",
         "status": "taken",
-        "createdAt": "2026-03-20T11:05:00.000Z",
-        "takenAt": "2026-03-20T11:11:00.000Z"
+        "createdAt": "2026-07-19T11:05:00.000Z",
+        "takenAt": "2026-07-19T11:10:00.000Z"
       },
       {
         "id": "seed-log-018",
         "medicationId": "seed-med-003",
         "scheduleId": "seed-sch-006",
-        "scheduledDate": "2026-03-20",
+        "scheduledDate": "2026-07-20",
         "scheduledTime": "09:00",
         "status": "taken",
-        "createdAt": "2026-03-20T12:05:00.000Z",
-        "takenAt": "2026-03-20T12:06:00.000Z"
+        "createdAt": "2026-07-19T12:05:00.000Z",
+        "takenAt": "2026-07-19T12:06:00.000Z"
       },
       {
         "id": "seed-log-019",
         "medicationId": "seed-med-002",
         "scheduleId": "seed-sch-004",
-        "scheduledDate": "2026-03-20",
+        "scheduledDate": "2026-07-20",
         "scheduledTime": "16:00",
         "status": "taken",
-        "createdAt": "2026-03-20T19:05:00.000Z",
-        "takenAt": "2026-03-20T19:12:00.000Z"
+        "createdAt": "2026-07-19T19:05:00.000Z",
+        "takenAt": "2026-07-19T19:08:00.000Z"
       },
       {
         "id": "seed-log-020",
         "medicationId": "seed-med-001",
         "scheduleId": "seed-sch-002",
-        "scheduledDate": "2026-03-20",
+        "scheduledDate": "2026-07-20",
         "scheduledTime": "20:00",
         "status": "taken",
-        "createdAt": "2026-03-20T23:05:00.000Z",
-        "takenAt": "2026-03-20T23:14:00.000Z"
+        "createdAt": "2026-07-19T23:05:00.000Z",
+        "takenAt": "2026-07-19T23:04:00.000Z"
       },
       {
         "id": "seed-log-021",
         "medicationId": "seed-med-006",
         "scheduleId": "seed-sch-008",
-        "scheduledDate": "2026-03-20",
+        "scheduledDate": "2026-07-20",
         "scheduledTime": "22:00",
         "status": "taken",
-        "createdAt": "2026-03-21T01:05:00.000Z",
-        "takenAt": "2026-03-21T01:06:00.000Z"
+        "createdAt": "2026-07-20T01:05:00.000Z",
+        "takenAt": "2026-07-20T01:00:00.000Z"
       },
       {
         "id": "seed-log-022",
         "medicationId": "seed-med-004",
         "scheduleId": "seed-sch-007",
-        "scheduledDate": "2026-03-19",
+        "scheduledDate": "2026-07-19",
         "scheduledTime": "06:30",
         "status": "skipped",
-        "createdAt": "2026-03-19T09:35:00.000Z",
+        "createdAt": "2026-07-18T09:35:00.000Z",
         "skipReason": "forgot"
       },
       {
         "id": "seed-log-023",
         "medicationId": "seed-med-001",
         "scheduleId": "seed-sch-001",
-        "scheduledDate": "2026-03-19",
+        "scheduledDate": "2026-07-19",
         "scheduledTime": "08:00",
         "status": "taken",
-        "createdAt": "2026-03-19T11:05:00.000Z",
-        "takenAt": "2026-03-19T11:08:00.000Z"
+        "createdAt": "2026-07-18T11:05:00.000Z",
+        "takenAt": "2026-07-18T11:03:00.000Z"
       },
       {
         "id": "seed-log-024",
         "medicationId": "seed-med-003",
         "scheduleId": "seed-sch-006",
-        "scheduledDate": "2026-03-19",
+        "scheduledDate": "2026-07-19",
         "scheduledTime": "09:00",
         "status": "taken",
-        "createdAt": "2026-03-19T12:05:00.000Z",
-        "takenAt": "2026-03-19T12:05:00.000Z"
+        "createdAt": "2026-07-18T12:05:00.000Z",
+        "takenAt": "2026-07-18T12:01:00.000Z"
       },
       {
         "id": "seed-log-025",
         "medicationId": "seed-med-005",
         "scheduleId": "prn",
-        "scheduledDate": "2026-03-20",
+        "scheduledDate": "2026-07-20",
         "scheduledTime": "14:00",
         "status": "taken",
-        "createdAt": "2026-03-20T17:05:00.000Z",
+        "createdAt": "2026-07-19T17:05:00.000Z",
         "notes": "Dolor de cabeza",
-        "takenAt": "2026-03-20T17:12:00.000Z"
+        "takenAt": "2026-07-19T17:04:00.000Z"
       }
     ],
     "appointments": [
@@ -431,30 +431,30 @@
           "longitude": -58.3816
         },
         "notes": "Llevar análisis de sangre",
-        "date": "2026-03-28",
+        "date": "2026-07-28",
         "time": "10:30",
         "reminderMinutes": 60,
-        "createdAt": "2026-03-08T04:20:01.866Z"
+        "createdAt": "2026-07-08T01:29:59.453Z"
       },
       {
         "id": "seed-apt-002",
         "title": "Oftalmólogo",
         "doctor": "Dr. Martínez",
         "location": "Clínica de la Visión",
-        "date": "2026-04-13",
+        "date": "2026-08-13",
         "time": "16:00",
         "reminderMinutes": 30,
-        "createdAt": "2026-03-13T04:20:01.866Z"
+        "createdAt": "2026-07-13T01:29:59.453Z"
       },
       {
         "id": "seed-apt-003",
         "title": "Análisis de sangre",
         "location": "Laboratorio CEMA",
         "notes": "Ayuno de 12 horas. No tomar Omeprazol la noche anterior.",
-        "date": "2026-03-26",
+        "date": "2026-07-26",
         "time": "07:00",
         "reminderMinutes": 720,
-        "createdAt": "2026-03-18T04:20:01.866Z"
+        "createdAt": "2026-07-18T01:29:59.453Z"
       }
     ],
     "healthMeasurements": [
@@ -463,137 +463,137 @@
         "type": "blood_pressure",
         "value1": 125,
         "value2": 82,
-        "measuredAt": "2026-03-22T11:00:00.000Z",
-        "createdAt": "2026-03-22T11:00:00.000Z"
+        "measuredAt": "2026-07-21T11:00:00.000Z",
+        "createdAt": "2026-07-21T11:00:00.000Z"
       },
       {
         "id": "seed-hm-002",
         "type": "blood_pressure",
         "value1": 118,
         "value2": 78,
-        "measuredAt": "2026-03-21T11:00:00.000Z",
-        "createdAt": "2026-03-21T11:00:00.000Z"
+        "measuredAt": "2026-07-20T11:00:00.000Z",
+        "createdAt": "2026-07-20T11:00:00.000Z"
       },
       {
         "id": "seed-hm-003",
         "type": "blood_pressure",
         "value1": 130,
         "value2": 85,
-        "measuredAt": "2026-03-20T11:00:00.000Z",
+        "measuredAt": "2026-07-19T11:00:00.000Z",
         "notes": "Medición después de café",
-        "createdAt": "2026-03-20T11:00:00.000Z"
+        "createdAt": "2026-07-19T11:00:00.000Z"
       },
       {
         "id": "seed-hm-004",
         "type": "blood_pressure",
         "value1": 122,
         "value2": 80,
-        "measuredAt": "2026-03-18T11:00:00.000Z",
-        "createdAt": "2026-03-18T11:00:00.000Z"
+        "measuredAt": "2026-07-17T11:00:00.000Z",
+        "createdAt": "2026-07-17T11:00:00.000Z"
       },
       {
         "id": "seed-hm-005",
         "type": "blood_pressure",
         "value1": 127,
         "value2": 83,
-        "measuredAt": "2026-03-16T11:00:00.000Z",
-        "createdAt": "2026-03-16T11:00:00.000Z"
+        "measuredAt": "2026-07-15T11:00:00.000Z",
+        "createdAt": "2026-07-15T11:00:00.000Z"
       },
       {
         "id": "seed-hm-006",
         "type": "glucose",
         "value1": 95,
-        "measuredAt": "2026-03-22T10:00:00.000Z",
+        "measuredAt": "2026-07-21T10:00:00.000Z",
         "notes": "En ayunas",
-        "createdAt": "2026-03-22T10:00:00.000Z"
+        "createdAt": "2026-07-21T10:00:00.000Z"
       },
       {
         "id": "seed-hm-007",
         "type": "glucose",
         "value1": 110,
-        "measuredAt": "2026-03-21T15:30:00.000Z",
+        "measuredAt": "2026-07-20T15:30:00.000Z",
         "notes": "Post-almuerzo",
-        "createdAt": "2026-03-21T15:30:00.000Z"
+        "createdAt": "2026-07-20T15:30:00.000Z"
       },
       {
         "id": "seed-hm-008",
         "type": "glucose",
         "value1": 92,
-        "measuredAt": "2026-03-19T10:00:00.000Z",
+        "measuredAt": "2026-07-18T10:00:00.000Z",
         "notes": "En ayunas",
-        "createdAt": "2026-03-19T10:00:00.000Z"
+        "createdAt": "2026-07-18T10:00:00.000Z"
       },
       {
         "id": "seed-hm-009",
         "type": "weight",
         "value1": 74.5,
-        "measuredAt": "2026-03-22T10:30:00.000Z",
-        "createdAt": "2026-03-22T10:30:00.000Z"
+        "measuredAt": "2026-07-21T10:30:00.000Z",
+        "createdAt": "2026-07-21T10:30:00.000Z"
       },
       {
         "id": "seed-hm-010",
         "type": "weight",
         "value1": 74.8,
-        "measuredAt": "2026-03-15T10:30:00.000Z",
-        "createdAt": "2026-03-15T10:30:00.000Z"
+        "measuredAt": "2026-07-14T10:30:00.000Z",
+        "createdAt": "2026-07-14T10:30:00.000Z"
       },
       {
         "id": "seed-hm-011",
         "type": "heart_rate",
         "value1": 72,
-        "measuredAt": "2026-03-22T11:05:00.000Z",
+        "measuredAt": "2026-07-21T11:05:00.000Z",
         "notes": "En reposo",
-        "createdAt": "2026-03-22T11:05:00.000Z"
+        "createdAt": "2026-07-21T11:05:00.000Z"
       },
       {
         "id": "seed-hm-012",
         "type": "heart_rate",
         "value1": 88,
-        "measuredAt": "2026-03-21T21:00:00.000Z",
+        "measuredAt": "2026-07-20T21:00:00.000Z",
         "notes": "Después de caminar",
-        "createdAt": "2026-03-21T21:00:00.000Z"
+        "createdAt": "2026-07-20T21:00:00.000Z"
       },
       {
         "id": "seed-hm-013",
         "type": "spo2",
         "value1": 97,
-        "measuredAt": "2026-03-22T11:05:00.000Z",
-        "createdAt": "2026-03-22T11:05:00.000Z"
+        "measuredAt": "2026-07-21T11:05:00.000Z",
+        "createdAt": "2026-07-21T11:05:00.000Z"
       }
     ],
     "dailyCheckins": [
       {
         "id": "seed-chk-001",
-        "date": "2026-03-21",
+        "date": "2026-07-21",
         "mood": 4,
         "symptoms": [
           "fatiga"
         ],
         "notes": "Buen día en general, un poco cansado por la tarde",
-        "createdAt": "2026-03-22T01:00:00.000Z"
+        "createdAt": "2026-07-21T01:00:00.000Z"
       },
       {
         "id": "seed-chk-002",
-        "date": "2026-03-20",
+        "date": "2026-07-20",
         "mood": 3,
         "symptoms": [
           "dolor_cabeza",
           "fatiga"
         ],
         "notes": "Dolor de cabeza a media tarde, tomé Paracetamol",
-        "createdAt": "2026-03-21T01:00:00.000Z"
+        "createdAt": "2026-07-20T01:00:00.000Z"
       },
       {
         "id": "seed-chk-003",
-        "date": "2026-03-19",
+        "date": "2026-07-19",
         "mood": 5,
         "symptoms": [],
         "notes": "Excelente día, sin molestias",
-        "createdAt": "2026-03-20T00:00:00.000Z"
+        "createdAt": "2026-07-19T00:00:00.000Z"
       },
       {
         "id": "seed-chk-004",
-        "date": "2026-03-18",
+        "date": "2026-07-18",
         "mood": 2,
         "symptoms": [
           "nausea",
@@ -601,14 +601,14 @@
           "fatiga"
         ],
         "notes": "Malestar general, posible efecto de Amoxicilina",
-        "createdAt": "2026-03-18T23:00:00.000Z"
+        "createdAt": "2026-07-17T23:00:00.000Z"
       },
       {
         "id": "seed-chk-005",
-        "date": "2026-03-17",
+        "date": "2026-07-17",
         "mood": 4,
         "symptoms": [],
-        "createdAt": "2026-03-18T00:30:00.000Z"
+        "createdAt": "2026-07-17T00:30:00.000Z"
       }
     ]
   }
