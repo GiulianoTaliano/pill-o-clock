@@ -527,6 +527,11 @@ const en: TranslationShape = {
     alarmSoundSubtitle: "Choose the sound for your medication alarms",
     alarmSoundDefault: "Pill O-Clock (default)",
     alarmSoundPlaying: "Playing…",
+    // Snooze default
+    sectionSnooze: "Snooze",
+    snoozeDefaultTitle: "Default interval",
+    snoozeDefaultSubtitle: "How long a dose is snoozed with the notification's ⏰ button",
+    snoozeOptionA11y: "Default snooze {{minutes}} minutes",
     // Appearance
     sectionAppearance: "Appearance",
     themeSystem: "Automatic (system)",

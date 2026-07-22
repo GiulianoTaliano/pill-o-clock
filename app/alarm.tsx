@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../src/store";
 import { getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
-import { SNOOZE_OPTIONS, DEFAULT_SNOOZE_MINUTES } from "../src/services/notifications";
+import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes } from "../src/services/snoozeSettings";
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
 import { AppPressable } from "../components/AppPressable";
@@ -164,7 +164,11 @@ export default function AlarmScreen() {
     router.back();
   };
 
-  const handleSnooze = async (minutes: number = DEFAULT_SNOOZE_MINUTES) => {
+  // User-configured default (Settings) — highlights the matching chip below and
+  // is what the plain "Snooze" path uses.
+  const defaultSnoozeMinutes = getDefaultSnoozeMinutes();
+
+  const handleSnooze = async (minutes: number = defaultSnoozeMinutes) => {
     await stopAlarm();
     await snoozeDose(dose, minutes);
     router.back();
@@ -291,7 +295,7 @@ export default function AlarmScreen() {
             </Text>
             <View className="flex-row flex-wrap justify-center gap-2.5">
               {SNOOZE_OPTIONS.map((min) => {
-                const isDefault = min === DEFAULT_SNOOZE_MINUTES;
+                const isDefault = min === defaultSnoozeMinutes;
                 return (
                   <AppPressable
                     key={min}

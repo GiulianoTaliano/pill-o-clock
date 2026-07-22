@@ -8,6 +8,7 @@ import { Schedule, Medication, NotificationMap, Appointment } from "../types";
 import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocalizedDosage } from "../utils";
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
+import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
 import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb } from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -15,9 +16,11 @@ import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb } 
 export const NOTIFICATION_CHANNEL_ID = "pill-reminders-v2";
 // v2: correct sound reference (alarm.wav) + bypassDnd. Android channel settings are
 // immutable after creation, so a new ID forces a fresh channel on existing devices.
-export const SNOOZE_OPTIONS = [5, 10, 15, 20, 25, 30, 45, 60] as const;
-export const DEFAULT_SNOOZE_MINUTES = 15;
-export const SNOOZE_MINUTES = DEFAULT_SNOOZE_MINUTES;
+// Snooze interval setting lives in ./snoozeSettings (user-configurable, F1);
+// re-exported here for backwards compatibility with existing imports.
+export { SNOOZE_OPTIONS, DEFAULT_SNOOZE_MINUTES, getDefaultSnoozeMinutes, setDefaultSnoozeMinutes } from "./snoozeSettings";
+/** @deprecated Use getDefaultSnoozeMinutes() — the interval is user-configurable now. */
+export const SNOOZE_MINUTES = 15;
 export const REPEAT_INTERVAL_MINUTES = 5;
 /**
  * How many repeat reminders to schedule after the initial notification.
@@ -103,6 +106,35 @@ export async function openExactAlarmSettings(): Promise<void> {
   }
 }
 
+/**
+ * (Re)registers the DOSE_REMINDER action category (Take / Snooze / Skip).
+ *
+ * Called at startup and again whenever the default snooze interval changes in
+ * Settings, so the ⏰ action button label reflects the configured minutes.
+ * opensAppToForeground: true ensures the response listener always fires,
+ * even if the app was terminated when the user tapped the action.
+ */
+export async function refreshDoseReminderCategory(): Promise<void> {
+  if (Platform.OS === "web") return;
+  await Notifications.setNotificationCategoryAsync("DOSE_REMINDER", [
+    {
+      identifier: ACTION_TAKEN,
+      buttonTitle: i18n.t("notifications.actionTaken"),
+      options: { opensAppToForeground: true },
+    },
+    {
+      identifier: ACTION_SNOOZE,
+      buttonTitle: i18n.t("notifications.actionSnooze", { minutes: getSnoozeMin() }),
+      options: { opensAppToForeground: true },
+    },
+    {
+      identifier: ACTION_SKIP,
+      buttonTitle: i18n.t("notifications.actionSkip"),
+      options: { isDestructive: true, opensAppToForeground: true },
+    },
+  ]);
+}
+
 export async function setupNotifications(): Promise<NotificationSetupResult> {
   // Notifications are not supported on web
   if (Platform.OS === "web") {
@@ -122,25 +154,7 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
   });
 
   // Set action categories
-  // opensAppToForeground: true ensures the response listener always fires,
-  // even if the app was terminated when the user tapped the action.
-  await Notifications.setNotificationCategoryAsync("DOSE_REMINDER", [
-    {
-      identifier: ACTION_TAKEN,
-      buttonTitle: i18n.t("notifications.actionTaken"),
-      options: { opensAppToForeground: true },
-    },
-    {
-      identifier: ACTION_SNOOZE,
-      buttonTitle: i18n.t("notifications.actionSnooze", { minutes: SNOOZE_MINUTES }),
-      options: { opensAppToForeground: true },
-    },
-    {
-      identifier: ACTION_SKIP,
-      buttonTitle: i18n.t("notifications.actionSkip"),
-      options: { isDestructive: true, opensAppToForeground: true },
-    },
-  ]);
+  await refreshDoseReminderCategory();
 
   // Create Android channel
   if (Platform.OS === "android") {
@@ -421,14 +435,15 @@ export async function snoozeDose(
   medication: Medication,
   schedule: Schedule,
   scheduledDate: string,
-  /** When provided the notification fires at this exact time instead of now+15. */
+  /** When provided the notification fires at this exact time instead of now + the configured default. */
   fireDate?: Date
 ): Promise<void> {
   // Cancel existing alarm / notification chain for this dose.
   await removeNotifMapEntriesByDose(schedule.id, scheduledDate);
 
-  // Use explicit fire date when supplied (future-dose snooze), otherwise now+15
-  const snoozeDate = fireDate ?? addMinutes(new Date(), SNOOZE_MINUTES);
+  // Use explicit fire date when supplied (future-dose snooze), otherwise
+  // now + the user-configured default interval.
+  const snoozeDate = fireDate ?? addMinutes(new Date(), getSnoozeMin());
 
   // ── Android: re-schedule as an AlarmManager alarm ──────────────────────
   if (Platform.OS === "android") {
