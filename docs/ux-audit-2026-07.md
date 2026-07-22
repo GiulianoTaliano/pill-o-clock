@@ -36,6 +36,23 @@ Sumado a un **setup sobrecargado** (6 slides + tour de 6 pasos + selector de 15 
 | **I12** | Promover Historial al tab bar / reasignar slots (decisión de producto) | U10 | 🔶 A decidir |
 | **I13** | Reordenar el paso cosmético (color/foto) del wizard | U18,U28 | 🔶 Opcional |
 
+> **Commit:** `9de79bf feat(ux): usability pass`. **Tests:** 176 jest pasan · sin nuevos errores de tsc. **i18n:** claves EN/ES agregadas para cada punto.
+
+### Validación on-device (Pixel 9 · Android 15 · árbol de accesibilidad + captura)
+
+| Punto | Método | Resultado |
+|---|---|---|
+| I1 labels de header | screenshot + uiautomator | ✅ "Calendar/History/Add" renderizan; **+** azul distinguible |
+| I2 botón "Log a dose" PRN | uiautomator (pestaña Medicamentos) | ✅ presente en card PRN activa |
+| I3 sin selector de sonidos | uiautomator (onboarding) | ✅ slide "Choose your sound" ausente |
+| I4 hint de dosis | uiautomator (alta paso 1) | ✅ "Don't know the strength" presente |
+| I5 verbo claro | screenshot (Home pending) | ✅ botón "Take" visible; "Mark as taken" en bundle |
+| I6 presets de snooze | screenshot + uiautomator | ✅ 10/15/30 min + "Custom" (targets grandes) |
+| I7 "Share with your doctor" | uiautomator (Historial) | ✅ presente tras las estadísticas |
+| I10 info del streak | screenshot (Home chip) | ✅ ícono ⓘ en el chip "1 day streak 🔥" |
+| I11 nota local-first | uiautomator (Settings) | ✅ "lives only on this phone" presente |
+| I8 diario / I9 tip PRN | bundle-grep + tsc/jest + revisión de código | ✅ strings en bundle; flujos anidados, bajo riesgo |
+
 ---
 
 ## Fricción principal (rankeada, deduplicada)
