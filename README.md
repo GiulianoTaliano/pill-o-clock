@@ -2,7 +2,7 @@
 
 > Never miss a dose again. Smart medication reminders, health tracking, and personal insights.
 
-Pill O-Clock is a personal medication assistant built with React Native and Expo. It reminds you exactly when to take each medication, rings a persistent alarm with quick-action buttons, logs your adherence, tracks health measurements with trends, and records your daily wellbeing — all stored locally on your device with no data ever sent to external servers.
+Pill O-Clock is a personal medication assistant built with React Native and Expo. It reminds you exactly when to take each medication, rings a persistent alarm with quick-action buttons, logs your adherence, tracks health measurements with trends, and records your daily wellbeing — all stored locally in a private database on your device. (Crash diagnostics and the optional appointment map are the only data that reach a third party — see [Privacy](#privacy).)
 
 ---
 
@@ -24,7 +24,7 @@ Pill O-Clock is a personal medication assistant built with React Native and Expo
 - **Backup & restore** — Export and import a full backup (medications + history) at any time.
 - **Dark mode** — Follows the system theme automatically.
 - **Bilingual** — English and Spanish, auto-detected from device locale with manual override in Settings.
-- **100% local** — All data lives in a private SQLite database on your device. No accounts, no analytics, no ads.
+- **Local-first** — Your medical data lives in a private SQLite database on your device; it is never uploaded. No accounts, no ads, no product analytics. (Crash reporting and the appointment map use third-party services — see [Privacy](#privacy).)
 
 ---
 
@@ -186,11 +186,14 @@ This link is used internally by notification actions to open the fullscreen alar
 
 ## Privacy
 
-All data is stored exclusively in a private SQLite database on the user's device. The app:
+Your medical data — medications, schedules, dose history, health measurements, and the wellbeing diary — is stored exclusively in a private SQLite database on your device and is never uploaded to any server.
 
-- Does **not** collect any personal data
-- Does **not** connect to any external server
-- Does **not** include analytics, crash reporters, or ad SDKs
+Two features involve a third party, in limited ways:
+
+- **Crash reporting (Sentry).** Production builds send crash and error diagnostics (exception details and a React component stack) to [Sentry](https://sentry.io) to help fix bugs. Your medication, health, and diary data are **not** included. This is only active in production builds that have a Sentry DSN configured.
+- **Appointment location (Google Maps / Places).** When you add a location to a medical appointment, the address you type and your current coordinates are sent to Google Maps/Places to render the map and suggest places. This happens **only** while you use the location picker — if you never add appointment locations, no location data leaves your device.
+
+The app has **no accounts, no ads, and no product/usage analytics.**
 
 Full privacy policy: [giulianotaliano.github.io/pill-o-clock/privacy-policy.html](https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html)
 

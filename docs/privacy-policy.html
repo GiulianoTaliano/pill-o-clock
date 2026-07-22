@@ -38,21 +38,24 @@
   <!-- ─── ENGLISH ─────────────────────────────────────────────── -->
   <div id="en">
     <h1>Pill O-Clock</h1>
-    <p class="subtitle">Privacy Policy · Last updated: March 2026</p>
-    <span class="badge">🔒 No data leaves your device</span>
+    <p class="subtitle">Privacy Policy · Last updated: July 2026</p>
+    <span class="badge">🔒 Your medical data stays on your device</span>
 
     <h2>1. Overview</h2>
-    <p>Pill O-Clock (“the App”) is a personal medication reminder app developed by an independent developer. We are strongly committed to your privacy. <strong>All data you enter is stored exclusively on your device and is never transmitted to any server operated by us or third parties.</strong></p>
+    <p>Pill O-Clock (“the App”) is a personal medication reminder app developed by an independent developer. We are strongly committed to your privacy. <strong>Your medical data — medications, schedules, dose history, health measurements, and the wellbeing diary — is stored exclusively on your device and is never uploaded.</strong> Two features use third-party services in limited ways (crash reporting and the appointment map); these are described in Section 4.</p>
 
     <h2>2. Information We Collect</h2>
-    <p>The App stores the following data <strong>locally on your device only</strong>, in a private SQLite database that is never accessible to other apps:</p>
+    <p>The App stores the following data <strong>locally on your device</strong>, in a private SQLite database that is never accessible to other apps:</p>
     <ul>
-      <li>Medication names, dosages, categories, and notes you enter</li>
-      <li>Alarm schedules (times and days of the week)</li>
-      <li>Dose log records (whether a dose was taken, skipped, or missed)</li>
-      <li>App preferences (language setting, notification permission flags)</li>
+      <li>Medication names, dosages, categories, instructions, and notes you enter</li>
+      <li>Alarm schedules (times and days of the week) and treatment periods</li>
+      <li>Dose log records (whether a dose was taken, skipped, or missed) and per-dose notes</li>
+      <li>Health measurements you record (blood pressure, blood glucose, weight, SpO₂, heart rate)</li>
+      <li>Daily wellbeing diary entries (mood level and symptoms)</li>
+      <li>Medical appointment details (title, doctor, location, date/time, notes)</li>
+      <li>App preferences (language, theme, notification permission flags)</li>
     </ul>
-    <p>We do <strong>not</strong> collect names, email addresses, phone numbers, location, health records, or any other personal information.</p>
+    <p>We do <strong>not</strong> require an account and do not collect your name, email address, or phone number. This data stays in the local database; the only limited exceptions — crash diagnostics and appointment-map lookups — are described in Section 4.</p>
 
     <h2>3. How Your Data Is Used</h2>
     <p>Your data is used solely to:</p>
@@ -63,8 +66,12 @@
       <li>Allow you to export a backup file to a location of your choice</li>
     </ul>
 
-    <h2>4. Data Sharing</h2>
-    <p>We do not share, sell, rent, or disclose your data to any third party. The App does not integrate any analytics SDK, crash-reporting tool, or advertising network that would collect usage data.</p>
+    <h2>4. Third-Party Services and Data Sharing</h2>
+    <p>We do not sell, rent, or trade your data, and the App contains <strong>no advertising SDK and no product- or usage-analytics SDK</strong>. Two features rely on third-party services, in limited ways:</p>
+    <ul>
+      <li><strong>Crash reporting (Sentry).</strong> Production builds of the App send crash and error diagnostics — exception details, a technical stack trace, and basic device/app state — to <a href="https://sentry.io">Sentry</a> so we can find and fix bugs. These reports do <strong>not</strong> include your medication, health, or diary data. This processing is governed by Sentry's privacy policy.</li>
+      <li><strong>Appointment location (Google Maps / Places).</strong> If you add a location to a medical appointment, the address text you type and your device's current coordinates are sent to Google Maps/Places to display the map and suggest nearby places. This happens only while you use the location picker; if you never add appointment locations, no location data leaves your device. This processing is governed by Google's privacy policy.</li>
+    </ul>
 
     <h2>5. Export and Deletion</h2>
     <p>You are in full control of your data at all times:</p>
@@ -93,11 +100,11 @@
   <!-- ─── ESPAÑOL ─────────────────────────────────────────────── -->
   <div id="es">
     <h1>Pill O-Clock</h1>
-    <p class="subtitle">Política de Privacidad · Última actualización: marzo 2026</p>
-    <span class="badge">🔒 Tus datos no salen de tu dispositivo</span>
+    <p class="subtitle">Política de Privacidad · Última actualización: julio 2026</p>
+    <span class="badge">🔒 Tus datos médicos quedan en tu dispositivo</span>
 
     <h2>1. Introducción</h2>
-    <p>Pill O-Clock (“la App”) es una aplicación de recordatorio de medicamentos desarrollada por un desarrollador independiente. Estamos firmemente comprometidos con tu privacidad. <strong>Todos los datos que ingresás se almacenan exclusivamente en tu dispositivo y nunca se transmiten a ningún servidor nuestro ni de terceros.</strong></p>
+    <p>Pill O-Clock (“la App”) es una aplicación de recordatorio de medicamentos desarrollada por un desarrollador independiente. Estamos firmemente comprometidos con tu privacidad. <strong>Tus datos médicos — medicamentos, horarios, historial de tomas, mediciones de salud y diario — se almacenan exclusivamente en tu dispositivo y nunca se suben a la nube.</strong> Dos funciones usan servicios de terceros de forma limitada (reportes de errores y el mapa de citas); se describen en la Sección 4.</p>
 
     <h2>2. Información que almacenamos</h2>
     <p>La App guarda los siguientes datos <strong>localmente en tu dispositivo</strong>, en una base de datos SQLite privada que no es accesible por otras aplicaciones:</p>
@@ -110,7 +117,7 @@
       <li>Detalles de citas médicas (título, médico, ubicación, fecha/hora, notas)</li>
       <li>Preferencias de la app (idioma, tema, flags de permisos de notificaciones)</li>
     </ul>
-    <p>No recopilamos nombres, direcciones de correo electrónico, números de teléfono, ubicación precisa ni ningún otro dato personal.</p>
+    <p>No requerimos una cuenta y no recopilamos tu nombre, correo electrónico ni número de teléfono. Estos datos permanecen en la base de datos local; las únicas excepciones limitadas — diagnósticos de errores y búsquedas del mapa de citas — se describen en la Sección 4.</p>
 
     <h2>3. Cómo usamos tu información</h2>
     <p>Tus datos se usan únicamente para:</p>
@@ -121,8 +128,12 @@
       <li>Permitirte exportar una copia de seguridad a la ubicación que elijas</li>
     </ul>
 
-    <h2>4. Compartir datos</h2>
-    <p>No compartimos, vendemos, alquilamos ni revelamos tus datos a ningún tercero. La app no integra ningún SDK de analíticas, herramienta de reportes de errores ni red publicitaria que recopile datos de uso.</p>
+    <h2>4. Servicios de terceros y compartir datos</h2>
+    <p>No vendemos, alquilamos ni intercambiamos tus datos, y la app <strong>no incluye ningún SDK de publicidad ni de analíticas de uso</strong>. Dos funciones dependen de servicios de terceros, de forma limitada:</p>
+    <ul>
+      <li><strong>Reportes de errores (Sentry).</strong> Las versiones de producción de la app envían diagnósticos de errores — detalles de la excepción, un stack trace técnico y estado básico del dispositivo/app — a <a href="https://sentry.io">Sentry</a> para poder detectar y corregir fallas. Estos reportes <strong>no</strong> incluyen tus datos de medicamentos, salud ni diario. Este tratamiento se rige por la política de privacidad de Sentry.</li>
+      <li><strong>Ubicación de citas (Google Maps / Places).</strong> Si agregás una ubicación a una cita médica, el texto de la dirección que escribís y las coordenadas actuales de tu dispositivo se envían a Google Maps/Places para mostrar el mapa y sugerir lugares cercanos. Esto ocurre solo mientras usás el selector de ubicación; si nunca agregás ubicaciones de citas, ningún dato de ubicación sale de tu dispositivo. Este tratamiento se rige por la política de privacidad de Google.</li>
+    </ul>
 
     <h2>5. Exportación y eliminación</h2>
     <p>Tenés el control total sobre tus datos en todo momento:</p>

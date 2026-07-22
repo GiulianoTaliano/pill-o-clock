@@ -23,6 +23,7 @@ import { checkFullScreenIntentPermission, requestFullScreenIntentPermission } fr
 // Side-effect import (registers TaskManager.defineTask) + named imports from same module.
 import { registerBackgroundFetch, closeMissedDoses } from "../src/services/backgroundTask";
 import { useAppStore } from "../src/store";
+import { useAppTheme } from "../src/hooks/useAppTheme";
 import { useNotificationResponseHandler } from "../src/hooks/useNotificationResponse";
 import { initI18n, useTranslation } from "../src/i18n";
 import { ToastProvider } from "../src/context/ToastContext";
@@ -53,6 +54,7 @@ export default function RootLayout() {
   const [error, setError] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const loadAll = useAppStore((s) => s.loadAll);
   const loadTodayLogs = useAppStore((s) => s.loadTodayLogs);
   const loadThemeMode = useAppStore((s) => s.loadThemeMode);
@@ -217,8 +219,10 @@ export default function RootLayout() {
               headerShown: true,
               title: t('form.newTitle'),
               presentation: "modal",
-              headerStyle: { backgroundColor: "#f0f6ff" },
-              headerTintColor: "#1e293b",
+              // Theme-aware so the modal header isn't a bright light bar over a
+              // dark app in dark mode (audit H7).
+              headerStyle: { backgroundColor: theme.card },
+              headerTintColor: theme.isDark ? "#f1f5f9" : "#1e293b",
             }}
           />
           <Stack.Screen
@@ -227,8 +231,8 @@ export default function RootLayout() {
               headerShown: true,
               title: t('form.editTitle'),
               presentation: "modal",
-              headerStyle: { backgroundColor: "#f0f6ff" },
-              headerTintColor: "#1e293b",
+              headerStyle: { backgroundColor: theme.card },
+              headerTintColor: theme.isDark ? "#f1f5f9" : "#1e293b",
             }}
           />
           <Stack.Screen

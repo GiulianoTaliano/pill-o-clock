@@ -17,7 +17,9 @@ export interface MedicationsSlice {
 
   updateMedication: (
     med: Medication,
-    scheduleInputs: Omit<Schedule, "id" | "medicationId" | "isActive">[]
+    // `id` is optional: existing schedules carry their DB id so their identity
+    // (and attached dose_logs) is preserved; new schedules omit it (audit H17).
+    scheduleInputs: (Omit<Schedule, "id" | "medicationId" | "isActive"> & { id?: string })[]
   ) => Promise<void>;
 
   deleteMedication: (id: string) => Promise<void>;

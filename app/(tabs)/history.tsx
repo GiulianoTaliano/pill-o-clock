@@ -1,8 +1,10 @@
-import { View, Text, ScrollView, TouchableOpacity, Animated } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
+import { generateAndShareReport } from "../../src/services/pdfReport";
 import {
   addDays, addMonths, eachDayOfInterval, format, getDaysInMonth,
   startOfDay, startOfMonth, startOfWeek, subMonths, subWeeks,
@@ -102,7 +104,23 @@ export default function HistoryScreen() {
   const getHistoryLogs = useAppStore((s) => s.getHistoryLogs);
   const [logs, setLogs] = useState<DoseLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
+
+  // Share the doctor PDF report from here — the screen where "how am I doing?"
+  // intent lives — instead of only from deep inside Settings (audit UX I7).
+  const handleShareReport = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSharing(true);
+    try {
+      await generateAndShareReport();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
+    } finally {
+      setSharing(false);
+    }
+  };
   const [offset, setOffset] = useState(0); // weeks (week view) or months (month view) back
 
   // ── Date ranges ─────────────────────────────────────────────────────────
@@ -326,6 +344,22 @@ export default function HistoryScreen() {
           )}
         </View>
       )}
+
+      {/* Share the doctor PDF report from where the intent arises (audit UX I7) */}
+      <View className="px-5 mb-2">
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('report.shareWithDoctor')}
+          onPress={handleShareReport}
+          disabled={sharing}
+          className="flex-row items-center justify-center gap-2 bg-primary rounded-2xl py-3 min-h-[44px]"
+        >
+          <Ionicons name="share-outline" size={18} color="#fff" />
+          <Text className="text-white text-sm font-bold">
+            {sharing ? `${t('report.shareWithDoctor')}…` : t('report.shareWithDoctor')}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <FlashList
         data={loading ? [] : flatData}

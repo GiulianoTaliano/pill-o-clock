@@ -21,6 +21,7 @@ import { makeMedication, makeSchedule, makeTodayDose, makeDoseLog } from "../fac
 jest.mock("../../src/db/database", () => ({
   upsertDoseLog: jest.fn().mockResolvedValue(undefined),
   deleteDoseLog: jest.fn().mockResolvedValue(undefined),
+  getDoseLogByScheduleAndDate: jest.fn().mockResolvedValue(null),
   getMedications: jest.fn().mockResolvedValue([]),
   getAllActiveSchedules: jest.fn().mockResolvedValue([]),
   updateMedicationStock: jest.fn().mockResolvedValue(undefined),
@@ -29,6 +30,7 @@ jest.mock("../../src/db/database", () => ({
   getSchedulesByMedication: jest.fn().mockResolvedValue([]),
   insertMedication: jest.fn().mockResolvedValue(undefined),
   insertSchedule: jest.fn().mockResolvedValue(undefined),
+  updateSchedule: jest.fn().mockResolvedValue(undefined),
   updateMedication: jest.fn().mockResolvedValue(undefined),
   deleteMedication: jest.fn().mockResolvedValue(undefined),
   deleteSchedule: jest.fn().mockResolvedValue(undefined),
@@ -45,6 +47,7 @@ jest.mock("../../src/services/notifications", () => ({
   SNOOZE_MINUTES: 15,
   DEFAULT_SNOOZE_MINUTES: 15,
   SNOOZE_OPTIONS: [5, 10, 15, 20, 25, 30, 45, 60],
+  DAYS_AHEAD: 7,
 }));
 
 import * as db from "../../src/db/database";
@@ -149,6 +152,48 @@ describe("deleteMedication", () => {
     await store.getState().deleteMedication("med-1");
 
     expect(jest.mocked(db.getMedications)).toHaveBeenCalled();
+  });
+});
+
+// ─── updateMedication — schedule identity (audit H17) ───────────────────────
+
+describe("updateMedication", () => {
+  it("preserves the id of unchanged/edited existing schedules and only inserts new ones", async () => {
+    const existing = makeSchedule({ id: "sch-1", medicationId: "med-1", time: "08:00", days: [] });
+    jest.mocked(db.getSchedulesByMedication).mockResolvedValue([existing]);
+
+    const store = makeTestStore();
+    await store.getState().updateMedication(
+      makeMedication({ id: "med-1" }),
+      [
+        { id: "sch-1", time: "09:00", days: [] }, // existing, time edited → keep id
+        { time: "20:00", days: [] },              // new → gets a fresh id
+      ]
+    );
+
+    // Existing schedule is updated in place (id preserved), NOT deleted+recreated
+    expect(jest.mocked(db.updateSchedule)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(db.updateSchedule).mock.calls[0][0]).toMatchObject({ id: "sch-1", time: "09:00" });
+    expect(jest.mocked(db.deleteSchedule)).not.toHaveBeenCalled();
+
+    // The new schedule is inserted with a generated (non-"sch-1") id
+    expect(jest.mocked(db.insertSchedule)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(db.insertSchedule).mock.calls[0][0].id).not.toBe("sch-1");
+  });
+
+  it("deletes a schedule the user removed", async () => {
+    const keep = makeSchedule({ id: "sch-1", medicationId: "med-1", time: "08:00", days: [] });
+    const gone = makeSchedule({ id: "sch-2", medicationId: "med-1", time: "20:00", days: [] });
+    jest.mocked(db.getSchedulesByMedication).mockResolvedValue([keep, gone]);
+
+    const store = makeTestStore();
+    await store.getState().updateMedication(
+      makeMedication({ id: "med-1" }),
+      [{ id: "sch-1", time: "08:00", days: [] }] // sch-2 dropped
+    );
+
+    expect(jest.mocked(db.deleteSchedule)).toHaveBeenCalledWith("sch-2");
+    expect(jest.mocked(db.deleteSchedule)).not.toHaveBeenCalledWith("sch-1");
   });
 });
 

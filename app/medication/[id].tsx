@@ -125,7 +125,11 @@ export default function EditMedicationScreen() {
           isPRN: values.isPRN,
           photoUri: values.photoUri,
         },
-        values.schedules.map((s) => ({ time: s.time, days: s.days }))
+        // Pass each schedule's id through so unchanged schedules keep their
+        // identity (and their dose_logs) instead of being deleted + recreated
+        // with a fresh id (audit H17). New schedules added in the form carry a
+        // local key that won't match any DB id, so they get a real id in the slice.
+        values.schedules.map((s) => ({ id: s.id, time: s.time, days: s.days }))
       );
       router.back();
     } catch {

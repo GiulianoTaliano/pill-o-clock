@@ -1,18 +1,13 @@
 <#
 .SYNOPSIS
-    End-to-end Vision UI review runner for Pill O-Clock.
+    Screenshot capture wrapper for Pill O-Clock UI audits.
 
 .DESCRIPTION
-    Orchestrates the full vision review workflow:
-      1. Captures screenshots via ADB (or uses existing ones)
-      2. Runs automated AI analysis + issue creation (-Auto)
-         OR prints instructions for manual @vision-reviewer agent usage
+    Captures screenshots via ADB, then directs the user to invoke @ui-auditor
+    or @vision-reviewer in Copilot Chat for AI-powered analysis.
 
-    Modes:
-      -Auto       Fully automated: captures, analyzes via GitHub Models API,
-                  creates issues. Requires GITHUB_TOKEN env var.
-      (default)   Captures screenshots and tells you to invoke @vision-reviewer
-                  in Copilot Chat manually.
+    The -Auto flag is DEPRECATED. Analysis is now handled natively by
+    @ui-auditor (view_image + Claude vision + GitHub MCP).
 
 .PARAMETER ScreenshotDir
     Path to existing screenshots directory. If omitted, runs capture first.
@@ -21,15 +16,14 @@
     Skip the ADB capture step and use existing screenshots.
 
 .PARAMETER Auto
-    Run the fully automated pipeline via GitHub Models API (vision-review.mjs).
-    Requires GITHUB_TOKEN environment variable with models:read + repo scopes.
+    DEPRECATED. Kept for backward compatibility — prints a deprecation notice
+    and proceeds with capture only.
 
 .PARAMETER DryRun
-    When used with -Auto, analyze but don't create GitHub issues.
+    DEPRECATED (was used with -Auto). Ignored.
 
 .PARAMETER Model
-    AI model ID for the GitHub Models API (default: openai/gpt-4.1).
-    Use 'node scripts/vision-review.mjs --list-models' to see available models.
+    DEPRECATED (was used with vision-review.mjs). Ignored.
 
 .PARAMETER Mode
     Theme mode: "light", "dark", or "both". Passed to capture script.
@@ -44,11 +38,10 @@
     Path to a backup JSON file. Passed to capture script.
 
 .EXAMPLE
-    .\scripts\run-vision-review.ps1 -Auto
-    .\scripts\run-vision-review.ps1 -Auto -SkipCapture -DryRun
-    .\scripts\run-vision-review.ps1 -Auto -Model "openai/gpt-5-mini"
-    .\scripts\run-vision-review.ps1 -Auto -SkipBuild -SkipSeed
+    .\scripts\run-vision-review.ps1
+    .\scripts\run-vision-review.ps1 -SkipBuild -SkipSeed
     .\scripts\run-vision-review.ps1 -SkipCapture
+    .\scripts\run-vision-review.ps1 -Mode light
 #>
 
 [CmdletBinding()]
@@ -68,18 +61,21 @@ param(
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 $CaptureScript = Join-Path $ScriptDir "capture-screenshots.ps1"
-$VisionScript = Join-Path $ScriptDir "vision-review.mjs"
 
-$totalSteps = if ($Auto) { 3 } else { 2 }
+if ($Auto) {
+    Write-Host ""
+    Write-Host "[DEPRECATED] The -Auto flag is deprecated." -ForegroundColor Yellow
+    Write-Host "  Analysis is now handled by @ui-auditor in Copilot Chat." -ForegroundColor Yellow
+    Write-Host "  Proceeding with capture only..." -ForegroundColor Yellow
+    Write-Host ""
+}
+
+$totalSteps = 2
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host "  Pill O-Clock -- Vision UI Review Runner" -ForegroundColor Magenta
-if ($Auto) {
-    Write-Host "  Mode: FULLY AUTOMATED (GitHub Models API)" -ForegroundColor Cyan
-} else {
-    Write-Host "  Mode: MANUAL (use @vision-reviewer agent)" -ForegroundColor Yellow
-}
+Write-Host "  Pill O-Clock -- Screenshot Capture" -ForegroundColor Magenta
+Write-Host "  Analysis: invoke @ui-auditor in Copilot Chat" -ForegroundColor DarkGray
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 
@@ -142,61 +138,17 @@ foreach ($img in $screenshots) {
     Write-Host "    - $relativePath" -ForegroundColor DarkGray
 }
 
-# --- Step 3: Run automated pipeline or print manual instructions ---
+# --- Step 2: Print instructions for @ui-auditor ---
 
-if ($Auto) {
-    Write-Host ""
-    Write-Host "[Step 3/$totalSteps] Running automated AI analysis..." -ForegroundColor White
-
-    # Validate GITHUB_TOKEN — load from .env.local if not in environment
-    if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
-        $envFile = Join-Path $ProjectRoot ".env.local"
-        if (Test-Path $envFile) {
-            $tokenLine = Get-Content $envFile | Where-Object { $_ -match "^GITHUB_TOKEN=" }
-            if ($tokenLine) {
-                $env:GITHUB_TOKEN = ($tokenLine -replace "^GITHUB_TOKEN=", "").Trim()
-                Write-Host "  Loaded GITHUB_TOKEN from .env.local" -ForegroundColor DarkGray
-            }
-        }
-    }
-    if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
-        Write-Error "GITHUB_TOKEN environment variable is required for -Auto mode."
-        Write-Host '  Set it with: $env:GITHUB_TOKEN = "ghp_..."' -ForegroundColor Yellow
-        Write-Host "  Or add GITHUB_TOKEN=... to .env.local" -ForegroundColor Yellow
-        Write-Host "  Required scopes: models:read, repo" -ForegroundColor Yellow
-        exit 1
-    }
-
-    # Build node command arguments
-    $nodeArgs = @($VisionScript, $ScreenshotDir)
-    if ($DryRun) { $nodeArgs += "--dry-run" }
-    if (-not [string]::IsNullOrWhiteSpace($Model)) { $nodeArgs += @("--model", $Model) }
-
-    & node @nodeArgs
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Automated analysis failed. Check the output above for details."
-        Write-Host "PIPELINE_DONE:FAILURE" -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host ""
-    Write-Host "PIPELINE_DONE:SUCCESS" -ForegroundColor Green
-}
-else {
-    Write-Host ""
-    Write-Host "------------------------------------------------------------" -ForegroundColor Yellow
-    Write-Host "  NEXT: Choose how to run the audit" -ForegroundColor Yellow
-    Write-Host "------------------------------------------------------------" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  Option A: Fully automated (add -Auto flag)" -ForegroundColor White
-    Write-Host '    .\scripts\run-vision-review.ps1 -Auto -SkipCapture' -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "  Option B: Manual with @vision-reviewer agent" -ForegroundColor White
-    Write-Host "    1. Open Copilot Chat in VS Code" -ForegroundColor DarkGray
-    Write-Host "    2. Select the @vision-reviewer agent" -ForegroundColor DarkGray
-    Write-Host "    3. Attach the screenshots from:" -ForegroundColor DarkGray
-    Write-Host "       $ScreenshotDir" -ForegroundColor Cyan
-    Write-Host "    4. Type: audit these screenshots" -ForegroundColor DarkGray
-    Write-Host ""
-}
+Write-Host ""
+Write-Host "------------------------------------------------------------" -ForegroundColor Yellow
+Write-Host "  NEXT: Run the UI Audit with @ui-auditor" -ForegroundColor Yellow
+Write-Host "------------------------------------------------------------" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  In Copilot Chat, invoke:" -ForegroundColor White
+Write-Host '    @ui-auditor audit UI — use existing screenshots' -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Or for manual review:" -ForegroundColor DarkGray
+Write-Host "    @vision-reviewer audit screenshots in $ScreenshotDir" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "PIPELINE_DONE:SUCCESS" -ForegroundColor Green

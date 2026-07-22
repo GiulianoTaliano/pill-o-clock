@@ -229,20 +229,31 @@ export async function generateAndShareReport(): Promise<void> {
   const filename = `pilloclock-report-${todayStr}.pdf`;
   const destUri = uri.replace(/[^/]+$/, filename);
 
+  const FileSystem = await import("expo-file-system");
+
   // Rename the file for a friendly share name (not critical if it fails)
+  let sharedUri = uri;
   try {
-    const FileSystem = await import("expo-file-system");
     await FileSystem.default.moveAsync({ from: uri, to: destUri });
-    await Sharing.shareAsync(destUri, {
-      mimeType: "application/pdf",
-      dialogTitle: t("report.sectionTitle"),
-      UTI: "com.adobe.pdf",
-    });
+    sharedUri = destUri;
   } catch {
-    await Sharing.shareAsync(uri, {
+    sharedUri = uri;
+  }
+
+  try {
+    await Sharing.shareAsync(sharedUri, {
       mimeType: "application/pdf",
       dialogTitle: t("report.sectionTitle"),
       UTI: "com.adobe.pdf",
     });
+  } finally {
+    // Delete the generated PDF from the cache after sharing — it contains the
+    // user's full medication list, dose history, health measurements and diary,
+    // and should not linger in app cache (audit L8). Best-effort.
+    try {
+      await FileSystem.default.deleteAsync(sharedUri, { idempotent: true });
+    } catch {
+      /* ignore cleanup failure */
+    }
   }
 }

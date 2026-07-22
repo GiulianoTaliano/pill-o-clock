@@ -13,8 +13,11 @@ interface MedicationCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onToggleActive: (isActive: boolean) => void;
-  /** Today's dose logs â€” used to compute the "next dose" indicator. */
+  /** Today's dose logs — used to compute the "next dose" indicator. */
   todayLogs?: DoseLog[];
+  /** When provided (and the med is PRN + active), shows a "Log a dose" button
+   *  so an as-needed dose can be recorded from where the med lives (audit UX I2). */
+  onLogPRN?: () => void;
 }
 
 export function MedicationCard({
@@ -24,6 +27,7 @@ export function MedicationCard({
   onDelete,
   onToggleActive,
   todayLogs = [],
+  onLogPRN,
 }: MedicationCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -112,7 +116,9 @@ export function MedicationCard({
                   color={CATEGORY_CONFIG[medication.category].tint}
                 />
                 <Text
-                  style={{ color: CATEGORY_CONFIG[medication.category].tint }}
+                  style={{ color: theme.isDark
+                    ? CATEGORY_CONFIG[medication.category].labelDark
+                    : CATEGORY_CONFIG[medication.category].labelLight }}
                   className="text-xs font-semibold"
                 >
                   {getCategoryLabel(medication.category, t)}
@@ -124,9 +130,13 @@ export function MedicationCard({
         </View>
 
         <Switch
+          accessibilityRole="switch"
+          accessibilityLabel={medication.name}
+          accessibilityHint={t(medication.isActive ? 'medications.toggleOffHint' : 'medications.toggleOnHint')}
+          accessibilityState={{ checked: medication.isActive }}
           value={medication.isActive}
           onValueChange={(v) => { Haptics.selectionAsync(); onToggleActive(v); }}
-          trackColor={{ false: "#e2e8f0", true: colors.light }}
+          trackColor={{ false: theme.isDark ? "#334155" : "#e2e8f0", true: colors.light }}
           thumbColor={medication.isActive ? colors.bg : theme.muted}
         />
       </View>
@@ -139,7 +149,7 @@ export function MedicationCard({
             {medication.startDate
               ? format(new Date(medication.startDate + "T12:00"), "d MMM", { locale: getDateLocale() })
               : t('common.start')}
-            {" â†’ "}
+            {" → "}
             {medication.endDate
               ? format(new Date(medication.endDate + "T12:00"), "d MMM yyyy", { locale: getDateLocale() })
               : t('common.end')}
@@ -158,15 +168,23 @@ export function MedicationCard({
         const threshold = medication.stockAlertThreshold;
         const isLow = threshold != null && qty <= threshold;
         const isWarning = threshold != null && qty <= threshold + 3 && !isLow;
+        // On the light card the bright status colors fail AA as text (green
+        // 2.28:1, orange 2.8:1); use darkened -700 variants in light, keep the
+        // dark-adaptive theme colors in dark mode (audit OM3).
+        const stockColor = isLow
+          ? (theme.isDark ? theme.danger : "#b91c1c")
+          : isWarning
+            ? (theme.isDark ? theme.warning : "#b45309")
+            : (theme.isDark ? theme.success : "#15803d");
         return (
           <View className="flex-row items-center gap-1.5 mt-2 ml-12">
             <Ionicons
               name="cube-outline"
               size={15}
-              color={isLow ? theme.danger : isWarning ? theme.warning : theme.success}
+              color={stockColor}
             />
             <Text
-              style={{ color: isLow ? theme.danger : isWarning ? theme.warning : theme.success }}
+              style={{ color: stockColor }}
               className="text-xs font-semibold"
             >
               {t('stock.badge', { count: qty })}
@@ -182,11 +200,11 @@ export function MedicationCard({
           {schedules.map((s) => (
             <View
               key={s.id}
-              style={{ backgroundColor: colors.light }}
+              style={{ backgroundColor: theme.isDark ? colors.bg + "26" : colors.light }}
               className="flex-row items-center gap-2 rounded-xl px-3 py-1.5"
             >
-              <Ionicons name="alarm-outline" size={15} color={colors.text} />
-              <Text style={{ color: colors.text }} className="text-xs font-medium">
+              <Ionicons name="alarm-outline" size={15} color={theme.isDark ? colors.bg : colors.text} />
+              <Text style={{ color: theme.isDark ? colors.bg : colors.text }} className="text-xs font-medium">
                 {scheduleLabel(s)}
               </Text>
             </View>
@@ -197,14 +215,28 @@ export function MedicationCard({
       {/* PRN badge when no schedules */}
       {medication.isPRN && schedules.length === 0 && (
         <View
-          style={{ backgroundColor: colors.light }}
+          style={{ backgroundColor: theme.isDark ? colors.bg + "26" : colors.light }}
           className="flex-row items-center gap-2 rounded-xl px-3 py-1.5 mt-3 self-start"
         >
-          <Ionicons name="hand-left-outline" size={15} color={colors.text} />
-          <Text style={{ color: colors.text }} className="text-xs font-medium">
+          <Ionicons name="hand-left-outline" size={15} color={theme.isDark ? colors.bg : colors.text} />
+          <Text style={{ color: theme.isDark ? colors.bg : colors.text }} className="text-xs font-medium">
             {t('medicationCard.nextDosePRN')}
           </Text>
         </View>
+      )}
+
+      {/* Log-a-dose action for as-needed meds — lets the user record a dose
+          from the Medications tab instead of hunting the bottom of Home (UX I2). */}
+      {medication.isPRN && medication.isActive && onLogPRN && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('medicationCard.logPRNDose')}
+          onPress={onLogPRN}
+          className="flex-row items-center justify-center gap-2 bg-primary rounded-xl px-4 py-3 min-h-[44px] mt-3"
+        >
+          <Ionicons name="add-circle-outline" size={18} color="#fff" />
+          <Text className="text-white text-sm font-bold">{t('medicationCard.logPRNDose')}</Text>
+        </TouchableOpacity>
       )}
 
       {/* Next dose indicator */}

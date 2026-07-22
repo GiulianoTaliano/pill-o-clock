@@ -10,7 +10,9 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary:        "#4f9cff",
+        // Theme-aware so `text-primary`/`bg-primary` are AA-readable in both
+        // themes (light #2563eb, dark #4f9cff — see global.css); audit OM1.
+        primary:        "var(--color-primary)",
         "primary-dark": "#2563eb",
         success:        "#22c55e",
         warning:        "#f59e0b",

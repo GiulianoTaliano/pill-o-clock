@@ -50,7 +50,16 @@ const METRIC_TYPES: MeasurementType[] = [
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function tDyn(key: string, opts?: object): string {
-  return (i18n.t as (k: string, o?: object) => string)(key, opts);
+  const val = (i18n.t as (k: string, o?: object) => string)(key, opts);
+  if (val !== key) return val;
+  // Missing translation: i18next returns the key itself. Humanize the token so
+  // the user never sees a raw key like "checkin.symptom_dolor_cabeza" — this is
+  // how legacy/seed symptom tokens rendered as raw keys (audit UX I8 / M29).
+  const leaf = key.split(".").pop() ?? key;
+  const parts = leaf.split("_");
+  const words = parts.length > 1 ? parts.slice(1) : parts; // drop the category prefix (symptom_/mood_)
+  const humanized = words.join(" ").trim();
+  return humanized ? humanized.charAt(0).toUpperCase() + humanized.slice(1) : val;
 }
 
 function typeName(type: MeasurementType): string {

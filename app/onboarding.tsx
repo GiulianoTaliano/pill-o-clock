@@ -19,7 +19,6 @@ import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { setupNotifications, openExactAlarmSettings } from "../src/services/notifications";
 import { checkFullScreenIntentPermission, stopSoundPreview } from "expo-alarm";
-import { AlarmSoundPicker } from "../components/AlarmSoundPicker";
 import * as Haptics from "expo-haptics";
 
 export const ONBOARDING_DONE_KEY = STORAGE_KEYS.ONBOARDING_DONE;
@@ -68,13 +67,6 @@ const SLIDES: SlideConfig[] = [
     descKey: "onboarding.slide4Desc",
   },
   {
-    icon: "musical-notes",
-    iconColor: "#8b5cf6",
-    iconBg: "#ede9fe",
-    titleKey: "onboarding.slide5Title",
-    descKey: "onboarding.slide5Desc",
-  },
-  {
     icon: "shield-checkmark",
     iconColor: "#4f9cff",
     iconBg: "#e0eeff",
@@ -98,8 +90,10 @@ export default function OnboardingScreen() {
   const [needsExactAlarm, setNeedsExactAlarm] = useState(false);
   const [needsFullScreen, setNeedsFullScreen] = useState(false);
 
-  // Sound slide index (Android-only alarm sound selection)
-  const SOUND_SLIDE_INDEX = 4;
+  // Alarm-sound selection was removed from onboarding (it forced a cryptic
+  // 15-item ringtone choice before the user had done anything — audit UX I3);
+  // it now lives only in Settings. -1 disables the old sound-slide logic.
+  const SOUND_SLIDE_INDEX = -1;
 
   // ── Navigation ──────────────────────────────────────────────────────────
 
@@ -190,7 +184,12 @@ export default function OnboardingScreen() {
       {/* Skip button */}
       {!isLast && (
         <View className="absolute top-12 right-5 z-10">
-          <TouchableOpacity onPress={handleSkip} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("onboarding.skip")}
+            onPress={handleSkip}
+            className="min-h-[44px] px-3 justify-center"
+          >
             <Text className="text-sm font-semibold text-muted">{t("onboarding.skip")}</Text>
           </TouchableOpacity>
         </View>
@@ -259,12 +258,6 @@ export default function OnboardingScreen() {
               </View>
             )}
 
-            {/* Alarm sound picker (sound slide — Android only) */}
-            {i === SOUND_SLIDE_INDEX && Platform.OS === "android" && (
-              <View className="mt-6 w-full">
-                <AlarmSoundPicker maxHeight={220} />
-              </View>
-            )}
 
             {/* Permission button on last slide */}
             {i === LAST && (
@@ -342,10 +335,20 @@ export default function OnboardingScreen() {
 
       {/* Bottom bar: dots + button */}
       <View className="px-6 pb-8 pt-4">
-        {/* Dots */}
-        <View className="flex-row justify-center mb-6 gap-2">
+        {/* Dots — each touchable is a real 44x44 target (dot stays visually
+            small, centered) so it passes automated a11y target-size checks
+            instead of relying on hitSlop, which layout-based scanners ignore. */}
+        <View className="flex-row justify-center mb-2">
           {SLIDES.map((_, i) => (
-            <TouchableOpacity key={i} onPress={() => scrollTo(i)} hitSlop={{ top: 16, bottom: 16, left: 8, right: 8 }}>
+            <TouchableOpacity
+              key={i}
+              accessibilityRole="button"
+              accessibilityLabel={t("onboarding.goToSlide", { number: i + 1 })}
+              accessibilityState={{ selected: i === currentIndex }}
+              onPress={() => scrollTo(i)}
+              className="items-center justify-center"
+              style={{ minWidth: 44, minHeight: 44 }}
+            >
               <View
                 className="rounded-full"
                 style={{

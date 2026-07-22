@@ -724,8 +724,8 @@ export default function AppointmentsScreen() {
                         onPress={handleAttachEditDocument}
                         className="flex-row items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/30"
                       >
-                        <Ionicons name="add" size={14} color="#4f9cff" />
-                        <Text className="text-xs font-semibold" style={{ color: "#4f9cff" }}>
+                        <Ionicons name="add" size={14} color={theme.primary} />
+                        <Text className="text-xs font-semibold" style={{ color: theme.primary }}>
                           {t("appointments.attachDocument")}
                         </Text>
                       </TouchableOpacity>

@@ -13,8 +13,10 @@ import {
   updateMedication,
   deleteMedication,
   insertSchedule,
+  updateSchedule,
   deleteSchedule,
   getDoseLogsByDateRange,
+  getDoseLogByScheduleAndDate,
   upsertDoseLog,
   deleteDoseLog,
   updateMedicationStock,
@@ -34,6 +36,7 @@ import {
   snoozeDose,
   DEFAULT_SNOOZE_MINUTES,
   scheduleStockAlert,
+  DAYS_AHEAD,
 } from "../../services/notifications";
 
 export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsSlice> = (set, get) => ({
@@ -79,23 +82,36 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
     await updateMedication(med);
 
     const existing = await getSchedulesByMedication(med.id);
+    const existingById = new Map(existing.map((s) => [s.id, s]));
 
+    // Preserve the identity of schedules the user kept so their dose_logs
+    // (keyed by schedule id — dose_logs has no FK) stay attached. Otherwise an
+    // edit regenerates the id and already-taken doses resurrect as "missed" and
+    // can be taken twice (audit H17). Only mint a new id for genuinely new rows.
+    const resolved: Schedule[] = scheduleInputs.map((s) => {
+      const keepId = s.id && existingById.has(s.id) ? s.id : generateId();
+      return { id: keepId, time: s.time, days: s.days, medicationId: med.id, isActive: true };
+    });
+    const keptIds = new Set(resolved.map((s) => s.id));
+
+    // Delete schedules the user removed (existing but no longer present).
+    const removed = existing.filter((s) => !keptIds.has(s.id));
     await Promise.all(
-      existing.map((s) =>
+      removed.map((s) =>
         Promise.all([cancelScheduleNotifications(s.id), deleteSchedule(s.id)])
       )
     );
 
-    const newSchedules: Schedule[] = scheduleInputs.map((s) => ({
-      ...s,
-      id: generateId(),
-      medicationId: med.id,
-      isActive: true,
-    }));
-
+    // Upsert kept/new schedules and (re)schedule their notifications. Existing
+    // rows are cancelled first because their time/days may have changed.
     await Promise.all(
-      newSchedules.map(async (s) => {
-        await insertSchedule(s);
+      resolved.map(async (s) => {
+        if (existingById.has(s.id)) {
+          await cancelScheduleNotifications(s.id);
+          await updateSchedule(s);
+        } else {
+          await insertSchedule(s);
+        }
         if (med.isActive) await _scheduleNotificationsForSchedule(med, s);
       })
     );
@@ -140,6 +156,10 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
 
   async markDose(dose, status, notes, skipReason) {
     const now = new Date();
+    // Read the prior log BEFORE upsert so stock changes stay idempotent:
+    // we only decrement when a dose *becomes* taken, and restore when a
+    // previously-taken dose is changed to skipped (audit H16).
+    const prior = await getDoseLogByScheduleAndDate(dose.schedule.id, dose.scheduledDate);
     const log: DoseLog = {
       id: generateId(),
       medicationId: dose.medication.id,
@@ -162,22 +182,35 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
       return { snoozedTimes: rest };
     });
 
-    // Decrement stock
-    if (status === "taken") {
+    // Stock reconciliation (idempotent). A dose becoming "taken" decrements 1;
+    // a previously-"taken" dose changing to "skipped" restores 1. Re-marking a
+    // dose with the same status (or skip→skip) leaves stock untouched, so undo
+    // + re-take can no longer double-decrement (audit H16).
+    const wasTaken = prior?.status === "taken";
+    const isTaken = status === "taken";
+    if (isTaken !== wasTaken) {
       const latestMed =
         get().medications.find((m) => m.id === dose.medication.id) ??
         dose.medication;
-      if (latestMed.stockQuantity != null && latestMed.stockQuantity > 0) {
-        const newQty = latestMed.stockQuantity - 1;
-        await updateMedicationStock(latestMed.id, newQty);
-        if (
-          latestMed.stockAlertThreshold != null &&
-          newQty < latestMed.stockAlertThreshold
-        ) {
-          await scheduleStockAlert({ ...latestMed, stockQuantity: newQty });
+      if (latestMed.stockQuantity != null) {
+        if (isTaken && latestMed.stockQuantity > 0) {
+          const newQty = latestMed.stockQuantity - 1;
+          await updateMedicationStock(latestMed.id, newQty);
+          if (
+            latestMed.stockAlertThreshold != null &&
+            newQty < latestMed.stockAlertThreshold
+          ) {
+            await scheduleStockAlert({ ...latestMed, stockQuantity: newQty });
+          }
+          const allMeds = await getMedications();
+          set({ medications: allMeds });
+        } else if (!isTaken) {
+          // taken → skipped: give the pill back
+          const newQty = latestMed.stockQuantity + 1;
+          await updateMedicationStock(latestMed.id, newQty);
+          const allMeds = await getMedications();
+          set({ medications: allMeds });
         }
-        const allMeds = await getMedications();
-        set({ medications: allMeds });
       }
     }
 
@@ -276,7 +309,22 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
   // ── Revert dose ────────────────────────────────────────────────────────
 
   async revertDose(dose) {
+    // If we're undoing a dose that had been marked "taken", give the pill back
+    // so undo + re-take can't double-decrement stock (audit H16).
+    const prior = await getDoseLogByScheduleAndDate(dose.schedule.id, dose.scheduledDate);
     await deleteDoseLog(dose.schedule.id, dose.scheduledDate);
+
+    if (prior?.status === "taken") {
+      const latestMed =
+        get().medications.find((m) => m.id === dose.medication.id) ??
+        dose.medication;
+      if (latestMed.stockQuantity != null) {
+        await updateMedicationStock(latestMed.id, latestMed.stockQuantity + 1);
+        const allMeds = await getMedications();
+        set({ medications: allMeds });
+      }
+    }
+
     await _scheduleNotificationsForSchedule(dose.medication, dose.schedule);
 
     const revertKey = `${dose.schedule.id}-${dose.scheduledDate}`;
@@ -341,7 +389,10 @@ async function _scheduleNotificationsForSchedule(
   schedule: Schedule
 ): Promise<void> {
   const now = new Date();
-  for (let i = 0; i < 7; i++) {
+  // Use the platform-aware DAYS_AHEAD window (iOS 3 / Android 7) so this
+  // per-schedule path matches scheduleAllUpcoming/rescheduleAllNotifications
+  // and never overruns the iOS 64-pending-notification budget (audit C5).
+  for (let i = 0; i < DAYS_AHEAD; i++) {
     const date = addDays(startOfDay(now), i);
     if (!isScheduleActiveOnDate(schedule, date, med)) continue;
     const scheduledDate = toDateString(date);

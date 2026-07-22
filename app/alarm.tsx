@@ -175,10 +175,13 @@ export default function AlarmScreen() {
       style={{ backgroundColor: colors.light }}
       className="flex-1 items-center justify-between px-6 py-8"
     >
-      {/* Top: time */}
+      {/* Top: time. The background is the medication's fixed LIGHT tint, so use
+          fixed dark text (colors.text) instead of theme tokens — otherwise the
+          theme-aware text-text/text-muted turn near-white in dark mode and the
+          most critical screen becomes unreadable (~1.1:1, audit H8). */}
       <View className="items-center">
-        <Text className="text-6xl font-black text-text">{formatTimeForDisplay(time ?? schedule.time)}</Text>
-        <Text className="text-base text-muted mt-1">{t('alarm.subtitle', { name: medication.name })}</Text>
+        <Text className="text-6xl font-black" style={{ color: colors.text }}>{formatTimeForDisplay(time ?? schedule.time)}</Text>
+        <Text className="text-base mt-1" style={{ color: colors.text, opacity: 0.7 }}>{t('alarm.subtitle', { name: medication.name })}</Text>
       </View>
 
       {/* Center: pill icon */}
@@ -210,10 +213,11 @@ export default function AlarmScreen() {
           </Text>
         </View>
         {medication.notes ? (
-          <Text className="text-sm text-muted mt-2 text-center">{medication.notes}</Text>
+          <Text className="text-sm mt-2 text-center" style={{ color: colors.text, opacity: 0.7 }}>{medication.notes}</Text>
         ) : null}
 
-        {/* Optional note input — hidden until the user taps the toggle */}
+        {/* Optional note input — hidden until the user taps the toggle. Fixed
+            dark tint on the light alarm background, not theme muted (H8). */}
         <AppPressable
           accessibilityRole="button"
           accessibilityLabel={showNote ? t('common.cancel') : t('doseCard.addNote')}
@@ -223,9 +227,9 @@ export default function AlarmScreen() {
           <Ionicons
             name={showNote ? "chevron-up" : "create-outline"}
             size={20}
-            color={theme.muted}
+            color={colors.text}
           />
-          <Text className="text-sm text-muted">
+          <Text className="text-sm" style={{ color: colors.text, opacity: 0.7 }}>
             {showNote ? t('common.cancel') : t('doseCard.addNote')}
           </Text>
         </AppPressable>

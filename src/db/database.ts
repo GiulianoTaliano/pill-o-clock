@@ -506,6 +506,33 @@ export async function upsertDoseLog(log: DoseLog): Promise<void> {
 }
 
 /**
+ * Same delete-then-insert as upsertDoseLog but WITHOUT opening its own
+ * transaction. Call this from code that is ALREADY inside a transaction
+ * (e.g. backup import's `db.withTransactionAsync`). expo-sqlite/drizzle share a
+ * single connection, so opening a nested transaction there throws
+ * "cannot start a transaction within a transaction" — which previously made
+ * every dose-log insert during a restore fail silently and drop 100% of the
+ * user's adherence history (audit C1/C2).
+ */
+export async function upsertDoseLogNoTx(log: DoseLog): Promise<void> {
+  db.delete(schema.doseLogs).where(
+    and(eq(schema.doseLogs.scheduleId, log.scheduleId), eq(schema.doseLogs.scheduledDate, log.scheduledDate))
+  ).run();
+  db.insert(schema.doseLogs).values({
+    id: log.id,
+    medicationId: log.medicationId,
+    scheduleId: log.scheduleId,
+    scheduledDate: log.scheduledDate,
+    scheduledTime: log.scheduledTime,
+    status: log.status,
+    takenAt: log.takenAt ?? null,
+    createdAt: log.createdAt,
+    notes: log.notes ?? null,
+    skipReason: log.skipReason ?? null,
+  }).run();
+}
+
+/**
  * Inserts a "missed" dose log only when no log already exists for
  * (scheduleId, scheduledDate). Uses INSERT OR IGNORE so it never overwrites
  * an existing "taken" or "skipped" log — safe to call from the background

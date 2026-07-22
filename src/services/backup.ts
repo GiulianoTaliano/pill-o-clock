@@ -15,7 +15,7 @@ import {
   clearAllData,
   insertMedication,
   insertSchedule,
-  upsertDoseLog,
+  upsertDoseLogNoTx,
   insertAppointment,
   insertAppointmentDocument,
   insertHealthMeasurement,
@@ -199,22 +199,24 @@ export async function importBackup(
 
   const uri = result.assets[0].uri;
   const tempFile = new File(uri);
-  const json = await tempFile.text();
 
-  let raw: unknown;
   try {
-    raw = JSON.parse(json);
-  } catch {
-    throw new BackupFormatError();
-  }
+    const json = await tempFile.text();
 
-  const parsed = backupSchema.safeParse(raw);
-  if (!parsed.success) throw new BackupFormatError();
+    let raw: unknown;
+    try {
+      raw = JSON.parse(json);
+    } catch {
+      throw new BackupFormatError();
+    }
 
-  const backup = parsed.data;
-  const db = await getDb();
+    const parsed = backupSchema.safeParse(raw);
+    if (!parsed.success) throw new BackupFormatError();
 
-  await db.withTransactionAsync(async () => {
+    const backup = parsed.data;
+    const db = await getDb();
+
+    await db.withTransactionAsync(async () => {
     if (mode === "replace") {
       await clearAllData();
     }
@@ -237,9 +239,12 @@ export async function importBackup(
 
     for (const log of backup.data.doseLogs) {
       try {
-        await upsertDoseLog(log as DoseLog);
+        // Transaction-free upsert: we're already inside withTransactionAsync,
+        // so opening a nested transaction here would throw and silently drop
+        // every dose log (audit C1/C2).
+        await upsertDoseLogNoTx(log as DoseLog);
       } catch {
-        // upsertDoseLog already handles conflicts — this is just a safety net.
+        // Conflicts are handled by the delete-then-insert — this is a safety net.
       }
     }
 
@@ -274,7 +279,17 @@ export async function importBackup(
         // upsertDailyCheckin handles conflicts.
       }
     }
-  });
+    });
 
-  return { count: backup.data.medications.length };
+    return { count: backup.data.medications.length };
+  } finally {
+    // Delete the cached copy DocumentPicker made (copyToCacheDirectory: true) so
+    // the imported backup — which may include health records — doesn't linger in
+    // the app cache (audit L8). Best-effort.
+    try {
+      tempFile.delete();
+    } catch {
+      /* ignore cleanup failure */
+    }
+  }
 }

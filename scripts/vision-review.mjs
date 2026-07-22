@@ -1,6 +1,23 @@
 #!/usr/bin/env node
 
 /**
+ * ⚠️  DEPRECATED — This script is superseded by the @ui-auditor custom agent.
+ *
+ * The @ui-auditor agent in Copilot Chat now handles screenshot analysis
+ * natively using view_image (Claude vision) + GitHub MCP for issue management.
+ * This eliminates the need for the GitHub Models API, image resizing, and
+ * base64 encoding that this script performs.
+ *
+ * To run a UI audit:
+ *   1. Capture screenshots:  .\scripts\capture-screenshots.ps1
+ *   2. In Copilot Chat:      @ui-auditor audit UI — use existing screenshots
+ *
+ * This file is kept as a reference/fallback. It may be removed in a future
+ * version.
+ *
+ * ---
+ * Original description:
+ *
  * Automated Vision UI Review Pipeline for Pill O-Clock
  *
  * Uses GitHub Models API (included in Copilot subscription) to analyze

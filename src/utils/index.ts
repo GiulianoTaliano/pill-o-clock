@@ -174,14 +174,21 @@ export const DOSAGE_UNITS: { value: DosageUnit; label: string }[] = [
 
 // ─── Category config ───────────────────────────────────────────────────────
 
+/**
+ * `tint` is the bright brand color, used for the category ICON (a non-text UI
+ * element, only needs 3:1). `labelLight`/`labelDark` are darker/lighter text
+ * variants that meet WCAG AA 4.5:1 for the small category LABEL on a light /
+ * dark card — the bright tint failed as text (e.g. green 2.1:1, yellow 1.8:1,
+ * slate unreadable in dark mode). Pick with `theme.isDark` (audit H1, M10).
+ */
 export const CATEGORY_CONFIG: Record<
   MedicationCategory,
-  { label: string; icon: string; priority: number; tint: string }
+  { label: string; icon: string; priority: number; tint: string; labelLight: string; labelDark: string }
 > = {
-  antibiotico:      { label: "Antibiótico",      icon: "bandage-outline",      priority: 1, tint: "#ef4444" },
-  analgesico:       { label: "Analgésico",        icon: "thermometer-outline",  priority: 2, tint: "#f97316" },
-  antiinflamatorio: { label: "Antiinflamatorio",  icon: "flame-outline",        priority: 2, tint: "#f97316" },
-  suplemento:       { label: "Suplemento",        icon: "leaf-outline",         priority: 3, tint: "#22c55e" },
-  vitamina:         { label: "Vitamina",          icon: "sunny-outline",        priority: 3, tint: "#eab308" },
-  otro:             { label: "Otro",              icon: "medical-outline",      priority: 4, tint: "#64748b" },
+  antibiotico:      { label: "Antibiótico",      icon: "bandage-outline",      priority: 1, tint: "#ef4444", labelLight: "#b91c1c", labelDark: "#f87171" },
+  analgesico:       { label: "Analgésico",        icon: "thermometer-outline",  priority: 2, tint: "#f97316", labelLight: "#c2410c", labelDark: "#fb923c" },
+  antiinflamatorio: { label: "Antiinflamatorio",  icon: "flame-outline",        priority: 2, tint: "#f97316", labelLight: "#c2410c", labelDark: "#fb923c" },
+  suplemento:       { label: "Suplemento",        icon: "leaf-outline",         priority: 3, tint: "#22c55e", labelLight: "#15803d", labelDark: "#4ade80" },
+  vitamina:         { label: "Vitamina",          icon: "sunny-outline",        priority: 3, tint: "#eab308", labelLight: "#a16207", labelDark: "#facc15" },
+  otro:             { label: "Otro",              icon: "medical-outline",      priority: 4, tint: "#64748b", labelLight: "#475569", labelDark: "#94a3b8" },
 };
