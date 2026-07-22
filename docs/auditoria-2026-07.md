@@ -395,3 +395,24 @@ Los **quick wins** (sección 4) pueden intercalarse: son fixes de 1–5 líneas 
 | L9 | L | security-privacy | `components/LocationPickerModal.tsx:21` | ● CONF | Stale code/comment references a react-native-maps config plugin that does not exist in app.json |
 | L10 | L | state-store | `src/store/index.ts:85` | ● CONF | resetAllData / clearAllData delete appointment_documents rows but leave their files orphaned on disk |
 | L11 | L | visual-consistency | `components/DoseCard.tsx:194` | ● CONF | Medication icon glyph inconsistent between Home/History and Calendar |
+
+---
+
+## Apéndice B — Hallazgos de medición objetiva on-device (2026-07)
+
+> Descubiertos ejecutando **`scripts/measure-a11y.ps1`** sobre el emulador (Pixel 9, 420dpi) con datos seed: dumpea el árbol de accesibilidad nativo (`uiautomator`) para medir el **tamaño real en dp y el nombre accesible** de cada control clicable, y **muestrea el contraste WCAG** por nodo de texto desde el screencap. Mide lo que un screenshot no puede. Son **candidatos de Sprint 3** (ninguno introducido por los fixes de S1/S2).
+>
+> El pase queda integrado: `capture-screenshots.ps1` lo corre automáticamente al final (usar `-SkipMeasure` para omitirlo).
+
+| ID | Severidad | Hallazgo | Medición | Recomendación |
+|---|---|---|---|---|
+| **OM1** | 🟠 Alta | **Azul primario `#4f9cff` usado como texto falla WCAG AA** | 2.28–2.79:1 en labels de tab activos (Today/Medications/Health/Settings), "View all", "Next: HH:mm", subtítulo del onboarding, chips | Oscurecer el azul cuando se usa como **texto/label** (p.ej. `blue-600 #2563eb` ~4.5:1) y reservar `#4f9cff` para fills/íconos/large. Es sistémico (token `text-primary`). |
+| **OM2** | 🟡 Media | **Muted `#64748b` sobre fondo claro queda apenas debajo de AA** | 4.34–4.38:1 en headers de sección, fechas, "Skip", "2 missed" (AA normal exige 4.5) | Nudge del muted claro a `slate-600 #475569` (~7:1) para texto de tamaño normal, o aceptar solo para large text. |
+| **OM3** | 🟡 Media | **Badges de stock (naranja/verde sobre blanco) fallan AA** | "20 left" `#22c55e` 2.28:1 · "3 left" `#f97316` 2.8:1 | Usar variantes de texto oscurecidas (mismo patrón `labelLight` de H1) para el texto de stock; mantener el brillo solo en el ícono. |
+| **OM4** | 🟡 Media | **Touch targets <44dp fuera de los ya corregidos** | Botones de ícono del header (calendar/history/add) y FAB "+" = **38×38dp**; link "Undo" snooze = **79×10dp**; sub-tabs de Health = 38dp; fila de tema en Settings = 27dp | `min-h/min-w-[44px]` real (no hitSlop) en esos controles, consistente con el fix de dots/clear-x. |
+
+**Notas de método (para futuras validaciones):**
+
+- **hitSlop no es medible ni scanner-friendly.** Extiende el área táctil pero no cambia los bounds del layout, así que `uiautomator` / Google Accessibility Scanner / Play pre-launch report lo ignoran. Por eso los targets de a11y se hacen con `minWidth/minHeight` real (ver commit `afde39d`).
+- **Metro en Windows puede perder hot-reloads.** Durante la validación, el bundle servía JS viejo pese a los archivos editados (los dots medían 10dp aunque el código ya tenía 44dp). Verificar el bundle (`grep` en `/index.bundle`) o reiniciar Metro con `--clear` antes de medir/capturar.
+- **Falsos positivos filtrados en el tool:** los íconos de Ionicons (glyphs PUA), los emoji de ánimo (`&#NNNNN;`) y el `Switch` nativo (46×27dp, control de plataforma) se excluyen. El nodo `(no name) 20×20dp` que aparece en toda pantalla es el banner LogBox de dev-build, no UI de la app.
