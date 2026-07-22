@@ -15,7 +15,7 @@ import {
   clearAllData,
   insertMedication,
   insertSchedule,
-  upsertDoseLog,
+  upsertDoseLogNoTx,
   insertAppointment,
   insertAppointmentDocument,
   insertHealthMeasurement,
@@ -237,9 +237,12 @@ export async function importBackup(
 
     for (const log of backup.data.doseLogs) {
       try {
-        await upsertDoseLog(log as DoseLog);
+        // Transaction-free upsert: we're already inside withTransactionAsync,
+        // so opening a nested transaction here would throw and silently drop
+        // every dose log (audit C1/C2).
+        await upsertDoseLogNoTx(log as DoseLog);
       } catch {
-        // upsertDoseLog already handles conflicts — this is just a safety net.
+        // Conflicts are handled by the delete-then-insert — this is a safety net.
       }
     }
 

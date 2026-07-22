@@ -43,6 +43,19 @@ export const medicationFormSchema = z
       });
     }
 
+    // In "repeat" mode every schedule must have at least one weekday selected.
+    // An empty day set is stored as [] which the scheduler treats as "every
+    // day" (isScheduleActiveOnDate), so clearing all days would silently turn a
+    // specific-days reminder into a daily alarm (audit C3). "Every day" is
+    // represented in the form as all 7 days selected (length 7), not [].
+    if (data.repeatMode === "repeat" && data.schedules.some((s) => s.days.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "form.errorNoDaysMsg",
+        path: ["schedules"],
+      });
+    }
+
     // Date range check (repeat mode only)
     if (data.repeatMode === "repeat" && data.startDate && data.endDate && data.endDate < data.startDate) {
       ctx.addIssue({

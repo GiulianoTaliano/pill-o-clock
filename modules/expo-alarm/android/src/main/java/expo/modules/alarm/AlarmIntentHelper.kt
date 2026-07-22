@@ -23,15 +23,39 @@ internal object AlarmIntentHelper {
 
   // ── Build PendingIntent for scheduling ────────────────────────────────────
 
-  fun buildReceiverPendingIntent(context: Context, params: AlarmParams): PendingIntent {
-    val requestCode = requestCodeFor(params.scheduleId, params.scheduledDate)
+  fun buildReceiverPendingIntent(context: Context, params: AlarmParams): PendingIntent =
+    buildReceiverPendingIntent(
+      context,
+      params.scheduleId,
+      params.medicationId,
+      params.scheduledDate,
+      params.scheduledTime,
+      params.medicationName,
+      params.dose,
+    )
+
+  /**
+   * Field-based overload so callers that don't have an [AlarmParams] Record
+   * (e.g. BootReceiver restoring from SharedPreferences) can build the exact
+   * same PendingIntent — audit C4.
+   */
+  fun buildReceiverPendingIntent(
+    context: Context,
+    scheduleId: String,
+    medicationId: String,
+    scheduledDate: String,
+    scheduledTime: String,
+    medicationName: String,
+    dose: String,
+  ): PendingIntent {
+    val requestCode = requestCodeFor(scheduleId, scheduledDate)
     val intent = Intent(context, AlarmReceiver::class.java).apply {
-      putExtra(AlarmAudioService.EXTRA_SCHEDULE_ID,     params.scheduleId)
-      putExtra(AlarmAudioService.EXTRA_MEDICATION_ID,   params.medicationId)
-      putExtra(AlarmAudioService.EXTRA_SCHEDULED_DATE,  params.scheduledDate)
-      putExtra(AlarmAudioService.EXTRA_SCHEDULED_TIME,  params.scheduledTime)
-      putExtra(AlarmAudioService.EXTRA_MEDICATION_NAME, params.medicationName)
-      putExtra(AlarmAudioService.EXTRA_DOSE,            params.dose)
+      putExtra(AlarmAudioService.EXTRA_SCHEDULE_ID,     scheduleId)
+      putExtra(AlarmAudioService.EXTRA_MEDICATION_ID,   medicationId)
+      putExtra(AlarmAudioService.EXTRA_SCHEDULED_DATE,  scheduledDate)
+      putExtra(AlarmAudioService.EXTRA_SCHEDULED_TIME,  scheduledTime)
+      putExtra(AlarmAudioService.EXTRA_MEDICATION_NAME, medicationName)
+      putExtra(AlarmAudioService.EXTRA_DOSE,            dose)
     }
     return PendingIntent.getBroadcast(
       context,

@@ -170,6 +170,7 @@ const es = {
     errorDoseRequiredMsg: "Ingresá una cantidad válida (ej: 500, 1, 10).",
     errorNoAlarms: "Sin alarmas",
     errorNoAlarmsMsg: "Agregá al menos una alarma.",
+    errorNoDaysMsg: "Elegí al menos un día, o tocá \"Todos\" para todos los días.",
     errorInvalidPeriod: "Período inválido",
     errorInvalidPeriodMsg: "La fecha de fin no puede ser anterior a la fecha de inicio.",
     errorGeneric: "No se pudo guardar el medicamento. Intentá de nuevo.",

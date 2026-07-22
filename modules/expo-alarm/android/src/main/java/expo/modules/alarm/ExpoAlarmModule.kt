@@ -62,12 +62,31 @@ class ExpoAlarmModule : Module() {
       // • Does NOT require SCHEDULE_EXACT_ALARM (unlike setExact on API 31+).
       val clockInfo = AlarmManager.AlarmClockInfo(params.fireTimestamp, null)
       alarmManager.setAlarmClock(clockInfo, pendingIntent)
+
+      // Persist so BootReceiver can re-arm this alarm after a reboot, which
+      // otherwise wipes all AlarmManager alarms (audit C4).
+      AlarmPreferences.addScheduledAlarm(
+        context,
+        AlarmPreferences.StoredAlarm(
+          scheduleId = params.scheduleId,
+          medicationId = params.medicationId,
+          scheduledDate = params.scheduledDate,
+          scheduledTime = params.scheduledTime,
+          medicationName = params.medicationName,
+          dose = params.dose,
+          fireTimestamp = params.fireTimestamp,
+        )
+      )
     }
 
     // ── cancelAlarm ────────────────────────────────────────────────────────
     AsyncFunction("cancelAlarm") { scheduleId: String, scheduledDate: String ->
       val alarmManager =
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+      // Drop it from the persisted set first so a later reboot never resurrects
+      // it, even if there's no live PendingIntent to cancel below (audit C4).
+      AlarmPreferences.removeScheduledAlarm(context, scheduleId, scheduledDate)
 
       // Rebuild the same PendingIntent that was used to schedule — same
       // request code + same intent = cancel succeeds even without storing the ID.

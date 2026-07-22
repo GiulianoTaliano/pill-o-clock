@@ -172,6 +172,7 @@ const en: TranslationShape = {
     errorDoseRequiredMsg: "Enter a valid amount (e.g. 500, 1, 10).",
     errorNoAlarms: "No alarms",
     errorNoAlarmsMsg: "Add at least one alarm.",
+    errorNoDaysMsg: "Select at least one day, or tap \"All\" for every day.",
     errorInvalidPeriod: "Invalid period",
     errorInvalidPeriodMsg: "The end date cannot be before the start date.",
     errorGeneric: "Could not save the medication. Please try again.",

@@ -35,8 +35,13 @@ export const MAX_REPEATS = Platform.OS === "ios" ? 2 : 4;
  * iOS    : 3 — keeps total pending notifications safely under the 64-slot OS limit.
  *              (3 days × ~6 schedules × 3 notifs/dose ≈ 54, leaving room for
  *               appointment + health-reminder notifications)
+ *
+ * Exported so per-schedule scheduling helpers (e.g. the medications slice's
+ * _scheduleNotificationsForSchedule) use the SAME window as scheduleAllUpcoming
+ * and rescheduleAllNotifications — otherwise an add/edit path could schedule
+ * more days than the iOS 64-notification budget allows.
  */
-const DAYS_AHEAD = Platform.OS === "ios" ? 3 : 7;
+export const DAYS_AHEAD = Platform.OS === "ios" ? 3 : 7;
 
 const NOTIF_MAP_KEY = STORAGE_KEYS.NOTIF_MAP;
 

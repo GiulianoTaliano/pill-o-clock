@@ -8,6 +8,8 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
   <!-- Show alarm screen above the lock screen / other apps -->
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+  <!-- Re-arm alarms after a device reboot (AlarmManager clears them on boot) -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
   <application>
 
@@ -37,6 +39,22 @@
     <receiver
       android:name="expo.modules.alarm.AlarmActionReceiver"
       android:exported="false" />
+
+    <!--
+      BootReceiver: re-arms all future alarms after a reboot / app update.
+      exported=true is required because these are system broadcasts delivered
+      from outside the app. Guarded by RECEIVE_BOOT_COMPLETED (audit C4).
+    -->
+    <receiver
+      android:name="expo.modules.alarm.BootReceiver"
+      android:enabled="true"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+      </intent-filter>
+    </receiver>
 
   </application>
 
