@@ -47,6 +47,8 @@ internal object AlarmIntentHelper {
     scheduledTime: String,
     medicationName: String,
     dose: String,
+    /** Auto-re-reminder index for this dose (0 = original schedule). */
+    repeatCount: Int = 0,
   ): PendingIntent {
     val requestCode = requestCodeFor(scheduleId, scheduledDate)
     val intent = Intent(context, AlarmReceiver::class.java).apply {
@@ -56,6 +58,7 @@ internal object AlarmIntentHelper {
       putExtra(AlarmAudioService.EXTRA_SCHEDULED_TIME,  scheduledTime)
       putExtra(AlarmAudioService.EXTRA_MEDICATION_NAME, medicationName)
       putExtra(AlarmAudioService.EXTRA_DOSE,            dose)
+      putExtra(AlarmAudioService.EXTRA_REPEAT_COUNT,    repeatCount)
     }
     return PendingIntent.getBroadcast(
       context,

@@ -52,6 +52,7 @@ class BootReceiver : BroadcastReceiver() {
           alarm.scheduledTime,
           alarm.medicationName,
           alarm.dose,
+          repeatCount = alarm.repeatCount,
         )
         // setAlarmClock() needs no permission and bypasses Doze (same call
         // ExpoAlarmModule.scheduleAlarm uses).
