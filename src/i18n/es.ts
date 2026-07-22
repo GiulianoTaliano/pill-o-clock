@@ -525,6 +525,11 @@ const es = {
     alarmSoundSubtitle: "Elegí el sonido para tus alarmas de medicamentos",
     alarmSoundDefault: "Pill O-Clock (predeterminado)",
     alarmSoundPlaying: "Reproduciendo…",
+    // Snooze default
+    sectionSnooze: "Posponer",
+    snoozeDefaultTitle: "Intervalo por defecto",
+    snoozeDefaultSubtitle: "Cuánto se pospone una dosis con el botón ⏰ de la notificación",
+    snoozeOptionA11y: "Posponer por defecto {{minutes}} minutos",
     // Appearance
     sectionAppearance: "Apariencia",
     themeSystem: "Automático (sistema)",

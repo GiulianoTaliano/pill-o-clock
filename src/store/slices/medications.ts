@@ -34,10 +34,10 @@ import {
   cancelDoseNotifications,
   cancelScheduleNotifications,
   snoozeDose,
-  DEFAULT_SNOOZE_MINUTES,
   scheduleStockAlert,
   DAYS_AHEAD,
 } from "../../services/notifications";
+import { getDefaultSnoozeMinutes } from "../../services/snoozeSettings";
 
 export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsSlice> = (set, get) => ({
   medications: [],
@@ -246,7 +246,7 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
 
   // ── Snooze ─────────────────────────────────────────────────────────────
 
-  async snoozeDose(dose, minutes = DEFAULT_SNOOZE_MINUTES) {
+  async snoozeDose(dose, minutes = getDefaultSnoozeMinutes()) {
     const now = new Date();
     const [sh, sm] = dose.schedule.time.split(":").map(Number);
     const originalDateTime = new Date(

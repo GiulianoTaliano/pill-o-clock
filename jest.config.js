@@ -6,6 +6,11 @@ module.exports = {
     "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|react-native-css-interop|date-fns)",
   ],
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+  // Claude Code worktrees under .claude/ contain a full copy of the repo;
+  // without these ignores jest-haste-map sees duplicate modules (expo-alarm)
+  // and the worktree's __tests__ get picked up twice.
+  modulePathIgnorePatterns: ["<rootDir>/.claude/"],
+  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/.claude/"],
   collectCoverageFrom: [
     "src/store/slices/medications.ts",
     "src/services/backgroundTask.ts",

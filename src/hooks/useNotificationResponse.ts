@@ -7,10 +7,10 @@ import {
   ACTION_TAKEN,
   ACTION_SNOOZE,
   ACTION_SKIP,
-  SNOOZE_MINUTES,
   getNotifMapEntry,
   snoozeDose as snoozeDoseService,
 } from "../services/notifications";
+import { getDefaultSnoozeMinutes } from "../services/snoozeSettings";
 import { TodayDose } from "../types";
 
 /**
@@ -80,7 +80,7 @@ export function useNotificationResponseHandler() {
         } else if (actionId === ACTION_SNOOZE) {
           // Snooze needs the full medication/schedule objects.
           if (!med || !schedule) return;
-          const snoozeDate = addMinutes(new Date(), SNOOZE_MINUTES);
+          const snoozeDate = addMinutes(new Date(), getDefaultSnoozeMinutes());
           await snoozeDoseService(med, schedule, scheduledDate);
           // Update the in-memory snoozedTimes so the Home screen shows the new time.
           const snoozeHHmm = format(snoozeDate, "HH:mm");

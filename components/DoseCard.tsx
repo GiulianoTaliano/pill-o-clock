@@ -13,7 +13,7 @@ import * as Haptics from "expo-haptics";
 import { useState, useRef, useEffect } from "react";
 import { TodayDose, SkipReason } from "../src/types";
 import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
-import { SNOOZE_OPTIONS, DEFAULT_SNOOZE_MINUTES } from "../src/services/notifications";
+import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes } from "../src/services/snoozeSettings";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { AppPressable } from "./AppPressable";
@@ -37,7 +37,10 @@ const SNOOZE_ITEM_H = 52;
 const SNOOZE_VISIBLE = 5;
 const SNOOZE_PICKER_H = SNOOZE_ITEM_H * SNOOZE_VISIBLE;
 const SNOOZE_PAD = SNOOZE_ITEM_H * Math.floor(SNOOZE_VISIBLE / 2);
-const SNOOZE_DEFAULT_IDX = (SNOOZE_OPTIONS as readonly number[]).indexOf(DEFAULT_SNOOZE_MINUTES);
+// Index of the user-configured default interval; read at call time so the
+// wheel pre-selects the latest Settings value (falls back to a valid index).
+const getSnoozeDefaultIdx = () =>
+  Math.max(0, (SNOOZE_OPTIONS as readonly number[]).indexOf(getDefaultSnoozeMinutes()));
 
 interface SnoozeWheelItemProps {
   minutes: number;
@@ -117,20 +120,22 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
   ).current;
 
   // Snooze wheel picker
-  const snoozeScrollY = useSharedValue(SNOOZE_DEFAULT_IDX * SNOOZE_ITEM_H);
+  const snoozeScrollY = useSharedValue(getSnoozeDefaultIdx() * SNOOZE_ITEM_H);
   const snoozeScrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => { snoozeScrollY.value = e.contentOffset.y; },
   });
   const snoozeListRef = useRef<any>(null);
-  const [selectedSnoozeIdx, setSelectedSnoozeIdx] = useState(SNOOZE_DEFAULT_IDX);
+  const [selectedSnoozeIdx, setSelectedSnoozeIdx] = useState(getSnoozeDefaultIdx);
 
   useEffect(() => {
     if (snoozePickerVisible) {
+      // Re-read on every open so a Settings change is reflected immediately.
+      const defaultIdx = getSnoozeDefaultIdx();
       setShowCustomSnooze(false);
-      setSelectedSnoozeIdx(SNOOZE_DEFAULT_IDX);
-      snoozeScrollY.value = SNOOZE_DEFAULT_IDX * SNOOZE_ITEM_H;
+      setSelectedSnoozeIdx(defaultIdx);
+      snoozeScrollY.value = defaultIdx * SNOOZE_ITEM_H;
       const timer = setTimeout(() => {
-        snoozeListRef.current?.scrollTo?.({ y: SNOOZE_DEFAULT_IDX * SNOOZE_ITEM_H, animated: false });
+        snoozeListRef.current?.scrollTo?.({ y: defaultIdx * SNOOZE_ITEM_H, animated: false });
       }, 100);
       return () => clearTimeout(timer);
     }

@@ -15,6 +15,8 @@ import { checkFullScreenIntentPermission, requestFullScreenIntentPermission, get
 import type { AlarmSound } from "expo-alarm";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { AlarmSoundPicker } from "../../components/AlarmSoundPicker";
+import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes, setDefaultSnoozeMinutes } from "../../src/services/snoozeSettings";
+import { refreshDoseReminderCategory } from "../../src/services/notifications";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -127,6 +129,19 @@ export default function SettingsScreen() {
   // Alarm sound selection (Android only)
   const [alarmSoundExpanded, setAlarmSoundExpanded] = useState(false);
   const [currentSoundTitle, setCurrentSoundTitle] = useState<string>("");
+
+  // Default snooze interval (F1: configurable snooze)
+  const [snoozeMinutes, setSnoozeMinutesState] = useState(getDefaultSnoozeMinutes);
+
+  const handleSnoozeMinutes = (min: number) => {
+    if (min === snoozeMinutes) return;
+    Haptics.selectionAsync();
+    setSnoozeMinutesState(min);
+    setDefaultSnoozeMinutes(min);
+    // Fire-and-forget: refresh the notification quick-action label so the
+    // ⏰ button shows the new interval on future reminders.
+    refreshDoseReminderCategory().catch(() => {});
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -338,6 +353,41 @@ export default function SettingsScreen() {
             )}
           </>
         )}
+
+        {/* ─── Snooze default (F1: configurable snooze) ─── */}
+        <SectionHeader title={t("settings.sectionSnooze")} />
+        <View className="mx-5 rounded-2xl overflow-hidden bg-card px-4 py-3.5" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+          <View className="flex-row items-center gap-3 mb-3">
+            <Ionicons name="alarm-outline" size={20} color="#f59e0b" />
+            <View className="flex-1">
+              <Text className="text-[15px] font-semibold text-text">{t("settings.snoozeDefaultTitle")}</Text>
+              <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.snoozeDefaultSubtitle")}</Text>
+            </View>
+          </View>
+          <View className="flex-row flex-wrap gap-2">
+            {SNOOZE_OPTIONS.map((min) => {
+              const selected = min === snoozeMinutes;
+              return (
+                <TouchableOpacity
+                  key={min}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={t("settings.snoozeOptionA11y", { minutes: min })}
+                  onPress={() => handleSnoozeMinutes(min)}
+                  className={`rounded-xl px-3.5 py-2 border ${
+                    selected
+                      ? "bg-amber-500 border-amber-600 dark:bg-amber-600 dark:border-amber-500"
+                      : "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
+                  }`}
+                >
+                  <Text className={`font-bold text-sm ${selected ? "text-white" : "text-amber-700 dark:text-amber-300"}`}>
+                    {min} min
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
 
         {/* ─── Your data ─── */}
         <SectionHeader title={t("settings.sectionData")} />
