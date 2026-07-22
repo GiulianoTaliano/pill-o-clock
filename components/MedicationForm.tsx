@@ -283,11 +283,14 @@ function normalizeScheduleDays(s: ScheduleInput): ScheduleInput {
 
 // ─── Per-slide field mapping for validation ─────────────────────────────────
 
+// Keyed by LOGICAL slide index. The cosmetic Appearance slide is last so the
+// required fields come first and the optional/cosmetic steps trail (audit UX
+// I13): 0 Identity · 1 Frequency · 2 Alarms · 3 Extras · 4 Appearance.
 const SLIDE_FIELDS: Record<number, (keyof MedicationFormData)[]> = {
   0: ["name", "dosageAmount", "dosageUnit", "category"],
-  1: [],
-  2: ["repeatMode"],
-  3: ["schedules"],
+  1: ["repeatMode"],
+  2: ["schedules"],
+  3: [],
   4: [],
 };
 
@@ -352,11 +355,13 @@ export function MedicationForm({
   const isPRN = repeatMode === "prn";
   const totalSlides = isPRN ? 4 : 5;
 
-  // Map visual slide index to logical slide index
-  // When PRN, slide 3 (alarms) is skipped: [0,1,2,4] → logical [0,1,2,3]
+  // Map visual slide index to logical slide index.
+  // When PRN, the Alarms slide (logical 2) is dropped, so the visual sequence
+  // [Identity, Frequency, Extras, Appearance] = visual [0,1,2,3] maps to
+  // logical [0,1,3,4].
   const getLogicalSlide = useCallback((visualIdx: number) => {
     if (!isPRN) return visualIdx;
-    return visualIdx >= 3 ? visualIdx + 1 : visualIdx;
+    return visualIdx >= 2 ? visualIdx + 1 : visualIdx;
   }, [isPRN]);
 
   const pickPhoto = async () => {
@@ -484,7 +489,8 @@ export function MedicationForm({
 
   const isLastSlide = currentSlide === totalSlides - 1;
   const logicalCurrent = getLogicalSlide(currentSlide);
-  const canSkip = logicalCurrent === 1 || logicalCurrent === 4;
+  // Extras (3) and Appearance (4) are the two optional slides.
+  const canSkip = logicalCurrent === 3 || logicalCurrent === 4;
 
   // ─── Slide contents ─────────────────────────────────────────────────────
 
@@ -929,9 +935,12 @@ export function MedicationForm({
 
   // ─── Build slides array ─────────────────────────────────────────────────
 
+  // Cosmetic Appearance step trails the required identity/schedule steps and
+  // the optional Extras step (audit UX I13). Keep this order in lockstep with
+  // SLIDE_FIELDS, getLogicalSlide and canSkip above.
   const slides = isPRN
-    ? [SlideIdentity, SlideAppearance, SlideFrequency, SlideExtras]
-    : [SlideIdentity, SlideAppearance, SlideFrequency, SlideAlarms, SlideExtras];
+    ? [SlideIdentity, SlideFrequency, SlideExtras, SlideAppearance]
+    : [SlideIdentity, SlideFrequency, SlideAlarms, SlideExtras, SlideAppearance];
 
   const renderSlide = useCallback(({ item: SlideComponent, index }: { item: () => React.JSX.Element; index: number }) => (
     <View style={{ width: screenWidth }}>
@@ -980,7 +989,7 @@ export function MedicationForm({
             </TouchableOpacity>
           )}
 
-          {/* Skip button (slides 1=Appearance, last=Extras) */}
+          {/* Skip button for the optional slides (Extras, Appearance) */}
           {canSkip && !isLastSlide && (
             <TouchableOpacity
               onPress={handleSkip}

@@ -96,18 +96,22 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Adherence History — the app's headline value — gets a permanent,
+          labeled tab (audit UX I12). Appointments moves to a Home header
+          shortcut; its route file stays mounted (href:null) so deep links
+          and edit-from-detail still resolve. */}
       <Tabs.Screen
-        name="appointments"
+        name="history"
         options={{
-          title: t('tabs.appointments'),
+          title: t('tabs.history'),
           tabBarIcon: ({ focused, color }) => (
             <CopilotStep
-              text="tour.step4Title||tour.step4Desc"
-              order={4}
-              name="appointmentsTab"
+              text="tour.step3Title||tour.step3Desc"
+              order={3}
+              name="historyTab"
             >
               <WalkthroughableView className="items-center justify-center pt-1">
-                <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
+                <Ionicons name={focused ? "bar-chart" : "bar-chart-outline"} size={24} color={color} />
               </WalkthroughableView>
             </CopilotStep>
           ),
@@ -127,7 +131,7 @@ export default function TabsLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
-        name="history"
+        name="appointments"
         options={{ href: null }}
       />
       <Tabs.Screen
