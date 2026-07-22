@@ -33,8 +33,8 @@ Sumado a un **setup sobrecargado** (6 slides + tour de 6 pasos + selector de 15 
 | **I9** | Nota inline: elegir PRN desactiva TODAS las alarmas | U27 | ✅ Hecho |
 | **I10** | Explicar el streak 🔥 y la leyenda del heatmap | U24 | ✅ Hecho |
 | **I11** | Aviso local-first: "tus datos viven solo en este teléfono — hacé un backup" | U21 | ✅ Hecho |
-| **I12** | Promover Historial al tab bar / reasignar slots (decisión de producto) | U10 | 🔶 A decidir |
-| **I13** | Reordenar el paso cosmético (color/foto) del wizard | U18,U28 | 🔶 Opcional |
+| **I12** | Promover Historial al tab bar; Citas pasa a shortcut del header | U10 | ✅ Hecho |
+| **I13** | Reordenar el paso cosmético (color/foto) del wizard al final | U18,U28 | ✅ Hecho |
 
 > **Commit:** `9de79bf feat(ux): usability pass`. **Tests:** 176 jest pasan · sin nuevos errores de tsc. **i18n:** claves EN/ES agregadas para cada punto.
 
@@ -52,6 +52,24 @@ Sumado a un **setup sobrecargado** (6 slides + tour de 6 pasos + selector de 15 
 | I10 info del streak | screenshot (Home chip) | ✅ ícono ⓘ en el chip "1 day streak 🔥" |
 | I11 nota local-first | uiautomator (Settings) | ✅ "lives only on this phone" presente |
 | I8 diario / I9 tip PRN | bundle-grep + tsc/jest + revisión de código | ✅ strings en bundle; flujos anidados, bajo riesgo |
+
+### I12 / I13 — decisiones de diseño e implementación
+
+**I12 — Historial al tab bar (swap, no 6º tab).** Se reemplazó el tab **Citas** por **Historial** (`bar-chart`, posición 2: `Hoy · Historial · Medicamentos · Salud · Ajustes`) en vez de agregar un 6º tab (5 es el máximo cómodo, sobre todo para mayores). Historial es el valor estrella ("probá que tomás tus pastillas"). El botón **Historial** del header del Home (redundante al volverse tab) se **repurponó a Citas** — entrada persistente que NO depende de que haya citas próximas (evita el dead-end detectado: el "View all" del Home estaba detrás de `upcomingAppointments.length>0`). `appointments.tsx` se conserva con `href:null` (los 3 `router.push`, el deep link y el edit-desde-detalle siguen resolviendo). El tour de copilot se re-ancló: `historyTab` (order 3) sobre el nuevo tab + el step de Citas (order 4) sobre el nuevo shortcut → tour completo 1→3→4→5→6 (5 pasos).
+
+**I13 — Appearance (color/foto) al final del wizard.** Nuevo orden: `Identidad → Frecuencia → Alarmas → Extras → Appearance` (requeridos primero, cosmético último). Edit coordinado de 4 puntos acoplados por índice (`slides` arrays, `SLIDE_FIELDS`, `getLogicalSlide` con boundary `>=3`→`>=2`, `canSkip`). Appearance ahora es el último slide (Submit + "Skip and save"), así se puede completar lo esencial y guardar sin tocar lo cosmético.
+
+**Verificación:** `tsc` sin errores nuevos (881 total idéntico antes/después; los 3 de MedicationForm son pre-existentes de RHF) · 176 tests jest pasan · **verificación adversarial** (2 agentes independientes re-derivaron el mapeo visual→lógico de ambos flujos del wizard y trazaron todas las rutas de navegación → ambos `CONFIRMED_CORRECT`).
+
+**Validación on-device (Pixel 9):**
+
+| Punto | Método | Resultado |
+|---|---|---|
+| I12 tab bar | uiautomator + screenshot | ✅ `Hoy · Historial · Medicamentos · Salud · Ajustes`; Citas fuera del tab bar |
+| I12 header | uiautomator + screenshot | ✅ `Calendar · Appointments · Add` (Appointments alcanzable con 0 citas) |
+| I12 tour | screenshot | ✅ tour "1/5" corriendo (add→history→appointments→health→settings) |
+| I13 orden wizard | uiautomator paso a paso | ✅ `Identity → Frequency → Alarms → Extras → Appearance` (5 slides) |
+| I13 Appearance último | screenshot | ✅ último slide, 5 dots, "Skip and save" + "Add medication" |
 
 ---
 

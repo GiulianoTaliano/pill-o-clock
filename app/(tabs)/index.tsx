@@ -225,8 +225,11 @@ export default function HomeScreen() {
           <Text className="text-2xl font-black text-text">{t('home.title')}</Text>
           <Text className="text-sm text-muted mt-0.5">{todayCap}</Text>
         </View>
-        {/* Labeled nav shortcuts. Calendar & History are otherwise hidden
-            (no tab) — visible text labels make them discoverable (audit UX I1). */}
+        {/* Labeled nav shortcuts. Calendar (dose calendar) & Appointments
+            have no tab — visible text labels make them discoverable (audit UX
+            I1). History is now a bottom tab (I12), so its old header shortcut
+            is repurposed to Appointments: a persistent entry point that does
+            not depend on there being upcoming appointments. */}
         <View className="flex-row gap-3 items-start">
           <TouchableOpacity
             accessibilityRole="button"
@@ -239,17 +242,25 @@ export default function HomeScreen() {
             </View>
             <Text className="text-[10px] font-medium text-muted mt-1" numberOfLines={1}>{t('home.navCalendar')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('history.title')}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/history"); }}
-            className="items-center"
+          <CopilotStep
+            text="tour.step4Title||tour.step4Desc"
+            order={4}
+            name="appointmentsShortcut"
           >
-            <View className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm">
-              <Ionicons name="bar-chart-outline" size={20} color={theme.primary} />
-            </View>
-            <Text className="text-[10px] font-medium text-muted mt-1" numberOfLines={1}>{t('home.navHistory')}</Text>
-          </TouchableOpacity>
+            <WalkthroughableView>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t('tabs.appointments')}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/appointments"); }}
+                className="items-center"
+              >
+                <View className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm">
+                  <Ionicons name="medical-outline" size={20} color={theme.primary} />
+                </View>
+                <Text className="text-[10px] font-medium text-muted mt-1" numberOfLines={1}>{t('home.navAppointments')}</Text>
+              </TouchableOpacity>
+            </WalkthroughableView>
+          </CopilotStep>
           <CopilotStep
             text="tour.step1Title||tour.step1Desc"
             order={1}
