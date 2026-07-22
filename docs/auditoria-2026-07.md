@@ -30,6 +30,30 @@
 
 Suite tras los fixes: **169 tests pasan** (162 + 7 de regresión nuevos). Cambios en rama `fix/audit-sprint-1-patient-safety`.
 
+### Estado de remediación — Sprint 2 (cumplimiento y confianza)
+
+Decisión de producto del usuario sobre el cluster de privacidad: **divulgar ambos** (mantener Sentry + Google Maps, corregir la documentación).
+
+| ID | Estado | Detalle |
+|---|---|---|
+| C6 · Sentry vs claim de privacidad | ✅ Divulgado | README + `docs/privacy-policy.html` (EN/ES) declaran el crash reporting |
+| H14 · Google Maps/Places/location | ✅ Divulgado | política (EN/ES) declara el envío de dirección/coords al usar el picker |
+| H15 · política EN contradictoria / desincronizada | ✅ Corregido | §2 EN lista salud/diario/citas/ubicación (paridad con ES); removida la cláusula falsa |
+| H10 · alarma nativa en español fijo | ✅ Corregido | `res/values[-en]/strings.xml` + `str()` en `AlarmAudioService`; compila (BUILD SUCCESSFUL) |
+| H1 · labels de categoría fallan WCAG | ✅ Corregido | `labelLight`/`labelDark` con contraste AA en `CATEGORY_CONFIG` (MedicationCard + DoseCard) |
+| H2 · Switch sin accessibilityLabel | ✅ Corregido | role/label/state + track theme-aware en `MedicationCard` |
+| H18 · flecha *mojibake* | ✅ Corregido | `MedicationCard` líneas 16 y 142 |
+| M1 · chips DayToggle <44pt | ✅ Corregido | `min-h/min-w-[44px]` |
+| M2 · badge de hora anunciado como botón inerte | ✅ Corregido | `role` condicional en `DoseCard` |
+| M3 · dots/Skip de onboarding | ✅ Corregido | roles/labels + hit-area ≥44pt |
+| M4 · controles de formulario <44pt | ✅ Corregido | time-picker / clear-date / remove-alarm |
+| L6 · location iOS "Always" sobre-declarada | ✅ Corregido | `app.json` → `locationWhenInUsePermission` |
+| L8 · archivos temporales sin limpiar | ✅ Corregido | cleanup del PDF y del backup importado (try/finally) |
+| L9 · comentario de plugin inexistente | ✅ Corregido | `config.ts` + `LocationPickerModal` apuntan a `app.config.ts` |
+| L7 · deep-link muta adherencia sin validar | ⏳ Diferido | requiere nonce/token en el flujo de alarma; bajo riesgo (UUIDs random), se difiere para no desestabilizar el path de acciones de alarma |
+
+Suite tras Sprint 2: **169 tests pasan**, módulo nativo compila. Pendiente Data Safety de Play Store (acción manual del usuario: declarar crash reporting + ubicación).
+
 **Metodología de confianza:** 69 hallazgos reportados → **64 sobrevivieron la verificación adversarial** (5 refutados como falsos positivos). De los 64: **57 CONFIRMED** (reproducidos en el código actual) y **7 PLAUSIBLE** (defecto de código real, pero el disparo exacto depende de estado en runtime que no se puede observar estáticamente).
 
 ---

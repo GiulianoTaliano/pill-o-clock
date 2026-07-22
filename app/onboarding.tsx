@@ -190,7 +190,12 @@ export default function OnboardingScreen() {
       {/* Skip button */}
       {!isLast && (
         <View className="absolute top-12 right-5 z-10">
-          <TouchableOpacity onPress={handleSkip} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("onboarding.skip")}
+            onPress={handleSkip}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          >
             <Text className="text-sm font-semibold text-muted">{t("onboarding.skip")}</Text>
           </TouchableOpacity>
         </View>
@@ -345,7 +350,14 @@ export default function OnboardingScreen() {
         {/* Dots */}
         <View className="flex-row justify-center mb-6 gap-2">
           {SLIDES.map((_, i) => (
-            <TouchableOpacity key={i} onPress={() => scrollTo(i)} hitSlop={{ top: 16, bottom: 16, left: 8, right: 8 }}>
+            <TouchableOpacity
+              key={i}
+              accessibilityRole="button"
+              accessibilityLabel={t("onboarding.goToSlide", { number: i + 1 })}
+              accessibilityState={{ selected: i === currentIndex }}
+              onPress={() => scrollTo(i)}
+              hitSlop={{ top: 17, bottom: 17, left: 17, right: 17 }}
+            >
               <View
                 className="rounded-full"
                 style={{

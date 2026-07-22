@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English strings for the native alarm notification (audit H10). -->
+<resources>
+  <string name="expoalarm_action_taken">✅ Confirm</string>
+  <string name="expoalarm_action_snooze">⏰ Snooze</string>
+  <string name="expoalarm_action_skip">❌ Skip</string>
+  <string name="expoalarm_channel_name">Medication alarms</string>
+  <string name="expoalarm_channel_desc">Channel for medication dose alarms</string>
+  <string name="expoalarm_silent_channel_name">Silent reminders</string>
+  <string name="expoalarm_silent_channel_desc">Silent reminder after dismissing the alarm</string>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default (Spanish) strings for the native alarm notification. English lives in
+  values-en/strings.xml; Android resolves the right one from the device locale,
+  so the full-screen alarm buttons and notification channels are localized even
+  when the alarm fires with no JS runtime available (audit H10).
+-->
+<resources>
+  <string name="expoalarm_action_taken">✅ Confirmar</string>
+  <string name="expoalarm_action_snooze">⏰ Posponer</string>
+  <string name="expoalarm_action_skip">❌ Omitir</string>
+  <string name="expoalarm_channel_name">Alarmas de medicamentos</string>
+  <string name="expoalarm_channel_desc">Canal para alarmas de toma de medicamentos</string>
+  <string name="expoalarm_silent_channel_name">Recordatorios silenciosos</string>
+  <string name="expoalarm_silent_channel_desc">Recordatorio silencioso luego de descartar la alarma</string>
+</resources>

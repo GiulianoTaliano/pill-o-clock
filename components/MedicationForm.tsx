@@ -121,8 +121,10 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
       <View className="flex-row items-center justify-between mb-3">
           <Text className="text-sm font-semibold text-text">{t('form.fieldTime')}</Text>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`${t('form.fieldTime')} ${formatTimeForDisplay(schedule.time)}`}
           onPress={() => setShowPicker(true)}
-          className="flex-row items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5"
+          className="flex-row items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 min-h-[44px]"
         >
           <Ionicons name="alarm-outline" size={16} color={theme.primary} />
           <Text className="text-base font-bold text-primary">{formatTimeForDisplay(schedule.time)}</Text>
@@ -151,8 +153,10 @@ function ScheduleRow({ schedule, onRemove, onChange, showDays = true }: Schedule
 
       {/* Remove */}
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={t('form.removeAlarm')}
         onPress={onRemove}
-        className="flex-row items-center gap-1 mt-3 self-end"
+        className="flex-row items-center gap-1 mt-3 self-end min-h-[44px] px-2"
       >
         <Ionicons name="trash-outline" size={14} color={theme.danger} />
         <Text className="text-red-700 dark:text-red-400 text-xs font-semibold">{t('form.removeAlarm')}</Text>
@@ -198,7 +202,13 @@ function DateRow({ label, value, onChange, minimumDate, maximumDate }: DateRowPr
       <View className="flex-row items-center justify-between mb-2">
         <Text className="text-sm font-semibold text-text">{label}</Text>
         {value && (
-          <TouchableOpacity onPress={() => { onChange(undefined); setShow(false); }} className="p-1">
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('form.clearDate')}
+            onPress={() => { onChange(undefined); setShow(false); }}
+            className="p-1"
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+          >
             <Ionicons name="close-circle" size={16} color={theme.muted} />
           </TouchableOpacity>
         )}

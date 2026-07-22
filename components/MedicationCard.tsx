@@ -13,7 +13,7 @@ interface MedicationCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onToggleActive: (isActive: boolean) => void;
-  /** Today's dose logs â€” used to compute the "next dose" indicator. */
+  /** Today's dose logs — used to compute the "next dose" indicator. */
   todayLogs?: DoseLog[];
 }
 
@@ -112,7 +112,9 @@ export function MedicationCard({
                   color={CATEGORY_CONFIG[medication.category].tint}
                 />
                 <Text
-                  style={{ color: CATEGORY_CONFIG[medication.category].tint }}
+                  style={{ color: theme.isDark
+                    ? CATEGORY_CONFIG[medication.category].labelDark
+                    : CATEGORY_CONFIG[medication.category].labelLight }}
                   className="text-xs font-semibold"
                 >
                   {getCategoryLabel(medication.category, t)}
@@ -124,9 +126,13 @@ export function MedicationCard({
         </View>
 
         <Switch
+          accessibilityRole="switch"
+          accessibilityLabel={medication.name}
+          accessibilityHint={t(medication.isActive ? 'medications.toggleOffHint' : 'medications.toggleOnHint')}
+          accessibilityState={{ checked: medication.isActive }}
           value={medication.isActive}
           onValueChange={(v) => { Haptics.selectionAsync(); onToggleActive(v); }}
-          trackColor={{ false: "#e2e8f0", true: colors.light }}
+          trackColor={{ false: theme.isDark ? "#334155" : "#e2e8f0", true: colors.light }}
           thumbColor={medication.isActive ? colors.bg : theme.muted}
         />
       </View>
@@ -139,7 +145,7 @@ export function MedicationCard({
             {medication.startDate
               ? format(new Date(medication.startDate + "T12:00"), "d MMM", { locale: getDateLocale() })
               : t('common.start')}
-            {" â†’ "}
+            {" → "}
             {medication.endDate
               ? format(new Date(medication.endDate + "T12:00"), "d MMM yyyy", { locale: getDateLocale() })
               : t('common.end')}

@@ -205,7 +205,9 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
                 color={CATEGORY_CONFIG[dose.medication.category].tint}
               />
               <Text
-                style={{ color: CATEGORY_CONFIG[dose.medication.category].tint }}
+                style={{ color: theme.isDark
+                  ? CATEGORY_CONFIG[dose.medication.category].labelDark
+                  : CATEGORY_CONFIG[dose.medication.category].labelLight }}
                 className="text-xs font-semibold"
                 numberOfLines={1}
               >
@@ -215,12 +217,13 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           </View>
         </View>
 
-        {/* Time badge â€” tappable when pending + onReschedule provided */}
+        {/* Time badge — tappable when pending + onReschedule provided. When it
+            isn't actionable, announce it as plain text, not a button (audit M2). */}
         <AppPressable
-          accessibilityRole="button"
+          accessibilityRole={isPending && onReschedule ? "button" : "text"}
           accessibilityLabel={displayTimeFormatted}
           accessibilityHint={isPending && onReschedule ? t('doseCard.rescheduleTitle') : undefined}
-          
+          disabled={!(isPending && onReschedule)}
           onPress={() => {
             if (isPending && onReschedule) {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

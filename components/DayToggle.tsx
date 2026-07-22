@@ -39,7 +39,7 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
           accessibilityState={{ checked: isAllSelected }}
           accessibilityLabel={t('form.dayToggleAll')}
           onPress={toggleAll}
-          className={`rounded-full px-3 py-1.5 ${
+          className={`rounded-full px-3 min-h-[44px] min-w-[44px] items-center justify-center ${
             isAllSelected ? "bg-primary" : "bg-slate-100 dark:bg-slate-700"
           }`}
         >
@@ -62,7 +62,7 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
               accessibilityState={{ checked: active }}
               accessibilityLabel={label}
               onPress={() => toggle(idx)}
-              className={`rounded-full px-3 py-1.5 ${
+              className={`rounded-full px-3 min-h-[44px] min-w-[44px] items-center justify-center ${
                 active ? "bg-primary/20" : "bg-slate-100 dark:bg-slate-700"
               }`}
             >

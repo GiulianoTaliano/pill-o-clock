@@ -1,11 +1,11 @@
 /**
  * JS-accessible Google Maps / Places API key.
  *
- * This is the same key injected into native code by the react-native-maps
- * config plugin in app.json (plugins → react-native-maps):
- *   Android: injects into AndroidManifest.xml meta-data (Maps SDK for Android)
- *   iOS    : injects into AppDelegate via [GMSServices provideAPIKey:...]
- *            (Maps SDK for iOS)
+ * This is the same key injected into native code by app.config.ts (NOT a
+ * react-native-maps plugin in app.json — there is none):
+ *   iOS    : app.config.ts sets `ios.config.googleMapsApiKey`
+ *   Android: app.config.ts sets `android.config.googleMaps.apiKey`
+ *            (and the Gradle manifestPlaceholder in android/app/build.gradle)
  *
  * Required APIs in Google Cloud Console for this key:
  *   • Maps SDK for Android  (native MapView tiles on Android)

@@ -18,8 +18,8 @@ import {
 // which is necessary for:
 //   • customMapStyle (dark-mode tile styling) — Apple Maps ignores this prop.
 //   • Visual consistency between platforms.
-// Requires the react-native-maps config plugin to inject the iOS API key
-// (see app.json plugins → react-native-maps → iosGoogleMapsApiKey).
+// The iOS API key is injected by app.config.ts via `ios.config.googleMapsApiKey`
+// (there is no react-native-maps config plugin in app.json).
 import MapView, { Region, PROVIDER_GOOGLE } from "react-native-maps";
 
 // ─── Map error boundary ────────────────────────────────────────────────────

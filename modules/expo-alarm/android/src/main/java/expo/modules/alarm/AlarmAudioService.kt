@@ -232,6 +232,18 @@ class AlarmAudioService : Service() {
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
+  /**
+   * Resolves a localized string by name from the merged app resources (values/
+   * = Spanish default, values-en/ = English). Uses getIdentifier — the same
+   * R-class-free pattern the module already uses for the bundled alarm sound —
+   * so the alarm notification is localized by device locale even when it fires
+   * with no JS runtime (audit H10). Falls back to the resource name on miss.
+   */
+  private fun str(name: String): String {
+    val id = resources.getIdentifier(name, "string", packageName)
+    return if (id != 0) getString(id) else name
+  }
+
   private fun buildAlarmUri(scheduleId: String, scheduledDate: String, scheduledTime: String = ""): Uri {
     val base = "pilloclock://alarm?scheduleId=${Uri.encode(scheduleId)}&date=${Uri.encode(scheduledDate)}"
     return if (scheduledTime.isNotEmpty())
@@ -401,10 +413,10 @@ class AlarmAudioService : Service() {
       .apply {
         if (canFullScreen) setFullScreenIntent(contentPendingIntent, /* highPriority= */ true)
       }
-      // Quick-action buttons
-      .addAction(android.R.drawable.ic_menu_send,               "✅ Confirmar", takenPI)
-      .addAction(android.R.drawable.ic_popup_reminder,          "⏰ Posponer",     snoozePI)
-      .addAction(android.R.drawable.ic_menu_close_clear_cancel, "❌ Omitir",              skipPI)
+      // Quick-action buttons (localized via res/values[-en]/strings.xml — audit H10)
+      .addAction(android.R.drawable.ic_menu_send,               str("expoalarm_action_taken"),  takenPI)
+      .addAction(android.R.drawable.ic_popup_reminder,          str("expoalarm_action_snooze"), snoozePI)
+      .addAction(android.R.drawable.ic_menu_close_clear_cancel, str("expoalarm_action_skip"),   skipPI)
       // Sound is handled by MediaPlayer on STREAM_ALARM — setting it on the
       // notification would play it twice and through the wrong audio channel.
       .setSound(null)
@@ -449,10 +461,10 @@ class AlarmAudioService : Service() {
     if (nm.getNotificationChannel(ALARM_CHANNEL_ID) == null) {
       nm.createNotificationChannel(NotificationChannel(
         ALARM_CHANNEL_ID,
-        "Alarmas de medicamentos",
+        str("expoalarm_channel_name"),
         NotificationManager.IMPORTANCE_HIGH
       ).apply {
-        description = "Canal para alarmas de toma de medicamentos"
+        description = str("expoalarm_channel_desc")
         // Silence the channel — audio is handled by MediaPlayer on STREAM_ALARM.
         setSound(null, null)
         enableLights(true)
@@ -466,10 +478,10 @@ class AlarmAudioService : Service() {
     if (nm.getNotificationChannel(SILENT_CHANNEL_ID) == null) {
       nm.createNotificationChannel(NotificationChannel(
         SILENT_CHANNEL_ID,
-        "Recordatorios silenciosos",
+        str("expoalarm_silent_channel_name"),
         NotificationManager.IMPORTANCE_DEFAULT
       ).apply {
-        description = "Recordatorio silencioso luego de descartar la alarma"
+        description = str("expoalarm_silent_channel_desc")
         setSound(null, null)
         enableVibration(false)
         lockscreenVisibility = Notification.VISIBILITY_PUBLIC
