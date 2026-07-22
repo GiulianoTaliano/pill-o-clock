@@ -107,13 +107,14 @@ STEP 5 — PLAY CONSOLE — COMPLETE BEFORE REVIEW
 [ ] App content → Privacy policy:
     https://<username>.github.io/pill-o-clock/privacy-policy.html
 
-[ ] App content → Data safety form:
-    • Data collected / shared: No
-    • User can request data deletion: Yes
-    • Data encrypted in transit: Not applicable
+[ ] App content → Data safety form:  (corrected & submitted to Play 2026-07-22 — see audit C6/H14/H15)
+    • Data collected / shared: Yes — Location (precise; appointment map picker → Google Maps)
+      and Crash logs + Diagnostics (Sentry). All other health data stays on-device only (not "collected").
+    • User can request data deletion: No request mechanism (data is local; removed on uninstall)
+    • Data encrypted in transit: Yes (HTTPS to Google / Sentry)
     • Follows Families policy: No
 
-[ ] App content → Target audience: 18+
+[ ] App content → Target audience: 13+  (13 and older; confirmed in Play console 2026-07-22)
 
 [ ] App content → Health questionnaire:
     "Does your app provide health or medical related content?"  → Yes
