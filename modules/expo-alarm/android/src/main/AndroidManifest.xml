@@ -4,8 +4,14 @@
   <!-- Required for playing audio + waking the screen -->
   <uses-permission android:name="android.permission.WAKE_LOCK" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-  <!-- API 34+: foreground service type for audio playback -->
-  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <!--
+    API 34+: the alarm runs as a "shortService" foreground service. This type
+    needs no type-specific permission (only FOREGROUND_SERVICE) and is exempt
+    from Google Play's foreground-service declaration + demo-video requirement,
+    unlike FOREGROUND_SERVICE_MEDIA_PLAYBACK. Trade-off: the system caps a
+    short service at ~3 min, after which onTimeout() silences the alarm and
+    leaves a tap-to-open reminder (see AlarmAudioService).
+  -->
   <!-- Show alarm screen above the lock screen / other apps -->
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
   <!-- Re-arm alarms after a device reboot (AlarmManager clears them on boot) -->
@@ -24,12 +30,13 @@
     <!--
       AlarmAudioService: ForegroundService that plays alarm.wav on STREAM_ALARM
       and displays the fullScreenIntent notification.
-      foregroundServiceType="mediaPlayback" required on API 34+.
+      foregroundServiceType="shortService" on API 34+ (no Play FGS declaration
+      required; system-capped at ~3 min — handled by onTimeout()).
     -->
     <service
       android:name="expo.modules.alarm.AlarmAudioService"
       android:exported="false"
-      android:foregroundServiceType="mediaPlayback" />
+      android:foregroundServiceType="shortService" />
 
     <!--
       AlarmActionReceiver: handles Take / Snooze / Skip quick-action button

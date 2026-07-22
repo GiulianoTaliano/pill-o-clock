@@ -1,5 +1,6 @@
 package expo.modules.alarm
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -32,6 +33,14 @@ import androidx.core.app.NotificationCompat
  *  5. Exposes Take / Snooze / Skip quick-action buttons on the notification.
  *  6. If the user swipes the notification away (Android 14+), silences the
  *     alarm and posts a quiet reminder so the dose is not forgotten.
+ *  7. If a ring ends without the dose being logged (timeout or swipe), re-arms
+ *     itself a few minutes later (up to MAX_REMINDERS) so an ignored dose keeps
+ *     nudging until it is marked Taken/Skipped — see scheduleReRemind().
+ *
+ * Runs as a FOREGROUND_SERVICE_TYPE_SHORT_SERVICE on API 34+. This type is
+ * exempt from Google Play's foreground-service declaration (unlike
+ * mediaPlayback) but the system caps it at ~3 min; onTimeout() then silences
+ * the alarm and leaves a tap-to-open reminder so the dose is never dropped.
  *
  * Stopped by broadcasting ACTION_STOP (sent from ExpoAlarmModule.stopAlarm()
  * or from AlarmActionReceiver when a button is tapped).
@@ -59,6 +68,8 @@ class AlarmAudioService : Service() {
     const val EXTRA_SCHEDULED_TIME  = "scheduledTime"
     const val EXTRA_MEDICATION_NAME = "medicationName"
     const val EXTRA_DOSE            = "dose"
+    /** How many times THIS dose has already been auto-re-reminded (0 = first ring). */
+    const val EXTRA_REPEAT_COUNT   = "repeatCount"
     /** Value passed in the notification action extras — "taken" | "snooze" | "skipped". */
     const val EXTRA_ACTION          = "alarmAction"
 
@@ -66,6 +77,18 @@ class AlarmAudioService : Service() {
     const val ACTION_VALUE_TAKEN  = "taken"
     const val ACTION_VALUE_SNOOZE = "snooze"
     const val ACTION_VALUE_SKIP   = "skipped"
+
+    // ── Re-remind loop (audit: missed-dose safety) ──────────────────────────
+    // When a ring ends without the user acting (shortService ~3-min timeout OR
+    // a swipe-away), the alarm re-arms itself this many minutes later, up to
+    // MAX_REMINDERS times, so an ignored dose keeps nudging — mirroring the
+    // "remind until confirmed" behaviour of comparable apps. The loop stops the
+    // instant the dose is logged Taken/Skipped (the app calls cancelAlarm, which
+    // targets the same requestCode) or Snoozed (the app re-schedules afresh).
+    /** Minutes between an unanswered ring ending and the next auto-reminder. */
+    private const val REMIND_INTERVAL_MIN = 5
+    /** Max auto-reminders per dose before we stop and leave only a silent reminder. */
+    private const val MAX_REMINDERS       = 6
 
     private const val ALARM_NOTIF_ID    = 8471   // must not clash with expo-notifications
     private const val SILENT_NOTIF_ID   = 8472   // silent reminder after dismiss
@@ -80,13 +103,16 @@ class AlarmAudioService : Service() {
   private var mediaPlayer: MediaPlayer? = null
   private var wakeLock: PowerManager.WakeLock? = null
 
-  // Cached payload so the dismiss handler can post a silent reminder
-  // without needing access to the original Intent extras.
+  // Cached payload so the dismiss handler can post a silent reminder and the
+  // re-remind loop can re-arm without access to the original Intent extras.
   private var cachedScheduleId    = ""
+  private var cachedMedicationId  = ""
   private var cachedScheduledDate = ""
   private var cachedScheduledTime = ""
   private var cachedMedName       = ""
   private var cachedDose          = ""
+  /** How many times this dose has already auto-re-reminded (0 = first ring). */
+  private var cachedRepeatCount   = 0
 
   /**
    * Listens for ACTION_STOP — sent by ExpoAlarmModule.stopAlarm() and by
@@ -101,11 +127,13 @@ class AlarmAudioService : Service() {
   /**
    * Listens for ACTION_DISMISS — sent by the notification deleteIntent when the
    * user swipes the alarm notification away on Android 14+.
-   * Silences the alarm and posts a quiet tap-to-open reminder.
+   * Silences the alarm, posts a quiet tap-to-open reminder, and (since a swipe
+   * is not the same as logging the dose) re-arms the next auto-reminder.
    */
   private val dismissReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-      postSilentReminder()
+      runCatching { postSilentReminder() }
+      runCatching { scheduleReRemind() }
       stopSelf()
     }
   }
@@ -153,7 +181,7 @@ class AlarmAudioService : Service() {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
         startForeground(ALARM_NOTIF_ID,
           NotificationCompat.Builder(this, ALARM_CHANNEL_ID).build(),
-          ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+          ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE)
       } else {
         startForeground(ALARM_NOTIF_ID,
           NotificationCompat.Builder(this, ALARM_CHANNEL_ID).build())
@@ -172,13 +200,21 @@ class AlarmAudioService : Service() {
     val scheduledTime = intent.getStringExtra(EXTRA_SCHEDULED_TIME)  ?: ""
     val medName       = intent.getStringExtra(EXTRA_MEDICATION_NAME) ?: ""
     val dose          = intent.getStringExtra(EXTRA_DOSE)            ?: ""
+    val repeatCount   = intent.getIntExtra(EXTRA_REPEAT_COUNT, 0)
 
-    // Cache for dismiss handler
+    // Cache for the dismiss handler and the re-remind loop
     cachedScheduleId    = scheduleId
+    cachedMedicationId  = medicationId
     cachedScheduledDate = scheduledDate
     cachedScheduledTime = scheduledTime
     cachedMedName       = medName
     cachedDose          = dose
+    cachedRepeatCount   = repeatCount
+
+    // A fresh ring supersedes any lingering silent reminder from a prior cycle,
+    // so at most one notification for this dose is ever visible at once.
+    (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+      .cancel(SILENT_NOTIF_ID)
 
     // ── Wake the display ─────────────────────────────────────────────────────
     val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -193,7 +229,7 @@ class AlarmAudioService : Service() {
     val notification = buildAlarmNotification(scheduleId, medicationId, scheduledDate, scheduledTime, medName, dose)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-      startForeground(ALARM_NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+      startForeground(ALARM_NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE)
     } else {
       startForeground(ALARM_NOTIF_ID, notification)
     }
@@ -208,6 +244,84 @@ class AlarmAudioService : Service() {
     playAlarm()
 
     return START_NOT_STICKY
+  }
+
+  /**
+   * Android 14 (API 34) "shortService" timeout. The system calls this ~3 min
+   * after the service enters the foreground; we MUST stop the service promptly
+   * or the OS throws ForegroundServiceDidNotStopInTimeException and crashes the
+   * process. Instead of dropping the dose silently, we silence the alarm audio
+   * and leave a quiet tap-to-open reminder so the medication stays visible in
+   * the shade — mirroring the swipe-to-dismiss behaviour.
+   */
+  override fun onTimeout(startId: Int) {
+    handleShortServiceTimeout()
+  }
+
+  /** API 35+ overload of onTimeout — same handling. */
+  override fun onTimeout(startId: Int, fgsType: Int) {
+    handleShortServiceTimeout()
+  }
+
+  private fun handleShortServiceTimeout() {
+    Log.i(TAG, "shortService timeout reached — silencing alarm, posting reminder")
+    runCatching { postSilentReminder() }
+    runCatching { scheduleReRemind() }
+    stopSelf()
+  }
+
+  /**
+   * Re-arms this dose's alarm [REMIND_INTERVAL_MIN] minutes from now so an
+   * unanswered dose keeps nudging, up to [MAX_REMINDERS] times. Uses the SAME
+   * deterministic PendingIntent (requestCode = scheduleId+date) as the original
+   * schedule, so the app's existing cancelAlarm() — called the moment the dose
+   * is marked Taken/Skipped — cancels the pending re-reminder too. Snoozing
+   * re-schedules the dose afresh (repeatCount back to 0), which replaces this.
+   *
+   * The new alarm is also persisted via AlarmPreferences so a reboot mid-loop
+   * re-arms it with the correct repeat count (BootReceiver), never duplicating.
+   */
+  private fun scheduleReRemind() {
+    if (cachedScheduleId.isEmpty()) return
+    if (cachedRepeatCount >= MAX_REMINDERS) {
+      Log.i(TAG, "re-remind cap reached ($MAX_REMINDERS) — leaving silent reminder only")
+      return
+    }
+
+    val nextCount = cachedRepeatCount + 1
+    val fireAt = System.currentTimeMillis() + REMIND_INTERVAL_MIN * 60_000L
+
+    val alarmManager = getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+    val pendingIntent = AlarmIntentHelper.buildReceiverPendingIntent(
+      this,
+      cachedScheduleId,
+      cachedMedicationId,
+      cachedScheduledDate,
+      cachedScheduledTime,
+      cachedMedName,
+      cachedDose,
+      repeatCount = nextCount,
+    )
+    // setAlarmClock() bypasses Doze without any permission — same call the JS
+    // scheduleAlarm() and BootReceiver use, so behaviour is identical.
+    alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(fireAt, null), pendingIntent)
+
+    // Persist so BootReceiver re-arms this re-reminder (with its count) after a
+    // reboot, and so cancelAlarm() removes it from storage on Take/Skip.
+    AlarmPreferences.addScheduledAlarm(
+      this,
+      AlarmPreferences.StoredAlarm(
+        scheduleId = cachedScheduleId,
+        medicationId = cachedMedicationId,
+        scheduledDate = cachedScheduledDate,
+        scheduledTime = cachedScheduledTime,
+        medicationName = cachedMedName,
+        dose = cachedDose,
+        fireTimestamp = fireAt,
+        repeatCount = nextCount,
+      )
+    )
+    Log.i(TAG, "re-reminder $nextCount/$MAX_REMINDERS armed for $cachedScheduleId in ${REMIND_INTERVAL_MIN}m")
   }
 
   override fun onDestroy() {

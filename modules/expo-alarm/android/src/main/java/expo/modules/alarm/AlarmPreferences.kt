@@ -62,6 +62,8 @@ object AlarmPreferences {
     val medicationName: String,
     val dose: String,
     val fireTimestamp: Long,
+    /** Auto-re-reminder index (0 = original schedule); preserved across reboots. */
+    val repeatCount: Int = 0,
   )
 
   /** Records (or updates) an armed alarm. Keyed by (scheduleId, scheduledDate)
@@ -99,6 +101,7 @@ object AlarmPreferences {
           medicationName = o.optString("medicationName"),
           dose = o.optString("dose"),
           fireTimestamp = o.optLong("fireTimestamp"),
+          repeatCount = o.optInt("repeatCount", 0),
         )
       }
     } catch (e: Exception) {
@@ -118,6 +121,7 @@ object AlarmPreferences {
         put("medicationName", a.medicationName)
         put("dose", a.dose)
         put("fireTimestamp", a.fireTimestamp)
+        put("repeatCount", a.repeatCount)
       })
     }
     prefs(context).edit().putString(KEY_SCHEDULED_ALARMS, arr.toString()).apply()

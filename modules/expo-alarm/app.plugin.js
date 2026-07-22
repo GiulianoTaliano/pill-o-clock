@@ -43,7 +43,9 @@ const withExpoAlarm = (config) => {
 
     ensurePermission(androidManifest, "android.permission.WAKE_LOCK");
     ensurePermission(androidManifest, "android.permission.FOREGROUND_SERVICE");
-    ensurePermission(androidManifest, "android.permission.FOREGROUND_SERVICE_ALARM");
+    // NOTE: no FOREGROUND_SERVICE_ALARM — that is not a real Android permission
+    // and there is no "alarm" foreground-service type. The alarm audio runs as
+    // a shortService FGS, which needs only FOREGROUND_SERVICE (above).
     ensurePermission(androidManifest, "android.permission.USE_FULL_SCREEN_INTENT");
 
     // Location permissions imply GPS/network hardware as required by default.

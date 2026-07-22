@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pill O-Clock",
     "slug": "pill-o-clock",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "scheme": "pilloclock",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -31,7 +31,7 @@
     },
     "android": {
       "package": "com.pilloclock.app",
-      "versionCode": 21,
+      "versionCode": 22,
       "adaptiveIcon": {
         "backgroundColor": "#f0f6ff",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -46,7 +46,6 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_ALARM",
         "android.permission.USE_FULL_SCREEN_INTENT",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
