@@ -78,6 +78,12 @@ jest.mock("expo-camera", () => ({
   ]),
 }));
 
+// ─── expo-speech (spoken alarms, F4) ───────────────────────────────────────
+jest.mock("expo-speech", () => ({
+  speak: jest.fn(),
+  stop: jest.fn(),
+}));
+
 // ─── expo-local-authentication ─────────────────────────────────────────────
 jest.mock("expo-local-authentication", () => ({
   hasHardwareAsync: jest.fn().mockResolvedValue(false),

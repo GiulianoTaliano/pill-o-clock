@@ -9,6 +9,7 @@ import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes } from "../src/services/snoozeS
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
 import { getMedications } from "../src/db/database";
+import { speakDoseReminder, stopSpeaking } from "../src/services/tts";
 import type { Medication } from "../src/types";
 import { AppPressable } from "../components/AppPressable";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -85,8 +86,19 @@ export default function AlarmScreen() {
     stopAlarm().catch(() => {}); // stop audio as soon as the screen mounts
     return () => {
       clearAlarmWindowFlags().catch(() => {});
+      stopSpeaking(); // cut any ongoing spoken reminder (F4 TTS)
     };
   }, []);
+
+  // Spoken reminder (F4 TTS, opt-in): read the med + dose aloud once the
+  // alarm audio stopped and the med is resolved. Never on quick-actions.
+  const spokeRef = useRef(false);
+  useEffect(() => {
+    if (action || !medication || spokeRef.current) return;
+    spokeRef.current = true;
+    speakDoseReminder(medication.name, getLocalizedDosage(medication, t));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [medication, action]);
 
   // Block the hardware back button while the alarm screen is active.
   // This also suppresses the Android 14+ predictive back gesture preview
@@ -202,12 +214,14 @@ export default function AlarmScreen() {
   };
 
   const handleTake = async () => {
+    stopSpeaking();
     await stopAlarm();
     await markDose(dose, "taken", noteText.trim() || undefined);
     router.back();
   };
 
   const handleSkip = async () => {
+    stopSpeaking();
     await stopAlarm();
     await markDose(dose, "skipped", noteText.trim() || undefined);
     router.back();
@@ -218,6 +232,7 @@ export default function AlarmScreen() {
   const defaultSnoozeMinutes = getDefaultSnoozeMinutes();
 
   const handleSnooze = async (minutes: number = defaultSnoozeMinutes) => {
+    stopSpeaking();
     await stopAlarm();
     await snoozeDose(dose, minutes);
     router.back();

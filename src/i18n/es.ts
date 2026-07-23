@@ -509,6 +509,9 @@ const es = {
   },
 
   // ─── Informe PDF ────────────────────────────────────────────────────────
+  tts: {
+    alarmSpeech: "Hora de tomar {{name}}, {{dose}}.",
+  },
   backupCrypto: {
     setTitle: "¿Proteger con contraseña?",
     setSubtitle: "El archivo queda cifrado: nadie puede leerlo sin la contraseña, ni siquiera donde lo guardes (Drive, etc.).",
@@ -753,6 +756,8 @@ const es = {
     rxtermsAttribution: "Las sugerencias de nombres de medicamentos incluyen datos de RxTerms, producido por la U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Apariencia",
+    tts: "Leer alarmas en voz alta",
+    ttsSubtitle: "Cuando suena la alarma, el teléfono dice el medicamento y la dosis",
     seniorMode: "Texto y botones grandes",
     seniorModeSubtitle: "Modo de visibilidad ampliada para las tarjetas de dosis",
     themeSystem: "Automático (sistema)",
