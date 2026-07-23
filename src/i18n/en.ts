@@ -590,6 +590,11 @@ const en: TranslationShape = {
     snoozeDefaultTitle: "Default interval",
     snoozeDefaultSubtitle: "How long a dose is snoozed with the notification's ⏰ button",
     snoozeOptionA11y: "Default snooze {{minutes}} minutes",
+    // Health Connect
+    healthSync: "Sync with Health Connect",
+    healthSyncSubtitle: "Copies your measurements (BP, glucose, weight, SpO₂, heart rate) to your device's health store",
+    healthSyncEnabled: "Health Connect sync enabled",
+    healthSyncDenied: "Health Connect permissions were not granted",
     // Security
     sectionSecurity: "Security",
     appLockTitle: "App lock",

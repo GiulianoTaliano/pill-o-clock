@@ -28,6 +28,7 @@ import {
   changePin,
 } from "../../src/services/appLock";
 import { PinModal } from "../../components/PinModal";
+import { isHealthSyncSupported, isHealthSyncEnabled, enableHealthSync, disableHealthSync } from "../../src/services/healthSync";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -183,6 +184,27 @@ export default function SettingsScreen() {
     Haptics.selectionAsync();
     setBiometricOn(on);
     setBiometricPreferred(on);
+  };
+
+  // Health Connect sync (F2)
+  const [healthSyncOn, setHealthSyncOn] = useState(isHealthSyncEnabled);
+
+  const handleHealthSyncToggle = async (on: boolean) => {
+    Haptics.selectionAsync();
+    if (!on) {
+      disableHealthSync();
+      setHealthSyncOn(false);
+      return;
+    }
+    // Optimistic flip while the permission sheet is up; revert on refusal.
+    setHealthSyncOn(true);
+    const granted = await enableHealthSync();
+    if (!granted) {
+      setHealthSyncOn(false);
+      showToast(t("settings.healthSyncDenied"), "error");
+    } else {
+      showToast(t("settings.healthSyncEnabled"), "success");
+    }
   };
 
   const handlePinSuccess = async (pin: string) => {
@@ -511,6 +533,24 @@ export default function SettingsScreen() {
 
         {/* ─── Your data ─── */}
         <SectionHeader title={t("settings.sectionData")} />
+        {/* Health Connect one-way vitals sync (F2, Android only) */}
+        {isHealthSyncSupported() && (
+          <View className="mx-5 mb-2 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+            <View className="flex-row items-center px-4 py-3.5 gap-3">
+              <Ionicons name="fitness-outline" size={20} color={theme.accent} />
+              <View className="flex-1">
+                <Text className="text-[15px] font-semibold text-text">{t("settings.healthSync")}</Text>
+                <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.healthSyncSubtitle")}</Text>
+              </View>
+              <Switch
+                value={healthSyncOn}
+                onValueChange={handleHealthSyncToggle}
+                trackColor={{ false: undefined, true: theme.primary }}
+                accessibilityLabel={t("settings.healthSync")}
+              />
+            </View>
+          </View>
+        )}
         {/* Local-first nudge: users are never told their data isn't backed up
             anywhere and is lost with the phone (audit UX I11). */}
         <View className="mx-5 mb-2 flex-row items-start gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5">
