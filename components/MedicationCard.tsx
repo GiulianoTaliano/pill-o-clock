@@ -2,7 +2,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Medication, Schedule, DoseLog } from "../src/types";
-import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig, isScheduleActiveOnDate, toDateString, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
+import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig, isScheduleActiveOnDate, toDateString, formatTimeForDisplay, getLocalizedDosage, estimateDaysOfSupply } from "../src/utils";
 import { format } from "date-fns";
 import { useTranslation, getDateLocale } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -188,6 +188,10 @@ export function MedicationCard({
               className="text-xs font-semibold"
             >
               {t('stock.badge', { count: qty })}
+              {(() => {
+                const days = estimateDaysOfSupply(medication, schedules);
+                return days != null ? ` · ${t('stock.daysLeft', { count: days })}` : "";
+              })()}
               {isLow ? ` · ${t('stock.low')}` : ""}
             </Text>
           </View>

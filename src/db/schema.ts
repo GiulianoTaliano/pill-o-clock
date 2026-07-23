@@ -19,6 +19,8 @@ export const medications = sqliteTable("medications", {
   stockAlertThreshold: integer("stock_alert_threshold"),
   photoUri: text("photo_uri"),
   isPRN: integer("is_prn", { mode: "boolean" }).notNull().default(false),
+  renewalDate: text("renewal_date"),
+  renewalNotifIds: text("renewal_notif_ids"),
 });
 
 // ─── Schedules ─────────────────────────────────────────────────────────────

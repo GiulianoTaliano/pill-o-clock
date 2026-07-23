@@ -50,6 +50,8 @@ function toMedication(row: typeof schema.medications.$inferSelect): Medication {
     stockAlertThreshold: row.stockAlertThreshold ?? undefined,
     photoUri: row.photoUri ?? undefined,
     isPRN: row.isPRN,
+    renewalDate: row.renewalDate ?? undefined,
+    renewalNotifIds: row.renewalNotifIds ?? undefined,
   };
 }
 
@@ -166,7 +168,9 @@ export async function initDatabase(): Promise<void> {
       stock_quantity INTEGER,
       stock_alert_threshold INTEGER,
       photo_uri     TEXT,
-      is_prn        INTEGER NOT NULL DEFAULT 0
+      is_prn        INTEGER NOT NULL DEFAULT 0,
+      renewal_date  TEXT,
+      renewal_notif_ids TEXT
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -338,6 +342,17 @@ export async function initDatabase(): Promise<void> {
     `);
     expoDb.execSync("PRAGMA user_version = 10");
   }
+
+  if (user_version < 11) {
+    // F1: prescription-renewal reminders.
+    for (const s of [
+      "ALTER TABLE medications ADD COLUMN renewal_date TEXT",
+      "ALTER TABLE medications ADD COLUMN renewal_notif_ids TEXT",
+    ]) {
+      try { expoDb.execSync(s); } catch { /* exists */ }
+    }
+    expoDb.execSync("PRAGMA user_version = 11");
+  }
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────
@@ -370,6 +385,8 @@ export async function insertMedication(med: Medication): Promise<void> {
     stockAlertThreshold: med.stockAlertThreshold ?? null,
     photoUri: med.photoUri ?? null,
     isPRN: med.isPRN ?? false,
+    renewalDate: med.renewalDate ?? null,
+    renewalNotifIds: med.renewalNotifIds ?? null,
   }).run();
 }
 
@@ -389,7 +406,20 @@ export async function updateMedication(med: Medication): Promise<void> {
     stockAlertThreshold: med.stockAlertThreshold ?? null,
     photoUri: med.photoUri ?? null,
     isPRN: med.isPRN ?? false,
+    renewalDate: med.renewalDate ?? null,
+    renewalNotifIds: med.renewalNotifIds ?? null,
   }).where(eq(schema.medications.id, med.id)).run();
+}
+
+/** Persists only the renewal-reminder notification ids for a medication. */
+export async function setMedicationRenewalNotifIds(
+  id: string,
+  notifIds: string | null
+): Promise<void> {
+  db.update(schema.medications)
+    .set({ renewalNotifIds: notifIds })
+    .where(eq(schema.medications.id, id))
+    .run();
 }
 
 export async function deleteMedication(id: string): Promise<void> {

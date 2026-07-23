@@ -30,6 +30,7 @@ export default function NewMedicationScreen() {
           stockAlertThreshold: values.stockAlertThreshold,
           isPRN: values.isPRN,
           photoUri: values.photoUri,
+          renewalDate: values.renewalDate,
         },
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );
