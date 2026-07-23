@@ -5,9 +5,9 @@
  */
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { adsEnabled, getBannerUnitId } from "../src/services/ads";
+import { adsEnabled, getBannerUnitId, type BannerScreen } from "../src/services/ads";
 
-export function AdBanner() {
+export function AdBanner({ screen = "history" }: { screen?: BannerScreen } = {}) {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -33,7 +33,7 @@ export function AdBanner() {
   return (
     <View className="items-center">
       <BannerAd
-        unitId={getBannerUnitId()}
+        unitId={getBannerUnitId(screen)}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{ requestNonPersonalizedAdsOnly: true }}
         onAdFailedToLoad={() => setFailed(true)}

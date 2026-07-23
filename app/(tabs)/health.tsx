@@ -873,7 +873,7 @@ export default function HealthScreen() {
         existing={editCheckin}
       />
       {/* Monetization slot (renders null while ads are disabled — see ads.ts) */}
-      <AdBanner />
+      <AdBanner screen="health" />
     </SafeAreaView>
   );
 }

@@ -43,7 +43,7 @@ Monthly view that groups your doses by day and status — pending, taken, skippe
 Keep all your upcoming and past medical appointments organized: doctor name, location with map pin, date/time, notes, and a configurable reminder (1 hour, 2 hours, or 1 day before).
 
 ▸ YOUR DATA IS YOURS — ALWAYS
-Your health data — medications, history, measurements, and diary — lives in a private local database and never leaves your device. The only exceptions: technical crash diagnostics (which never include your health data) and, if you add a location to an appointment, the map lookup. No account, no cloud sync, no usage analytics, no ads. Export a full backup (medications, history, appointments, health data, and diary) at any time and restore it if you switch phones.
+Your health data — medications, history, measurements, and diary — lives in a private local database and never leaves your device. The only exceptions: technical crash diagnostics (which never include your health data) and, if you add a location to an appointment, the map lookup. No account, no cloud sync, no usage analytics. The app is free, supported by unobtrusive banners on secondary screens only — never on your alarms or medication lists. Export a full backup (medications, history, appointments, health data, and diary) at any time and restore it if you switch phones.
 
 ▸ SPANISH & ENGLISH
 The app automatically detects your device language. Spanish and English are both fully supported, and you can switch languages manually from Settings at any time.

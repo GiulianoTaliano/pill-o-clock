@@ -455,7 +455,7 @@ export default function HistoryScreen() {
         ListFooterComponent={<View className="h-6" />}
       />
       {/* Monetization slot (renders null while ads are disabled — see ads.ts) */}
-      <AdBanner />
+      <AdBanner screen="history" />
     </SafeAreaView>
   );
 }
