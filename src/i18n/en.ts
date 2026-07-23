@@ -719,6 +719,7 @@ const en: TranslationShape = {
     sectionLanguage: "Language",
     languageEs: "Español",
     languageEn: "English",
+    languagePt: "Português (Brasil)",
     // Permissions
     sectionPermissions: "Permissions",
     fullScreenPermission: "Full-screen alarm",
