@@ -31,6 +31,8 @@ export default function NewMedicationScreen() {
           isPRN: values.isPRN,
           photoUri: values.photoUri,
           renewalDate: values.renewalDate,
+          prnMaxPerDay: values.prnMaxPerDay,
+          prnMinIntervalMinutes: values.prnMinIntervalMinutes,
         },
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );

@@ -39,7 +39,15 @@ export interface MedicationsSlice {
   revertSnooze: (dose: TodayDose) => Promise<void>;
   getHistoryLogs: (from: string, to: string) => Promise<DoseLog[]>;
   getSchedulesForMedication: (medicationId: string) => Schedule[];
-  logPRNDose: (medication: Medication) => Promise<void>;
+  /**
+   * Logs a PRN dose. When safety limits are configured and would be exceeded,
+   * returns the check WITHOUT logging — the UI warns and may retry with
+   * { force: true } after explicit user confirmation.
+   */
+  logPRNDose: (
+    medication: Medication,
+    opts?: { force?: boolean }
+  ) => Promise<import("../services/prnLimits").PrnLimitCheck | undefined>;
 }
 
 export interface AppointmentsSlice {

@@ -257,6 +257,9 @@ export interface MedicationFormValues {
   photoUri?: string;
   /** ISO date (YYYY-MM-DD) — optional prescription-renewal date. */
   renewalDate?: string;
+  /** PRN safety limits (F2). */
+  prnMaxPerDay?: number;
+  prnMinIntervalMinutes?: number;
 }
 
 interface MedicationFormProps {
@@ -336,6 +339,11 @@ export function MedicationForm({
       stockThreshStr: initialValues?.stockAlertThreshold != null ? String(initialValues.stockAlertThreshold) : "",
       photoUri: initialValues?.photoUri,
       renewalDate: initialValues?.renewalDate,
+      prnMaxStr: initialValues?.prnMaxPerDay != null ? String(initialValues.prnMaxPerDay) : "",
+      prnIntervalHoursStr:
+        initialValues?.prnMinIntervalMinutes != null
+          ? String(Math.round((initialValues.prnMinIntervalMinutes / 60) * 100) / 100)
+          : "",
     },
   });
 
@@ -416,6 +424,14 @@ export function MedicationForm({
       isPRN: data.repeatMode === "prn",
       photoUri: data.photoUri,
       renewalDate: data.renewalDate,
+      prnMaxPerDay:
+        data.repeatMode === "prn" && data.prnMaxStr?.trim()
+          ? Math.max(1, parseInt(data.prnMaxStr, 10))
+          : undefined,
+      prnMinIntervalMinutes:
+        data.repeatMode === "prn" && data.prnIntervalHoursStr?.trim()
+          ? Math.max(1, Math.round(parseFloat(data.prnIntervalHoursStr.replace(",", ".")) * 60))
+          : undefined,
     });
   };
 
@@ -810,6 +826,50 @@ export function MedicationForm({
           {repeatMode === "repeat" && <TipBlock text={t('form.tipRepeatDates')} theme={theme} />}
           {repeatMode === "once" && <TipBlock text={t('form.tipOnceDateRequired')} theme={theme} />}
           {repeatMode === "prn" && <TipBlock text={t('form.tipPRN')} theme={theme} />}
+
+          {/* PRN safety limits (F2) */}
+          {repeatMode === "prn" && (
+            <View className="bg-card rounded-2xl border border-border p-4 gap-3 mt-2">
+              <Text className="text-xs font-bold text-muted uppercase tracking-widest">
+                {t('form.prnLimitsSection')}
+              </Text>
+              <View>
+                <Text className="text-sm font-semibold text-text mb-1.5">{t('form.prnMax')}</Text>
+                <Controller
+                  control={control}
+                  name="prnMaxStr"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder={t('form.prnMaxPlaceholder')}
+                      placeholderTextColor={theme.muted}
+                      keyboardType="number-pad"
+                      className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
+                    />
+                  )}
+                />
+              </View>
+              <View>
+                <Text className="text-sm font-semibold text-text mb-1.5">{t('form.prnInterval')}</Text>
+                <Controller
+                  control={control}
+                  name="prnIntervalHoursStr"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder={t('form.prnIntervalPlaceholder')}
+                      placeholderTextColor={theme.muted}
+                      keyboardType="decimal-pad"
+                      className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt w-28"
+                    />
+                  )}
+                />
+              </View>
+              <Text className="text-xs text-muted leading-4">{t('form.prnLimitsHint')}</Text>
+            </View>
+          )}
 
           {/* Date pickers for once / repeat */}
           {repeatMode === "once" && (
