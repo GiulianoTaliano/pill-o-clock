@@ -322,6 +322,50 @@ describe("logPRNDose", () => {
   });
 });
 
+// ─── archiveMedication (F3) ────────────────────────────────────────────────
+
+describe("archiveMedication", () => {
+  it("cancels alarms + renewals BEFORE archiving and records reason+date", async () => {
+    const med = makeMedication({ id: "med-1" });
+    const sch = makeSchedule({ id: "sch-1", medicationId: "med-1" });
+    jest.mocked(db.getSchedulesByMedication).mockResolvedValue([sch]);
+
+    const store = makeTestStore({ medications: [med] });
+    await store.getState().archiveMedication("med-1", "side_effects");
+
+    expect(jest.mocked(notifs.cancelScheduleNotifications)).toHaveBeenCalledWith("sch-1");
+    expect(jest.mocked(notifs.cancelRenewalReminders)).toHaveBeenCalledWith(med);
+    expect(jest.mocked(db.updateMedication)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "med-1",
+        isActive: false,
+        archiveReason: "side_effects",
+        archivedAt: expect.any(String),
+      })
+    );
+  });
+
+  it("unarchive restores and reschedules", async () => {
+    const med = makeMedication({
+      id: "med-1",
+      isActive: false,
+      archivedAt: "2026-07-01T00:00:00.000Z",
+      archiveReason: "finished",
+    });
+    const sch = makeSchedule({ id: "sch-1", medicationId: "med-1" });
+    jest.mocked(db.getSchedulesByMedication).mockResolvedValue([sch]);
+
+    const store = makeTestStore({ medications: [med] });
+    await store.getState().unarchiveMedication("med-1");
+
+    expect(jest.mocked(db.updateMedication)).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "med-1", isActive: true, archivedAt: undefined, archiveReason: undefined })
+    );
+    // Rescheduling goes through _scheduleNotificationsForSchedule → scheduleDoseChain.
+    expect(jest.mocked(notifs.scheduleDoseChain)).toHaveBeenCalled();
+  });
+});
+
 // ─── getHistoryLogs ────────────────────────────────────────────────────────
 
 describe("getHistoryLogs", () => {

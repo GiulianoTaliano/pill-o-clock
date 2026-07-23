@@ -9,10 +9,12 @@ import { EmptyState } from "../../components/EmptyState";
 import { useState } from "react";
 import { useTranslation } from "../../src/i18n";
 import { prnWarningMessage } from "../../src/services/prnLimits";
+import { useAppTheme } from "../../src/hooks/useAppTheme";
 
 export default function MedicationsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const medications = useAppStore((s) => s.medications);
   const schedules = useAppStore((s) => s.schedules);
   const todayLogs = useAppStore((s) => s.todayLogs);
@@ -31,6 +33,25 @@ export default function MedicationsScreen() {
 
   const handleToggleActive = (id: string, val: boolean) => {
     toggleActive(id, val);
+  };
+
+  // Archive instead of delete (F3): reason picker via Alert buttons.
+  const archiveMedication = useAppStore((st) => st.archiveMedication);
+  const unarchiveMedication = useAppStore((st) => st.unarchiveMedication);
+
+  const handleArchive = (id: string, name: string) => {
+    const reasons = ["finished", "doctor", "side_effects", "other"] as const;
+    Alert.alert(
+      t("archive.confirmTitle", { name }),
+      t("archive.confirmMsg"),
+      [
+        ...reasons.map((r) => ({
+          text: t(`archive.reason_${r}`),
+          onPress: () => archiveMedication(id, r),
+        })),
+        { text: t("common.cancel"), style: "cancel" as const },
+      ]
+    );
   };
 
   const handleDelete = (id: string, name: string) => {
@@ -105,7 +126,8 @@ export default function MedicationsScreen() {
   };
 
   const active = medications.filter((m) => m.isActive);
-  const inactive = medications.filter((m) => !m.isActive);
+  const inactive = medications.filter((m) => !m.isActive && !m.archivedAt);
+  const archived = medications.filter((m) => !!m.archivedAt);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -155,6 +177,7 @@ export default function MedicationsScreen() {
                     onDelete={() => handleDelete(med.id, med.name)}
                     onToggleActive={(val) => handleToggleActive(med.id, val)}
                     onLogPRN={() => handleLogPRN(med.id, med.name)}
+                    onArchive={() => handleArchive(med.id, med.name)}
                   />
                 ))}
               </>
@@ -179,7 +202,50 @@ export default function MedicationsScreen() {
                     onEdit={() => router.push(`/medication/${med.id}`)}
                     onDelete={() => handleDelete(med.id, med.name)}
                     onToggleActive={(val) => handleToggleActive(med.id, val)}
+                    onArchive={() => handleArchive(med.id, med.name)}
                   />
+                ))}
+              </>
+            )}
+
+            {/* Archived (F3): history kept, compact rows, unarchive action */}
+            {archived.length > 0 && (
+              <>
+                <View className="h-px bg-border my-4" />
+                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
+                  {t("archive.section")}
+                </Text>
+                {archived.map((med) => (
+                  <View
+                    key={med.id}
+                    className="flex-row items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3 mb-2 opacity-80"
+                  >
+                    <Ionicons name="archive-outline" size={18} color={theme.muted} />
+                    <View className="flex-1">
+                      <Text className="text-[15px] font-semibold text-text" numberOfLines={1}>
+                        {med.name}
+                      </Text>
+                      <Text className="text-[11px] text-muted mt-0.5">
+                        {t(`archive.reason_${med.archiveReason ?? "other"}` as never)} · {med.archivedAt?.slice(0, 10)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={t("archive.restore")}
+                      onPress={() => unarchiveMedication(med.id)}
+                      className="p-2"
+                    >
+                      <Ionicons name="refresh-outline" size={18} color={theme.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={t("common.delete")}
+                      onPress={() => handleDelete(med.id, med.name)}
+                      className="p-2"
+                    >
+                      <Ionicons name="trash-outline" size={18} color={theme.danger} />
+                    </TouchableOpacity>
+                  </View>
                 ))}
               </>
             )}

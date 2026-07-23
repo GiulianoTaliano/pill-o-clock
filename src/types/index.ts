@@ -95,6 +95,10 @@ export interface Medication {
   regimen?: string;
   /** Injectable med (F3, GLP-1 wave): enables site rotation + weekly countdown. */
   isInjectable?: boolean;
+  /** Archive instead of delete (F3): when set, the med is retired but its history stays. */
+  archivedAt?: string;
+  /** Why it was archived: finished | doctor | side_effects | other. */
+  archiveReason?: string;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────

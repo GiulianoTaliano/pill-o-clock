@@ -170,6 +170,8 @@ function toMedication(row: typeof schema.medications.$inferSelect): Medication {
     profileId: row.profileId,
     regimen: row.regimen ?? undefined,
     isInjectable: row.isInjectable,
+    archivedAt: row.archivedAt ?? undefined,
+    archiveReason: row.archiveReason ?? undefined,
   };
 }
 
@@ -317,7 +319,9 @@ export async function initDatabase(): Promise<void> {
       rxcui         TEXT,
       profile_id    TEXT NOT NULL DEFAULT 'default',
       regimen       TEXT,
-      is_injectable INTEGER NOT NULL DEFAULT 0
+      is_injectable INTEGER NOT NULL DEFAULT 0,
+      archived_at    TEXT,
+      archive_reason TEXT
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -618,6 +622,17 @@ export async function initDatabase(): Promise<void> {
     }
     expoDb.execSync("PRAGMA user_version = 17");
   }
+
+  if (user_version < 18) {
+    // F3: archive instead of delete — history with a reason and a date.
+    for (const stmt of [
+      "ALTER TABLE medications ADD COLUMN archived_at TEXT",
+      "ALTER TABLE medications ADD COLUMN archive_reason TEXT",
+    ]) {
+      try { expoDb.execSync(stmt); } catch { /* exists */ }
+    }
+    expoDb.execSync("PRAGMA user_version = 18");
+  }
 }
 
 
@@ -764,6 +779,8 @@ export async function insertMedication(med: Medication): Promise<void> {
     profileId: med.profileId ?? getActiveProfileId(),
     regimen: med.regimen ?? null,
     isInjectable: med.isInjectable ?? false,
+    archivedAt: med.archivedAt ?? null,
+    archiveReason: med.archiveReason ?? null,
   }).run();
 }
 
@@ -790,6 +807,8 @@ export async function updateMedication(med: Medication): Promise<void> {
     rxcui: med.rxcui ?? null,
     regimen: med.regimen ?? null,
     isInjectable: med.isInjectable ?? false,
+    archivedAt: med.archivedAt ?? null,
+    archiveReason: med.archiveReason ?? null,
   }).where(eq(schema.medications.id, med.id)).run();
 }
 

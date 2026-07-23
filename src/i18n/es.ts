@@ -507,6 +507,17 @@ const es = {
   },
 
   // ─── Informe PDF ────────────────────────────────────────────────────────
+  archive: {
+    action: "Archivar",
+    section: "Archivados",
+    restore: "Restaurar medicamento",
+    confirmTitle: "Archivar {{name}}",
+    confirmMsg: "Se cancelan sus alarmas pero el historial se conserva. ¿Por qué lo dejás de tomar?",
+    reason_finished: "Terminé el tratamiento",
+    reason_doctor: "Indicación médica",
+    reason_side_effects: "Efectos adversos",
+    reason_other: "Otro motivo",
+  },
   allergies: {
     title: "Alergias",
     settingsSubtitle: "Del perfil activo; avisamos si un medicamento nuevo contiene un ingrediente al que sos alérgico",
