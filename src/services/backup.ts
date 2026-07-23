@@ -48,6 +48,7 @@ const medicationSchema = z.object({
   prnMinIntervalMinutes: z.number().optional(),
   rxcui: z.string().optional(),
   profileId: z.string().optional(),
+  regimen: z.string().optional(),
 });
 
 const profileSchema = z.object({

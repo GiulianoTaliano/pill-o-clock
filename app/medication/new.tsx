@@ -35,6 +35,7 @@ export default function NewMedicationScreen() {
           prnMaxPerDay: values.prnMaxPerDay,
           prnMinIntervalMinutes: values.prnMinIntervalMinutes,
           rxcui: values.rxcui,
+          regimen: values.regimen,
         },
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );

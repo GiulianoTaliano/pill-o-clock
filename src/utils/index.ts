@@ -1,4 +1,5 @@
 import { format, addDays, startOfDay, parse } from "date-fns";
+import { isRegimenActiveOnDate } from "../services/regimen";
 import type { TFunction } from "i18next";
 import { Medication, Schedule, DosageUnit, MedicationCategory } from "../types";
 
@@ -68,6 +69,9 @@ export function isScheduleActiveOnDate(schedule: Schedule, date: Date, medicatio
   // Check time-bound medication
   if (medication.startDate && dateStr < medication.startDate) return false;
   if (medication.endDate   && dateStr > medication.endDate)   return false;
+
+  // Complex regimen gate (F3): every-N-days / cycle / taper windows.
+  if (!isRegimenActiveOnDate(medication, dateStr)) return false;
 
   // Daily schedule
   if (schedule.days.length === 0) return true;
