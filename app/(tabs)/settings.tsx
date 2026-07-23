@@ -451,7 +451,7 @@ export default function SettingsScreen() {
     );
   }
 
-  function handleLanguage(lang: "es" | "en") {
+  function handleLanguage(lang: "es" | "en" | "pt") {
     Haptics.selectionAsync();
     changeLanguage(lang);
   }
@@ -461,7 +461,7 @@ export default function SettingsScreen() {
     setThemeMode(mode);
   }
 
-  const currentLang = i18n.language.startsWith("es") ? "es" : "en";
+  const currentLang = i18n.language.startsWith("es") ? "es" : i18n.language.startsWith("pt") ? "pt" : "en";
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
 
   // ─── Render ────────────────────────────────────────────────────────────
@@ -759,13 +759,13 @@ export default function SettingsScreen() {
         {/* ─── Language ─── */}
         <SectionHeader title={t("settings.sectionLanguage")} />
         <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          {(["es", "en"] as const).map((lang, idx) => (
+          {(["es", "en", "pt"] as const).map((lang, idx) => (
             <View key={lang}>
               {idx > 0 && <Divider />}
               <SettingRow
                 icon={currentLang === lang ? "radio-button-on" : "radio-button-off-outline"}
                 iconColor={currentLang === lang ? theme.primary : theme.muted}
-                title={lang === "es" ? t("settings.languageEs") : t("settings.languageEn")}
+                title={lang === "es" ? t("settings.languageEs") : lang === "en" ? t("settings.languageEn") : t("settings.languagePt")}
                 onPress={() => handleLanguage(lang)}
                 chevron={false}
               />

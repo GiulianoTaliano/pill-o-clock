@@ -3,12 +3,13 @@ import { initReactI18next, useTranslation } from "react-i18next";
 import * as Localization from "expo-localization";
 import { storage } from "../storage";
 import { STORAGE_KEYS } from "../config";
-import { es as esDateLocale, enUS } from "date-fns/locale";
+import { es as esDateLocale, enUS, ptBR } from "date-fns/locale";
 import en from "./en";
 import es from "./es";
+import pt from "./pt";
 
 export const LANGUAGE_KEY = STORAGE_KEYS.LANGUAGE;
-export const SUPPORTED_LANGUAGES = ["es", "en"] as const;
+export const SUPPORTED_LANGUAGES = ["es", "en", "pt"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 // ─── Detect device locale ─────────────────────────────────────────────────
@@ -16,7 +17,10 @@ export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 function getDeviceLanguage(): SupportedLanguage {
   const locale = Localization.getLocales()[0]?.languageCode ?? "en";
   // Spanish covers es-AR, es-MX, es-ES, etc.
-  return locale.startsWith("es") ? "es" : "en";
+  if (locale.startsWith("es")) return "es";
+  // Portuguese covers pt-BR, pt-PT, etc.
+  if (locale.startsWith("pt")) return "pt";
+  return "en";
 }
 
 // ─── Init (called once at app start, before rendering) ────────────────────
@@ -39,6 +43,7 @@ export async function initI18n(): Promise<void> {
     resources: {
       en: { translation: en },
       es: { translation: es },
+      pt: { translation: pt },
     },
     lng: lang,
     fallbackLng: "en",
@@ -62,7 +67,9 @@ export async function changeLanguage(lang: SupportedLanguage): Promise<void> {
 
 /** Returns the date-fns locale matching the current i18n language. */
 export function getDateLocale() {
-  return i18n.language?.startsWith("es") ? esDateLocale : enUS;
+  if (i18n.language?.startsWith("es")) return esDateLocale;
+  if (i18n.language?.startsWith("pt")) return ptBR;
+  return enUS;
 }
 
 export { useTranslation };

@@ -717,6 +717,7 @@ const es = {
     sectionLanguage: "Idioma",
     languageEs: "Español",
     languageEn: "English",
+    languagePt: "Português (Brasil)",
     // Permissions
     sectionPermissions: "Permisos",
     fullScreenPermission: "Alarma en pantalla completa",
