@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { useAppStore } from "../src/store";
-import { getDoseLogsByDateRange, getDailyCheckins } from "../src/db/database";
+import { getDoseLogsByDateRange, getActiveDailyCheckins } from "../src/db/database";
 import { computeInsights, AdherenceInsights } from "../src/services/insights";
 import { toDateString } from "../src/utils";
 
@@ -39,10 +39,13 @@ export function InsightsCard() {
         try {
           const to = toDateString(new Date());
           const from = toDateString(new Date(Date.now() - DAYS * 86_400_000));
-          const [logs, checkins] = await Promise.all([
+          const [allLogs, checkins] = await Promise.all([
             getDoseLogsByDateRange(from, to),
-            getDailyCheckins(from, to),
+            getActiveDailyCheckins(from, to),
           ]);
+          // Scope logs to the active profile via its meds (F2 multi-profile).
+          const medIds = new Set(medications.map((m) => m.id));
+          const logs = allLogs.filter((l) => medIds.has(l.medicationId));
           if (!cancelled) setInsights(computeInsights(logs, medications, checkins));
         } catch {
           if (!cancelled) setInsights(null);

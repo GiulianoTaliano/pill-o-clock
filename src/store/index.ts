@@ -2,11 +2,12 @@ import { create } from "zustand";
 import { Appearance, Platform } from "react-native";
 import { storage } from "../storage";
 import {
-  getMedications,
+  getActiveMedications,
   getAllActiveSchedules,
   getDoseLogsByDate,
   clearAllData,
-  getAppointments,
+  getActiveAppointments,
+  getProfiles,
 } from "../db/database";
 import { today } from "../utils";
 import { cancelAllNotifications } from "../services/notifications";
@@ -18,6 +19,7 @@ import { createMedicationsSlice } from "./slices/medications";
 import { createAppointmentsSlice } from "./slices/appointments";
 import { createHealthSlice } from "./slices/health";
 import { createUISlice } from "./slices/ui";
+import { createProfilesSlice } from "./slices/profiles";
 
 export type { ThemeMode } from "./types";
 
@@ -32,6 +34,7 @@ export const useAppStore = create<AppState>()((...a) => {
     ...createAppointmentsSlice(...a),
     ...createHealthSlice(...a),
     ...createUISlice(...a),
+    ...createProfilesSlice(...a),
 
     // ── Core state ─────────────────────────────────────────────────────
     todayLogs: [],
@@ -69,13 +72,14 @@ export const useAppStore = create<AppState>()((...a) => {
     async loadAll() {
       set({ isLoading: true });
       try {
-        const [meds, schedules, appointments] = await Promise.all([
-          getMedications(),
+        const [meds, schedules, appointments, profiles] = await Promise.all([
+          getActiveMedications(),
           getAllActiveSchedules(),
-          getAppointments(),
+          getActiveAppointments(),
+          getProfiles(),
         ]);
         const logs = await getDoseLogsByDate(today());
-        set({ medications: meds, schedules, todayLogs: logs, appointments, isLoading: false });
+        set({ medications: meds, schedules, todayLogs: logs, appointments, profiles, isLoading: false });
       } catch (e) {
         set({ isLoading: false });
         throw e;
@@ -93,7 +97,7 @@ export const useAppStore = create<AppState>()((...a) => {
       await cancelAllNotifications();
       await clearAllData();
       await unregisterBackgroundFetch();
-      const [meds, schedules] = await Promise.all([getMedications(), getAllActiveSchedules()]);
+      const [meds, schedules] = await Promise.all([getActiveMedications(), getAllActiveSchedules()]);
       const logs = await getDoseLogsByDate(today());
       set({ medications: meds, schedules, todayLogs: logs, appointments: [], appointmentDocuments: [], healthMeasurements: [], dailyCheckins: [], snoozedTimes: {} });
     },

@@ -1,5 +1,16 @@
 import { sqliteTable, text, real, integer, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 
+// ─── Profiles (F2 multi-profile: one caregiver, several people/pets) ───────
+// The row with id 'default' always exists (created in migration v14) and its
+// empty name renders as a localized "Me" in the UI.
+
+export const profiles = sqliteTable("profiles", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("blue"),
+  createdAt: text("created_at").notNull(),
+});
+
 // ─── Medications ───────────────────────────────────────────────────────────
 
 export const medications = sqliteTable("medications", {
@@ -24,6 +35,7 @@ export const medications = sqliteTable("medications", {
   prnMaxPerDay: integer("prn_max_per_day"),
   prnMinIntervalMinutes: integer("prn_min_interval_minutes"),
   rxcui: text("rxcui"),
+  profileId: text("profile_id").notNull().default("default"),
 });
 
 // ─── Schedules ─────────────────────────────────────────────────────────────
@@ -79,6 +91,7 @@ export const appointments = sqliteTable("appointments", {
   reminderMinutes: integer("reminder_minutes"),
   notificationId: text("notification_id"),
   createdAt: text("created_at").notNull(),
+  profileId: text("profile_id").notNull().default("default"),
 });
 
 // ─── Appointment documents ─────────────────────────────────────────────────
@@ -111,21 +124,28 @@ export const healthMeasurements = sqliteTable(
     measuredAt: text("measured_at").notNull(),
     notes: text("notes"),
     createdAt: text("created_at").notNull(),
+    profileId: text("profile_id").notNull().default("default"),
   },
   (t) => [index("idx_health_measurements_type_date").on(t.type, t.measuredAt)]
 );
 
 // ─── Daily check-ins ───────────────────────────────────────────────────────
 
-export const dailyCheckins = sqliteTable("daily_checkins", {
-  id: text("id").primaryKey(),
-  date: text("date").notNull().unique(),
-  mood: integer("mood").notNull(),
-  /** JSON array of symptom strings. */
-  symptoms: text("symptoms").notNull().default("[]"),
-  notes: text("notes"),
-  createdAt: text("created_at").notNull(),
-});
+export const dailyCheckins = sqliteTable(
+  "daily_checkins",
+  {
+    id: text("id").primaryKey(),
+    date: text("date").notNull(),
+    mood: integer("mood").notNull(),
+    /** JSON array of symptom strings. */
+    symptoms: text("symptoms").notNull().default("[]"),
+    notes: text("notes"),
+    createdAt: text("created_at").notNull(),
+    profileId: text("profile_id").notNull().default("default"),
+  },
+  // One check-in per person per day (was UNIQUE(date) pre-multi-profile).
+  (t) => [uniqueIndex("idx_checkin_profile_date").on(t.profileId, t.date)]
+);
 
 // ─── Notification map ──────────────────────────────────────────────────────
 

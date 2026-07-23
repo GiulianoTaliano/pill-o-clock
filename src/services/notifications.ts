@@ -9,7 +9,7 @@ import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocal
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
-import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb } from "../db/database";
+import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb, getProfiles } from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -322,6 +322,24 @@ export async function getNotifMapEntry(
   }
 }
 
+// ─── Multi-profile display name (F2) ───────────────────────────────────────
+// With more than one profile, every alarm/notification says WHOSE med it is
+// ("Mamá · Enalapril"). Resolved at scheduling time; renames refresh on the
+// next rescheduleAllNotifications (runs on every app foreground).
+
+async function medDisplayName(med: Medication): Promise<string> {
+  try {
+    const profiles = await getProfiles();
+    if (profiles.length <= 1) return med.name;
+    const p = profiles.find((x) => x.id === (med.profileId ?? "default"));
+    if (!p) return med.name;
+    const who = p.name || (i18n.t("profiles.me") as string);
+    return `${who} · ${med.name}`;
+  } catch {
+    return med.name;
+  }
+}
+
 // ─── Schedule a single notification ────────────────────────────────────────
 
 async function scheduleOneNotification(
@@ -335,8 +353,8 @@ async function scheduleOneNotification(
   const notifId = await Notifications.scheduleNotificationAsync({
     content: {
       title: isRepeat
-        ? i18n.t("notifications.repeatTitle", { name: medication.name })
-        : i18n.t("notifications.reminderTitle", { name: medication.name }),
+        ? i18n.t("notifications.repeatTitle", { name: await medDisplayName(medication) })
+        : i18n.t("notifications.reminderTitle", { name: await medDisplayName(medication) }),
       body:
         (medication.notes
           ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
@@ -383,7 +401,7 @@ export async function scheduleDoseChain(
       medicationId:   medication.id,
       scheduledDate,
       scheduledTime:  schedule.time,
-      medicationName: medication.name,
+      medicationName: await medDisplayName(medication),
       dose:           getLocalizedDosage(medication, i18n.t.bind(i18n)),
       fireTimestamp:  baseDate.getTime(),
     });
@@ -456,7 +474,7 @@ export async function snoozeDose(
       medicationId:   medication.id,
       scheduledDate,
       scheduledTime:  displayTime,
-      medicationName: medication.name,
+      medicationName: await medDisplayName(medication),
       dose:           getLocalizedDosage(medication, i18n.t.bind(i18n)),
       fireTimestamp:  snoozeDate.getTime(),
     });
@@ -479,7 +497,7 @@ export async function snoozeDose(
   // ── iOS: reschedule via expo-notifications ─────────────────────────────
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: i18n.t("notifications.snoozeTitle", { name: medication.name }),
+      title: i18n.t("notifications.snoozeTitle", { name: await medDisplayName(medication) }),
       body:
         (medication.notes
           ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
@@ -593,7 +611,7 @@ export async function scheduleStockAlert(medication: Medication): Promise<void> 
   const count = medication.stockQuantity ?? 0;
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: i18n.t("stock.alertTitle", { name: medication.name }),
+      title: i18n.t("stock.alertTitle", { name: await medDisplayName(medication) }),
       body: i18n.t("stock.alertBody", { count }),
       data: { type: "stock_alert", medicationId: medication.id },
       ...(Platform.OS === "android" ? { channelId: STOCK_ALERT_CHANNEL_ID } : {}),
@@ -651,12 +669,12 @@ export async function scheduleRenewalReminders(
 
   await schedule(
     headsUp,
-    i18n.t("stock.renewalSoonTitle", { name: med.name }),
+    i18n.t("stock.renewalSoonTitle", { name: await medDisplayName(med) }),
     i18n.t("stock.renewalSoonBody")
   );
   await schedule(
     onDate,
-    i18n.t("stock.renewalTodayTitle", { name: med.name }),
+    i18n.t("stock.renewalTodayTitle", { name: await medDisplayName(med) }),
     i18n.t("stock.renewalTodayBody")
   );
 

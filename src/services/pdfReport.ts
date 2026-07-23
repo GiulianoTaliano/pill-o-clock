@@ -2,8 +2,8 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { format } from "date-fns";
 import { Medication, DoseLog, HealthMeasurement, DailyCheckin, MeasurementType } from "../types";
-import { getDoseLogsByDateRange, getHealthMeasurements, getDailyCheckins } from "../db/database";
-import { getMedications } from "../db/database";
+import { getDoseLogsByDateRange, getActiveHealthMeasurements, getActiveDailyCheckins } from "../db/database";
+import { getActiveMedications } from "../db/database";
 import i18n from "../i18n";
 import { today, toDateString, getLocalizedDosage } from "../utils";
 import { addDays } from "date-fns";
@@ -215,12 +215,15 @@ export async function generateAndShareReport(): Promise<void> {
   const fromStr = toDateString(addDays(new Date(), -30));
   const generatedAt = formatDateTime(new Date().toISOString());
 
-  const [medications, logs, measurements, checkins] = await Promise.all([
-    getMedications(),
+  const [medications, allLogs, measurements, checkins] = await Promise.all([
+    getActiveMedications(),
     getDoseLogsByDateRange(fromStr, todayStr),
-    getHealthMeasurements(),
-    getDailyCheckins(),
+    getActiveHealthMeasurements(),
+    getActiveDailyCheckins(),
   ]);
+  // Dose logs are profile-scoped through their medication (F2 multi-profile).
+  const medIds = new Set(medications.map((m) => m.id));
+  const logs = allLogs.filter((l) => medIds.has(l.medicationId));
 
   const html = buildHtml(medications, logs, measurements, checkins, generatedAt);
 
