@@ -13,7 +13,7 @@ import { STORAGE_KEYS } from "../src/config";
 
 describe("snoozeSettings", () => {
   beforeEach(() => {
-    storage.delete(STORAGE_KEYS.SNOOZE_MINUTES);
+    storage.remove(STORAGE_KEYS.SNOOZE_MINUTES);
   });
 
   it("falls back to DEFAULT_SNOOZE_MINUTES when unset", () => {

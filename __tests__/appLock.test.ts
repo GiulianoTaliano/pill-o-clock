@@ -20,7 +20,7 @@ import { STORAGE_KEYS } from "../src/config";
 describe("appLock", () => {
   beforeEach(async () => {
     await disableAppLock();
-    storage.delete(STORAGE_KEYS.APP_LOCK_BIOMETRIC);
+    storage.remove(STORAGE_KEYS.APP_LOCK_BIOMETRIC);
   });
 
   it("is disabled by default with no PIN stored", async () => {

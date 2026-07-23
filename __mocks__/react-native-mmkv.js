@@ -9,7 +9,7 @@ const createStorageInstance = () => {
   return {
     getString: jest.fn((key) => store.get(key)),
     set: jest.fn((key, value) => { store.set(key, value); }),
-    delete: jest.fn((key) => { store.delete(key); }),
+    remove: jest.fn((key) => store.delete(key)),
     contains: jest.fn((key) => store.has(key)),
     clearAll: jest.fn(() => { store.clear(); }),
     getAllKeys: jest.fn(() => Array.from(store.keys())),

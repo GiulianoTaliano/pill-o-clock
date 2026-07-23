@@ -281,7 +281,7 @@ export default function SettingsScreen() {
         showToast(t("appLock.pinChangedToast"), "success");
       }
     } catch {
-      showToast(t("settings.exportErrorGeneric"), "error");
+      showToast(t("appLock.errorGeneric"), "error");
     }
   };
 

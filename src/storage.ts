@@ -12,9 +12,7 @@ function createFallbackStorage() {
     set: (key: string, value: string) => {
       store.set(key, value);
     },
-    delete: (key: string) => {
-      store.delete(key);
-    },
+    remove: (key: string) => store.delete(key),
     contains: (key: string) => store.has(key),
     clearAll: () => {
       store.clear();

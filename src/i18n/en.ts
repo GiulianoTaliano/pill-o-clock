@@ -694,6 +694,7 @@ const en: TranslationShape = {
     enabledToast: "App lock enabled",
     disabledToast: "App lock disabled",
     pinChangedToast: "PIN updated",
+    errorGeneric: "Could not update app lock. Try again.",
   },
   settings: {
     title: "Settings",

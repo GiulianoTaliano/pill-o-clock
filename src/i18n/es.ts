@@ -692,6 +692,7 @@ const es = {
     enabledToast: "Bloqueo de app activado",
     disabledToast: "Bloqueo de app desactivado",
     pinChangedToast: "PIN actualizado",
+    errorGeneric: "No se pudo actualizar el bloqueo. Intentá de nuevo.",
   },
   settings: {
     title: "Ajustes",
