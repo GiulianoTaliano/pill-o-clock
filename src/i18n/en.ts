@@ -566,6 +566,8 @@ const en: TranslationShape = {
     rxtermsAttribution: "Medication name suggestions include RxTerms data, produced by the U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Appearance",
+    seniorMode: "Large text & buttons",
+    seniorModeSubtitle: "Enhanced-visibility mode for dose cards",
     themeSystem: "Automatic (system)",
     themeLight: "Light",
     themeDark: "Dark",

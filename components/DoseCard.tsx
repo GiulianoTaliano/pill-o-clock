@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useState, useRef, useEffect } from "react";
 import { TodayDose, SkipReason } from "../src/types";
+import { useAppStore } from "../src/store";
 import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
 import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes } from "../src/services/snoozeSettings";
 import { useTranslation } from "../src/i18n";
@@ -84,6 +85,8 @@ const STATUS_ICONS = {
 export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedule, onUpdateNote }: DoseCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
+  // Senior / low-vision mode (F1): larger type + taller touch targets.
+  const seniorMode = useAppStore((s) => s.seniorMode);
   const colors = getColorConfig(dose.medication.color);
   const statusTheme = theme.doseStatus[dose.status === "missed" ? "missed" : dose.status];
   const isPending = dose.status === "pending";
@@ -202,9 +205,9 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             </View>
           )}
           <View className="flex-1">
-            <Text className="text-base font-bold text-text" numberOfLines={1}>{dose.medication.name}</Text>
+            <Text className={`${seniorMode ? "text-xl" : "text-base"} font-bold text-text`} numberOfLines={1}>{dose.medication.name}</Text>
             <View className="flex-row items-center gap-1.5 mt-0.5 flex-shrink" style={{ overflow: 'hidden' }}>
-              <Text className="text-sm" style={{ color: theme.secondaryText }} numberOfLines={1}>{getLocalizedDosage(dose.medication, t)}</Text>
+              <Text className={seniorMode ? "text-base" : "text-sm"} style={{ color: theme.secondaryText }} numberOfLines={1}>{getLocalizedDosage(dose.medication, t)}</Text>
               <Text style={{ color: theme.secondaryText }}>·</Text>
               <Ionicons
                 name={CATEGORY_CONFIG[dose.medication.category].icon as any}
@@ -254,7 +257,7 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
             style={{ color: isSnoozed
               ? (theme.isDark ? "#fbbf24" : "#92400e")
               : colors.text }}
-            className="text-sm font-bold"
+            className={`${seniorMode ? "text-lg" : "text-sm"} font-bold`}
           >
             {displayTimeFormatted}
           </Text>
@@ -321,10 +324,10 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.snooze')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSnoozePickerVisible(true); }}
-              className="flex-1 flex-row items-center justify-center gap-1.5 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-3 min-h-[44px]"
+              className={`flex-1 flex-row items-center justify-center gap-1.5 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-3 ${seniorMode ? "min-h-[56px]" : "min-h-[44px]"}`}
             >
               <Ionicons name="alarm-outline" size={16} color={theme.amber} />
-              <Text className="text-amber-700 dark:text-amber-300 text-sm font-semibold" numberOfLines={1}>{t('doseCard.snooze')}</Text>
+              <Text className={`text-amber-700 dark:text-amber-300 ${seniorMode ? "text-base" : "text-sm"} font-semibold`} numberOfLines={1}>{t('doseCard.snooze')}</Text>
             </AppPressable>
 
             {/* Skip */}
@@ -332,10 +335,10 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
               accessibilityRole="button"
               accessibilityLabel={t('doseCard.skip')}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
-              className="flex-1 flex-row items-center justify-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-3 min-h-[44px]"
+              className={`flex-1 flex-row items-center justify-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-3 ${seniorMode ? "min-h-[56px]" : "min-h-[44px]"}`}
             >
               <Ionicons name="close-outline" size={16} color={theme.danger} />
-              <Text className="text-red-700 dark:text-red-300 text-sm font-semibold" numberOfLines={1}>{t('doseCard.skip')}</Text>
+              <Text className={`text-red-700 dark:text-red-300 ${seniorMode ? "text-base" : "text-sm"} font-semibold`} numberOfLines={1}>{t('doseCard.skip')}</Text>
             </AppPressable>
 
             {/* Take */}
@@ -344,10 +347,10 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
                 accessibilityRole="button"
                 accessibilityLabel={t('doseCard.take')}
                 onPress={handleTakePress}
-                className="flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-3 py-3 min-h-[44px]"
+                className={`flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-3 py-3 ${seniorMode ? "min-h-[56px]" : "min-h-[44px]"}`}
               >
-                <Ionicons name="checkmark" size={16} color="#fff" />
-                <Text className="text-white text-sm font-bold" numberOfLines={1}>{t('doseCard.take')}</Text>
+                <Ionicons name="checkmark" size={seniorMode ? 22 : 16} color="#fff" />
+                <Text className={`text-white ${seniorMode ? "text-lg" : "text-sm"} font-bold`} numberOfLines={1}>{t('doseCard.take')}</Text>
               </AppPressable>
               {/* Destello ring â€” expands and fades on tap */}
               <Animated.View

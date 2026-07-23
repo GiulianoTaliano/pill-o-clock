@@ -77,6 +77,9 @@ export interface CoreSlice {
   todayLogs: DoseLog[];
   isLoading: boolean;
   themeMode: ThemeMode;
+  /** Senior / low-vision mode: larger type + touch targets on core surfaces (F1). */
+  seniorMode: boolean;
+  setSeniorMode: (on: boolean) => void;
   loadAll: () => Promise<void>;
   loadThemeMode: () => void;
   setThemeMode: (mode: ThemeMode) => void;

@@ -42,6 +42,7 @@ export const STORAGE_KEYS = {
   SNOOZE_MINUTES:             "@pilloclock/snooze_minutes",
   APP_LOCK_ENABLED:           "@pilloclock/app_lock_enabled",
   APP_LOCK_BIOMETRIC:         "@pilloclock/app_lock_biometric",
+  SENIOR_MODE:                "@pilloclock/senior_mode",
   RECENT_COLORS:            "custom_colors_recent",
   // Legacy keys kept for migration only (notifications.ts)
   NOTIF_MAP:                "@pilloclock/notif_map",
