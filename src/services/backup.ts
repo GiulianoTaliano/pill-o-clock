@@ -2,7 +2,7 @@ import { File, Paths } from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system/src/legacy";
 import * as DocumentPicker from "expo-document-picker";
 import { z } from "zod";
-import { Medication, Schedule, DoseLog, Appointment, AppointmentDocument, HealthMeasurement, DailyCheckin } from "../types";
+import { Medication, Schedule, DoseLog, Appointment, AppointmentDocument, HealthMeasurement, DailyCheckin, Allergy } from "../types";
 import {
   getDb,
   getMedications,
@@ -22,6 +22,8 @@ import {
   upsertDailyCheckin,
   getProfiles,
   insertProfile,
+  getAllAllergies,
+  insertAllergy,
 } from "../db/database";
 
 // ─── Zod schemas ───────────────────────────────────────────────────────────
@@ -56,6 +58,16 @@ const profileSchema = z.object({
   id: z.string(),
   name: z.string(),
   color: z.string(),
+  createdAt: z.string(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
+});
+
+const allergySchema = z.object({
+  id: z.string(),
+  profileId: z.string().optional(),
+  name: z.string(),
+  ingRxcui: z.string().optional(),
   createdAt: z.string(),
 });
 
@@ -140,6 +152,7 @@ const backupSchema = z.object({
     healthMeasurements: z.array(healthMeasurementSchema).default([]),
     dailyCheckins: z.array(dailyCheckinSchema).default([]),
     profiles: z.array(profileSchema).default([]),
+    allergies: z.array(allergySchema).default([]),
   }),
 });
 
@@ -152,7 +165,7 @@ export type BackupData = z.infer<typeof backupSchema>;
 /** Serialises the entire database into a JSON file and lets the user
  *  pick a folder via the system file picker (SAF) to save it. */
 export async function exportBackup(): Promise<void> {
-  const [medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins, profiles] = await Promise.all([
+  const [medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins, profiles, allergies] = await Promise.all([
     getMedications(),
     getAllSchedules(),
     getAllDoseLogs(),
@@ -161,13 +174,14 @@ export async function exportBackup(): Promise<void> {
     getHealthMeasurements(undefined, 9999),
     getDailyCheckins(),
     getProfiles(),
+    getAllAllergies(),
   ]);
 
   const backup: BackupData = {
     version: 3,
     exportedAt: new Date().toISOString(),
     app: "pill-o-clock",
-    data: { medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins, profiles },
+    data: { medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins, profiles, allergies },
   };
 
   const json = JSON.stringify(backup, null, 2);
@@ -248,6 +262,14 @@ export async function importBackup(
         await insertProfile(profile);
       } catch {
         // 'default' (or an already-existing profile on merge) — skip.
+      }
+    }
+
+    for (const allergy of backup.data.allergies) {
+      try {
+        await insertAllergy(allergy as Allergy);
+      } catch {
+        // Skip duplicates on merge.
       }
     }
 

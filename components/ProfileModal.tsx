@@ -20,7 +20,7 @@ interface Props {
   visible: boolean;
   /** null = create mode. */
   profile: Profile | null;
-  onSave: (name: string, color: string) => void;
+  onSave: (name: string, color: string, contact: { name: string; phone: string }) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 }
@@ -30,11 +30,15 @@ export function ProfileModal({ visible, profile, onSave, onDelete, onClose }: Pr
   const theme = useAppTheme();
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>(PALETTE[0]);
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
 
   useEffect(() => {
     if (visible) {
       setName(profile?.name ?? "");
       setColor(profile?.color ?? PALETTE[0]);
+      setContactName(profile?.emergencyContactName ?? "");
+      setContactPhone(profile?.emergencyContactPhone ?? "");
     }
   }, [visible, profile]);
 
@@ -75,6 +79,26 @@ export function ProfileModal({ visible, profile, onSave, onDelete, onClose }: Pr
             maxLength={30}
           />
 
+          {/* Emergency contact (F3) — shown on the emergency card. */}
+          <Text className="text-xs font-semibold text-muted mt-4 mb-1">{t("profiles.emergencyContact")}</Text>
+          <TextInput
+            value={contactName}
+            onChangeText={setContactName}
+            placeholder={t("profiles.contactNamePlaceholder")}
+            placeholderTextColor={theme.muted}
+            className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
+            maxLength={50}
+          />
+          <TextInput
+            value={contactPhone}
+            onChangeText={setContactPhone}
+            placeholder={t("profiles.contactPhonePlaceholder")}
+            placeholderTextColor={theme.muted}
+            keyboardType="phone-pad"
+            className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt mt-2"
+            maxLength={30}
+          />
+
           <View className="flex-row gap-2 mt-4">
             {PALETTE.map((c) => (
               <TouchableOpacity
@@ -112,7 +136,7 @@ export function ProfileModal({ visible, profile, onSave, onDelete, onClose }: Pr
               disabled={!canSave}
               onPress={() => {
                 Haptics.selectionAsync();
-                onSave(name.trim(), color);
+                onSave(name.trim(), color, { name: contactName.trim(), phone: contactPhone.trim() });
               }}
               className={`rounded-xl py-2.5 px-5 ${canSave ? "bg-primary" : "bg-slate-300"}`}
             >

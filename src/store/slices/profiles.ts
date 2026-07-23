@@ -47,10 +47,16 @@ export const createProfilesSlice: StateCreator<AppState, [], [], ProfilesSlice> 
     return profile;
   },
 
-  async renameProfile(id, name, color) {
+  async renameProfile(id, name, color, contact) {
     const existing = get().profiles.find((p) => p.id === id);
     if (!existing) return;
-    const updated: Profile = { ...existing, name: name.trim(), color: color ?? existing.color };
+    const updated: Profile = {
+      ...existing,
+      name: name.trim(),
+      color: color ?? existing.color,
+      emergencyContactName: contact?.name || undefined,
+      emergencyContactPhone: contact?.phone || undefined,
+    };
     await updateProfileDb(updated);
     set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? updated : p)) }));
   },

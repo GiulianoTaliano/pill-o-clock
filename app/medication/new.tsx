@@ -4,7 +4,8 @@ import { useRouter } from "expo-router";
 import { MedicationForm, MedicationFormValues } from "../../components/MedicationForm";
 import { useAppStore } from "../../src/store";
 import { useTranslation } from "../../src/i18n";
-import { findDuplicateTherapy, duplicateTherapyMessage } from "../../src/services/interactions";
+import { findDuplicateTherapy, duplicateTherapyMessage, findAllergyConflicts, allergyConflictMessage } from "../../src/services/interactions";
+import { getActiveAllergies } from "../../src/db/database";
 
 export default function NewMedicationScreen() {
   const router = useRouter();
@@ -40,6 +41,16 @@ export default function NewMedicationScreen() {
         },
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );
+      // Allergy-conflict check (F3): informational, after a successful save.
+      const conflicts = findAllergyConflicts(values.rxcui, await getActiveAllergies());
+      if (conflicts.length > 0) {
+        Alert.alert(
+          t('interactions.allergyTitle'),
+          allergyConflictMessage(t, conflicts),
+          [{ text: t('common.ok'), onPress: () => router.back() }]
+        );
+        return;
+      }
       // Duplicate-therapy check (F2): informational, after a successful save.
       const dupes = findDuplicateTherapy(values.rxcui, medications);
       if (dupes.length > 0) {

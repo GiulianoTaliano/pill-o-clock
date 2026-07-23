@@ -12,7 +12,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { format, subDays } from "date-fns";
 import { Medication, Schedule, DoseLog } from "../types";
-import { getActiveMedications, getSchedulesByMedication, getDoseLogsByDateRange } from "../db/database";
+import { getActiveMedications, getSchedulesByMedication, getDoseLogsByDateRange, getActiveAllergies } from "../db/database";
 import i18n, { getDateLocale } from "../i18n";
 import { toDateString } from "../utils";
 
@@ -42,6 +42,8 @@ export interface SnapshotMed {
 export interface CaregiverSnapshot {
   regular: SnapshotMed[];
   prn: { med: Medication }[];
+  /** Active profile's recorded allergies (F3) — names only. */
+  allergyNames?: string[];
   generatedAt: string;
 }
 
@@ -177,6 +179,13 @@ export function buildSnapshotHtml(snapshot: CaregiverSnapshot): string {
   <h1>💊 ${t("snapshot.title")}</h1>
   <div class="muted">${t("snapshot.generatedAt", { date: generated })}</div>
 
+  ${
+    snapshot.allergyNames && snapshot.allergyNames.length > 0
+      ? `<h2>${t("snapshot.sectionAllergies")}</h2>
+        <div><strong>${snapshot.allergyNames.map(esc).join(", ")}</strong></div>`
+      : ""
+  }
+
   <h2>${t("snapshot.sectionRegular")}</h2>
   ${
     snapshot.regular.length === 0
@@ -216,7 +225,9 @@ export async function generateAndShareCaregiverSnapshot(): Promise<void> {
   }
   const logs = await getDoseLogsByDateRange(fromStr, todayStr);
 
-  const html = buildSnapshotHtml(computeCaregiverSnapshot(meds, schedulesByMed, logs, now));
+  const allergyNames = (await getActiveAllergies()).map((a) => a.name);
+  const snapshot = { ...computeCaregiverSnapshot(meds, schedulesByMed, logs, now), allergyNames };
+  const html = buildSnapshotHtml(snapshot);
   const { uri } = await Print.printToFileAsync({ html, base64: false });
 
   const FileSystem = await import("expo-file-system");

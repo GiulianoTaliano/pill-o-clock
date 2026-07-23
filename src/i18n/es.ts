@@ -507,6 +507,29 @@ const es = {
   },
 
   // ─── Informe PDF ────────────────────────────────────────────────────────
+  allergies: {
+    title: "Alergias",
+    settingsSubtitle: "Del perfil activo; avisamos si un medicamento nuevo contiene un ingrediente al que sos alérgico",
+    subtitle: "Elegí de la lista para que podamos chequear conflictos, o escribí libre.",
+    placeholder: "Ej.: penicilina",
+    addFreeText: "Agregar",
+    checkable: "Se chequea contra medicamentos nuevos",
+    freeText: "Texto libre (no se chequea automáticamente)",
+    checkableHint: "Elegir de la lista permite el chequeo automático (NLM RxNorm)",
+    empty: "Sin alergias registradas.",
+  },
+  emergency: {
+    title: "Ficha de emergencia",
+    settingsSubtitle: "Visible sin desbloquear la app, como la alarma",
+    person: "Persona",
+    allergies: "Alergias",
+    noKnownAllergies: "Sin alergias conocidas",
+    medications: "Medicación actual",
+    noMeds: "Sin medicación activa registrada.",
+    contact: "Contacto de emergencia",
+    call: "Llamar al contacto de emergencia",
+    footer: "Generado por Pill O-Clock con los datos cargados por la persona usuaria. Informativo; no reemplaza una historia clínica.",
+  },
   sites: {
     title: "¿Dónde te la aplicaste?",
     subtitle: "Registrar el sitio ayuda a rotar y evitar irritación. Es opcional.",
@@ -523,6 +546,9 @@ const es = {
     nextDoseInDays: "Próxima aplicación en {{count}} días",
   },
   profiles: {
+    emergencyContact: "Contacto de emergencia (opcional)",
+    contactNamePlaceholder: "Nombre del contacto",
+    contactPhonePlaceholder: "Teléfono",
     sectionTitle: "Perfiles",
     me: "Yo",
     add: "Agregar perfil",
@@ -540,6 +566,7 @@ const es = {
   snapshot: {
     title: "Resumen para cuidadores",
     generatedAt: "Generado: {{date}}",
+    sectionAllergies: "Alergias",
     sectionRegular: "Medicación con horario",
     sectionPrn: "Según necesidad (PRN)",
     colMed: "Medicamento",
@@ -600,6 +627,8 @@ const es = {
     disclaimer: "Observaciones calculadas en tu dispositivo sobre tu propio registro. No implican causalidad.",
   },
   interactions: {
+    allergyTitle: "Posible alergia",
+    allergyLine: "{{ingredient}} está en este medicamento y figura tu alergia a {{allergy}}.",
     dupTitle: "Ingrediente repetido",
     dupLine: "{{name}} también contiene: {{ingredients}}",
     disclaimer: "Aviso informativo basado en datos de RxTerms (NLM). No reemplaza el consejo de tu médico o farmacéutico.",

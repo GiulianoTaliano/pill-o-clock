@@ -6,7 +6,8 @@ import { useAppStore } from "../../src/store";
 import { getSchedulesByMedication } from "../../src/db/database";
 import { Schedule } from "../../src/types";
 import { useTranslation } from "../../src/i18n";
-import { findDuplicateTherapy, duplicateTherapyMessage } from "../../src/services/interactions";
+import { findDuplicateTherapy, duplicateTherapyMessage, findAllergyConflicts, allergyConflictMessage } from "../../src/services/interactions";
+import { getActiveAllergies } from "../../src/db/database";
 import { useSkeletonAnimation, SkeletonBox } from "../../components/Skeleton";
 
 function MedicationFormSkeleton() {
@@ -144,6 +145,16 @@ export default function EditMedicationScreen() {
         // local key that won't match any DB id, so they get a real id in the slice.
         values.schedules.map((s) => ({ id: s.id, time: s.time, days: s.days }))
       );
+      // Allergy-conflict check (F3): informational.
+      const conflicts = findAllergyConflicts(values.rxcui, await getActiveAllergies());
+      if (conflicts.length > 0) {
+        Alert.alert(
+          t('interactions.allergyTitle'),
+          allergyConflictMessage(t, conflicts),
+          [{ text: t('common.ok'), onPress: () => router.back() }]
+        );
+        return;
+      }
       // Duplicate-therapy check (F2): informational, excludes this med itself.
       const dupes = findDuplicateTherapy(values.rxcui, medications, medication.id);
       if (dupes.length > 0) {

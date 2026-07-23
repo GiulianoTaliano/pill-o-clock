@@ -43,7 +43,10 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
   const biometricInFlight = useRef(false);
 
   const onAlarmRoute = pathname?.startsWith("/alarm") ?? false;
-  const overlayVisible = locked && !onAlarmRoute;
+  // /emergency is exempt like /alarm: a first-aid card behind a PIN is
+  // useless to a bystander (F3, deliberate privacy tradeoff — see emergency.tsx).
+  const onEmergencyRoute = pathname?.startsWith("/emergency") ?? false;
+  const overlayVisible = locked && !onAlarmRoute && !onEmergencyRoute;
 
   // ── Re-lock on return from background (with grace period) ───────────────
   useEffect(() => {

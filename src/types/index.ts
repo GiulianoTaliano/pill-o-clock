@@ -38,6 +38,19 @@ export interface Profile {
   name: string;
   color: string;
   createdAt: string;
+  /** First-aid contact shown on the emergency card (F3). */
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+}
+
+/** A recorded allergy (F3) — per profile, optionally pinned to an ingredient. */
+export interface Allergy {
+  id: string;
+  profileId?: string;
+  name: string;
+  /** Ingredient RxCUI (NLM) — enables conflict checks; undefined = free text. */
+  ingRxcui?: string;
+  createdAt: string;
 }
 
 export interface Medication {

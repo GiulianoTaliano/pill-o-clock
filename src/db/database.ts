@@ -20,6 +20,7 @@ import type {
   DailyCheckin,
   SkipReason,
   Profile,
+  Allergy,
 } from "../types";
 
 // ─── Open DB (encrypted at rest via SQLCipher, F1) ─────────────────────────
@@ -277,8 +278,20 @@ export async function initDatabase(): Promise<void> {
       id         TEXT PRIMARY KEY,
       name       TEXT NOT NULL,
       color      TEXT NOT NULL DEFAULT 'blue',
+      created_at TEXT NOT NULL,
+      emergency_contact_name  TEXT,
+      emergency_contact_phone TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS allergies (
+      id         TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL DEFAULT 'default',
+      name       TEXT NOT NULL,
+      ing_rxcui  TEXT,
       created_at TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_allergies_profile ON allergies(profile_id);
 
     CREATE TABLE IF NOT EXISTS medications (
       id            TEXT PRIMARY KEY,
@@ -584,6 +597,27 @@ export async function initDatabase(): Promise<void> {
     }
     expoDb.execSync("PRAGMA user_version = 16");
   }
+
+  if (user_version < 17) {
+    // F3: allergies + emergency contact on profiles.
+    expoDb.execSync(`
+      CREATE TABLE IF NOT EXISTS allergies (
+        id         TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL DEFAULT 'default',
+        name       TEXT NOT NULL,
+        ing_rxcui  TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_allergies_profile ON allergies(profile_id);
+    `);
+    for (const stmt of [
+      "ALTER TABLE profiles ADD COLUMN emergency_contact_name TEXT",
+      "ALTER TABLE profiles ADD COLUMN emergency_contact_phone TEXT",
+    ]) {
+      try { expoDb.execSync(stmt); } catch { /* exists */ }
+    }
+    expoDb.execSync("PRAGMA user_version = 17");
+  }
 }
 
 
@@ -594,16 +628,32 @@ export async function initDatabase(): Promise<void> {
 
 export async function getProfiles(): Promise<Profile[]> {
   const rows = db.select().from(schema.profiles).orderBy(asc(schema.profiles.createdAt)).all();
-  return rows.map((r) => ({ id: r.id, name: r.name, color: r.color, createdAt: r.createdAt }));
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    color: r.color,
+    createdAt: r.createdAt,
+    emergencyContactName: r.emergencyContactName ?? undefined,
+    emergencyContactPhone: r.emergencyContactPhone ?? undefined,
+  }));
 }
 
 export async function insertProfile(profile: Profile): Promise<void> {
-  db.insert(schema.profiles).values(profile).run();
+  db.insert(schema.profiles).values({
+    ...profile,
+    emergencyContactName: profile.emergencyContactName ?? null,
+    emergencyContactPhone: profile.emergencyContactPhone ?? null,
+  }).run();
 }
 
 export async function updateProfile(profile: Profile): Promise<void> {
   db.update(schema.profiles)
-    .set({ name: profile.name, color: profile.color })
+    .set({
+      name: profile.name,
+      color: profile.color,
+      emergencyContactName: profile.emergencyContactName ?? null,
+      emergencyContactPhone: profile.emergencyContactPhone ?? null,
+    })
     .where(eq(schema.profiles.id, profile.id))
     .run();
 }
@@ -618,10 +668,53 @@ export async function deleteProfileData(profileId: string): Promise<void> {
   if (profileId === DEFAULT_PROFILE_ID) {
     throw new Error("The default profile cannot be deleted");
   }
+  db.delete(schema.allergies).where(eq(schema.allergies.profileId, profileId)).run();
   db.delete(schema.appointments).where(eq(schema.appointments.profileId, profileId)).run();
   db.delete(schema.healthMeasurements).where(eq(schema.healthMeasurements.profileId, profileId)).run();
   db.delete(schema.dailyCheckins).where(eq(schema.dailyCheckins.profileId, profileId)).run();
   db.delete(schema.profiles).where(eq(schema.profiles.id, profileId)).run();
+}
+
+// ─── Allergies (F3) ────────────────────────────────────────────────────────────────
+
+export async function getActiveAllergies(): Promise<Allergy[]> {
+  const rows = db.select().from(schema.allergies)
+    .where(eq(schema.allergies.profileId, getActiveProfileId()))
+    .orderBy(asc(schema.allergies.name))
+    .all();
+  return rows.map((r) => ({
+    id: r.id,
+    profileId: r.profileId,
+    name: r.name,
+    ingRxcui: r.ingRxcui ?? undefined,
+    createdAt: r.createdAt,
+  }));
+}
+
+export async function insertAllergy(allergy: Allergy): Promise<void> {
+  db.insert(schema.allergies).values({
+    id: allergy.id,
+    profileId: allergy.profileId ?? getActiveProfileId(),
+    name: allergy.name,
+    ingRxcui: allergy.ingRxcui ?? null,
+    createdAt: allergy.createdAt,
+  }).run();
+}
+
+/** Every profile's allergies — backup export only. */
+export async function getAllAllergies(): Promise<Allergy[]> {
+  const rows = db.select().from(schema.allergies).orderBy(asc(schema.allergies.createdAt)).all();
+  return rows.map((r) => ({
+    id: r.id,
+    profileId: r.profileId,
+    name: r.name,
+    ingRxcui: r.ingRxcui ?? undefined,
+    createdAt: r.createdAt,
+  }));
+}
+
+export async function deleteAllergy(id: string): Promise<void> {
+  db.delete(schema.allergies).where(eq(schema.allergies.id, id)).run();
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────
@@ -901,6 +994,7 @@ export async function clearAllData(): Promise<void> {
   db.delete(schema.appointments).run();
   db.delete(schema.healthMeasurements).run();
   db.delete(schema.dailyCheckins).run();
+  db.delete(schema.allergies).run();
   // Extra profiles go too; the built-in 'default' row must survive.
   db.delete(schema.profiles).where(ne(schema.profiles.id, DEFAULT_PROFILE_ID)).run();
 }

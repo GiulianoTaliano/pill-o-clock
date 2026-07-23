@@ -90,3 +90,81 @@ export function duplicateTherapyMessage(
   lines.push(t("interactions.disclaimer"));
   return lines.join("\n");
 }
+
+// ─── Allergies (F3) ────────────────────────────────────────────────────────
+// Reuses the same NLM ingredient pipeline: an allergy can be pinned to an
+// ingredient RxCUI (searchable below) or stay free text (not checkable).
+
+export interface IngredientSuggestion {
+  rxcui: string;
+  name: string;
+}
+
+/**
+ * Case/accent-insensitive ingredient search over the bundled NLM names.
+ * Powers the allergy-entry autocomplete.
+ */
+export function searchIngredients(query: string, limit = 6): IngredientSuggestion[] {
+  const q = query
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+  if (q.length < 2) return [];
+  const { names } = getDb();
+  const starts: IngredientSuggestion[] = [];
+  const contains: IngredientSuggestion[] = [];
+  for (const [rxcui, name] of Object.entries(names)) {
+    const n = name.toLowerCase();
+    const i = n.indexOf(q);
+    if (i === -1) continue;
+    (i === 0 ? starts : contains).push({ rxcui, name });
+    if (starts.length >= limit) break;
+  }
+  return [...starts, ...contains].slice(0, limit);
+}
+
+export interface AllergyConflict {
+  /** Allergy display name as the user recorded it. */
+  allergyName: string;
+  /** The offending ingredient's display name. */
+  ingredientName: string;
+}
+
+/**
+ * Ingredients of the candidate med (by SXDG RxCUI) that match a recorded
+ * allergy's ingredient RxCUI. Free-text allergies (no ingRxcui) are never
+ * matched — we don't guess from strings. Informational, never blocking.
+ */
+export function findAllergyConflicts(
+  rxcui: string | undefined,
+  allergies: { name: string; ingRxcui?: string }[]
+): AllergyConflict[] {
+  if (!rxcui) return [];
+  const data = getDb();
+  const ingredients = new Set(data.groups[rxcui] ?? []);
+  if (ingredients.size === 0) return [];
+  const conflicts: AllergyConflict[] = [];
+  for (const allergy of allergies) {
+    if (allergy.ingRxcui && ingredients.has(allergy.ingRxcui)) {
+      conflicts.push({
+        allergyName: allergy.name,
+        ingredientName: data.names[allergy.ingRxcui] ?? allergy.name,
+      });
+    }
+  }
+  return conflicts;
+}
+
+/** Localized, disclaimer-suffixed body for the allergy-conflict alert. */
+export function allergyConflictMessage(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  conflicts: AllergyConflict[]
+): string {
+  const lines = conflicts.map((c) =>
+    t("interactions.allergyLine", { allergy: c.allergyName, ingredient: c.ingredientName })
+  );
+  lines.push("");
+  lines.push(t("interactions.disclaimer"));
+  return lines.join("\n");
+}
