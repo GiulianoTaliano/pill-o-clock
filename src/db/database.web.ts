@@ -9,6 +9,8 @@ import {
   Schedule,
   DoseLog,
   DoseStatus,
+  Profile,
+  Appointment,
 } from "../types";
 
 // ─── LocalStorage helpers ──────────────────────────────────────────────────
@@ -17,6 +19,7 @@ const KEYS = {
   medications: "pilloclock:medications",
   schedules: "pilloclock:schedules",
   doseLogs: "pilloclock:dose_logs",
+  profiles: "pilloclock:profiles",
 };
 
 function load<T>(key: string): T[] {
@@ -242,4 +245,44 @@ export async function clearAllData(): Promise<void> {
   save(KEYS.medications, []);
   save(KEYS.schedules, []);
   save(KEYS.doseLogs, []);
+}
+
+// ─── Profiles (F2 multi-profile — minimal web parity) ──────────────────────
+// The web target is deferred (backlog D5) and this stub predates several
+// native tables (appointments, health, check-ins). The F2 surface below
+// keeps the module interface aligned with database.ts so shared code
+// resolves on every platform.
+
+const DEFAULT_PROFILE: Profile = { id: "default", name: "", color: "blue", createdAt: "1970-01-01T00:00:00.000Z" };
+
+export async function getProfiles(): Promise<Profile[]> {
+  const rows = load<Profile>(KEYS.profiles);
+  return rows.length ? rows : [DEFAULT_PROFILE];
+}
+
+export async function insertProfile(profile: Profile): Promise<void> {
+  save(KEYS.profiles, [...(await getProfiles()), profile]);
+}
+
+export async function updateProfile(profile: Profile): Promise<void> {
+  save(KEYS.profiles, (await getProfiles()).map((p) => (p.id === profile.id ? profile : p)));
+}
+
+export async function deleteProfileData(profileId: string): Promise<void> {
+  if (profileId === "default") throw new Error("The default profile cannot be deleted");
+  save(KEYS.profiles, (await getProfiles()).filter((p) => p.id !== profileId));
+}
+
+/** Web keeps a single implicit profile — active getters delegate. */
+export async function getActiveMedications(): Promise<Medication[]> {
+  return getMedications();
+}
+
+/** Appointments are not persisted on web (pre-existing stub gap). */
+export async function getAppointments(): Promise<Appointment[]> {
+  return [];
+}
+
+export async function getActiveAppointments(): Promise<Appointment[]> {
+  return [];
 }

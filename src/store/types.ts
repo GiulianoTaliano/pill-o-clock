@@ -1,4 +1,4 @@
-import type { Medication, Schedule, DoseLog, TodayDose, Appointment, AppointmentDocument, HealthMeasurement, MeasurementType, DailyCheckin, SkipReason } from "../types";
+import type { Medication, Schedule, DoseLog, TodayDose, Appointment, AppointmentDocument, HealthMeasurement, MeasurementType, DailyCheckin, SkipReason, Profile } from "../types";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 
@@ -81,6 +81,18 @@ export interface UISlice {
   snoozedTimes: Record<string, string>;
 }
 
+export interface ProfilesSlice {
+  profiles: Profile[];
+  /** Scopes UI lists only — alarms always cover every profile. */
+  activeProfileId: string;
+  loadProfiles: () => Promise<void>;
+  addProfile: (name: string, color: string) => Promise<Profile>;
+  renameProfile: (id: string, name: string, color?: string) => Promise<void>;
+  switchProfile: (id: string) => Promise<void>;
+  /** Deletes the profile AND all its data, cancelling its alarms first. */
+  removeProfile: (id: string) => Promise<void>;
+}
+
 export interface CoreSlice {
   todayLogs: DoseLog[];
   isLoading: boolean;
@@ -97,4 +109,4 @@ export interface CoreSlice {
 
 // ─── Combined state ────────────────────────────────────────────────────────
 
-export type AppState = MedicationsSlice & AppointmentsSlice & HealthSlice & UISlice & CoreSlice;
+export type AppState = MedicationsSlice & AppointmentsSlice & HealthSlice & UISlice & ProfilesSlice & CoreSlice;

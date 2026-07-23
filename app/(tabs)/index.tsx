@@ -15,6 +15,7 @@ import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
 import { CheckinModal } from "../../components/CheckinModal";
 import { AppointmentMiniCard } from "../../components/AppointmentMiniCard";
+import { ProfileChip } from "../../components/ProfileChip";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { TodayDose, SkipReason } from "../../src/types";
 import { CATEGORY_CONFIG, getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../../src/utils";
@@ -225,6 +226,10 @@ export default function HomeScreen() {
         <View>
           <Text className="text-2xl font-black text-text">{t('home.title')}</Text>
           <Text className="text-sm text-muted mt-0.5">{todayCap}</Text>
+          {/* Multi-profile switcher (F2) — renders only with >1 profile. */}
+          <View className="mt-2 self-start">
+            <ProfileChip />
+          </View>
         </View>
         {/* Labeled nav shortcuts. Calendar (dose calendar) & Appointments
             have no tab — visible text labels make them discoverable (audit UX

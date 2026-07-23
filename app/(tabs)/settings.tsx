@@ -30,6 +30,9 @@ import {
 } from "../../src/services/appLock";
 import { PinModal } from "../../components/PinModal";
 import { isHealthSyncSupported, isHealthSyncEnabled, enableHealthSync, disableHealthSync } from "../../src/services/healthSync";
+import { ProfileModal } from "../../components/ProfileModal";
+import { MEDICATION_COLORS } from "../../src/utils";
+import type { Profile } from "../../src/types";
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -138,6 +141,42 @@ export default function SettingsScreen() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [generatingSnapshot, setGeneratingSnapshot] = useState(false);
   const { showToast } = useToast();
+
+  // Multi-profile (F2)
+  const profiles = useAppStore((s) => s.profiles);
+  const activeProfileId = useAppStore((s) => s.activeProfileId);
+  const switchProfile = useAppStore((s) => s.switchProfile);
+  const addProfile = useAppStore((s) => s.addProfile);
+  const renameProfile = useAppStore((s) => s.renameProfile);
+  const removeProfile = useAppStore((s) => s.removeProfile);
+  const loadProfiles = useAppStore((s) => s.loadProfiles);
+  /** null = closed; "new" = create mode; otherwise the profile being edited. */
+  const [profileModal, setProfileModal] = useState<"new" | Profile | null>(null);
+
+  useEffect(() => {
+    loadProfiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const profileDisplayName = (p: Profile) => p.name || t("profiles.me");
+
+  async function handleProfileSave(name: string, color: string) {
+    const editing = profileModal;
+    setProfileModal(null);
+    if (editing === "new") {
+      const p = await addProfile(name, color);
+      await switchProfile(p.id);
+      showToast(t("profiles.switchedTo", { name: name || t("profiles.me") }), "success");
+    } else if (editing) {
+      await renameProfile(editing.id, name, color);
+    }
+  }
+
+  async function handleProfileDelete(id: string) {
+    setProfileModal(null);
+    await removeProfile(id);
+    showToast(t("profiles.deleted"), "success");
+  }
 
   // Full-screen intent permission (Android 14+ only)
   const [hasFullScreenPerm, setHasFullScreenPerm] = useState<boolean | null>(null);
@@ -546,6 +585,58 @@ export default function SettingsScreen() {
         )}
 
         {/* ─── Your data ─── */}
+        {/* ─── Profiles (F2 multi-profile) ─── */}
+        <SectionHeader title={t("profiles.sectionTitle")} />
+        {/* Safety honesty note: alarms ring for every profile, always. */}
+        <View className="mx-5 mb-2 flex-row items-start gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5">
+          <Ionicons name="information-circle-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
+          <Text className="text-xs text-muted flex-1 leading-5">{t("profiles.alarmsNote")}</Text>
+        </View>
+        <View className="mx-5 mb-2 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+          {profiles.map((p, idx) => (
+            <View key={p.id}>
+              {idx > 0 && <Divider />}
+              <View className="flex-row items-center px-4 py-3">
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={profileDisplayName(p)}
+                  onPress={() => { Haptics.selectionAsync(); switchProfile(p.id); }}
+                  className="flex-1 flex-row items-center gap-3"
+                >
+                  <Ionicons
+                    name={p.id === activeProfileId ? "radio-button-on" : "radio-button-off-outline"}
+                    size={20}
+                    color={p.id === activeProfileId ? theme.primary : theme.muted}
+                  />
+                  <View
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: MEDICATION_COLORS[p.color]?.bg ?? "#3b82f6" }}
+                  />
+                  <Text className="text-[15px] font-semibold text-text flex-1" numberOfLines={1}>
+                    {profileDisplayName(p)}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t("profiles.editTitle")}
+                  onPress={() => setProfileModal(p)}
+                  className="p-2"
+                >
+                  <Ionicons name="pencil-outline" size={18} color={theme.muted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+          <Divider />
+          <SettingRow
+            icon="person-add-outline"
+            iconColor={theme.accent}
+            title={t("profiles.add")}
+            onPress={() => setProfileModal("new")}
+            chevron={false}
+          />
+        </View>
+
         <SectionHeader title={t("settings.sectionData")} />
         {/* Health Connect one-way vitals sync (F2, Android only) */}
         {isHealthSyncSupported() && (
@@ -697,6 +788,15 @@ export default function SettingsScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* Profile create/edit modal (F2 multi-profile) */}
+      <ProfileModal
+        visible={profileModal !== null}
+        profile={profileModal === "new" ? null : profileModal}
+        onSave={handleProfileSave}
+        onDelete={handleProfileDelete}
+        onClose={() => setProfileModal(null)}
+      />
     </SafeAreaView>
   );
 }

@@ -12,7 +12,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { format, subDays } from "date-fns";
 import { Medication, Schedule, DoseLog } from "../types";
-import { getMedications, getSchedulesByMedication, getDoseLogsByDateRange } from "../db/database";
+import { getActiveMedications, getSchedulesByMedication, getDoseLogsByDateRange } from "../db/database";
 import i18n, { getDateLocale } from "../i18n";
 import { toDateString } from "../utils";
 
@@ -73,7 +73,7 @@ export function computeCaregiverSnapshot(
           const log = medLogs.find(
             (l) => l.scheduledDate === todayStr && l.scheduledTime === s.time
           );
-          return { time: s.time, status: log?.status ?? "unlogged" };
+          return { time: s.time, status: log?.status ?? ("unlogged" as const) };
         })
         .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -207,7 +207,7 @@ export async function generateAndShareCaregiverSnapshot(): Promise<void> {
   const todayStr = toDateString(now);
   const fromStr = toDateString(subDays(now, 6));
 
-  const meds = await getMedications();
+  const meds = await getActiveMedications();
   const schedulesByMed = new Map<string, Schedule[]>();
   for (const m of meds) {
     if (m.isActive && !m.isPRN) {

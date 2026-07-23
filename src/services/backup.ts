@@ -20,6 +20,8 @@ import {
   insertAppointmentDocument,
   insertHealthMeasurement,
   upsertDailyCheckin,
+  getProfiles,
+  insertProfile,
 } from "../db/database";
 
 // ─── Zod schemas ───────────────────────────────────────────────────────────
@@ -41,6 +43,18 @@ const medicationSchema = z.object({
   stockAlertThreshold: z.number().optional(),
   photoUri: z.string().optional(),
   isPRN: z.boolean().optional(),
+  renewalDate: z.string().optional(),
+  prnMaxPerDay: z.number().optional(),
+  prnMinIntervalMinutes: z.number().optional(),
+  rxcui: z.string().optional(),
+  profileId: z.string().optional(),
+});
+
+const profileSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  color: z.string(),
+  createdAt: z.string(),
 });
 
 const scheduleSchema = z.object({
@@ -76,6 +90,7 @@ const appointmentSchema = z.object({
   reminderMinutes: z.number().optional(),
   notificationId: z.string().optional(),
   createdAt: z.string(),
+  profileId: z.string().optional(),
 });
 
 const appointmentDocumentSchema = z.object({
@@ -96,6 +111,7 @@ const healthMeasurementSchema = z.object({
   measuredAt: z.string(),
   notes: z.string().optional(),
   createdAt: z.string(),
+  profileId: z.string().optional(),
 });
 
 const dailyCheckinSchema = z.object({
@@ -105,6 +121,7 @@ const dailyCheckinSchema = z.object({
   symptoms: z.array(z.string()),
   notes: z.string().optional(),
   createdAt: z.string(),
+  profileId: z.string().optional(),
 });
 
 const backupSchema = z.object({
@@ -119,6 +136,7 @@ const backupSchema = z.object({
     appointmentDocuments: z.array(appointmentDocumentSchema).default([]),
     healthMeasurements: z.array(healthMeasurementSchema).default([]),
     dailyCheckins: z.array(dailyCheckinSchema).default([]),
+    profiles: z.array(profileSchema).default([]),
   }),
 });
 
@@ -131,7 +149,7 @@ export type BackupData = z.infer<typeof backupSchema>;
 /** Serialises the entire database into a JSON file and lets the user
  *  pick a folder via the system file picker (SAF) to save it. */
 export async function exportBackup(): Promise<void> {
-  const [medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins] = await Promise.all([
+  const [medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins, profiles] = await Promise.all([
     getMedications(),
     getAllSchedules(),
     getAllDoseLogs(),
@@ -139,13 +157,14 @@ export async function exportBackup(): Promise<void> {
     getAllAppointmentDocuments(),
     getHealthMeasurements(undefined, 9999),
     getDailyCheckins(),
+    getProfiles(),
   ]);
 
   const backup: BackupData = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     app: "pill-o-clock",
-    data: { medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins },
+    data: { medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins, profiles },
   };
 
   const json = JSON.stringify(backup, null, 2);
@@ -219,6 +238,14 @@ export async function importBackup(
     await db.withTransactionAsync(async () => {
     if (mode === "replace") {
       await clearAllData();
+    }
+
+    for (const profile of backup.data.profiles) {
+      try {
+        await insertProfile(profile);
+      } catch {
+        // 'default' (or an already-existing profile on merge) — skip.
+      }
     }
 
     for (const med of backup.data.medications) {

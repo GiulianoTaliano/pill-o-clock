@@ -3,7 +3,7 @@ import type { AppState, AppointmentsSlice } from "../types";
 import type { Appointment, AppointmentDocument } from "../../types";
 import { Directory, File, Paths } from "expo-file-system";
 import {
-  getAppointments,
+  getActiveAppointments,
   insertAppointment,
   updateAppointment as updateAppointmentDb,
   deleteAppointment as deleteAppointmentDb,
@@ -37,7 +37,7 @@ export const createAppointmentsSlice: StateCreator<AppState, [], [], Appointment
   appointmentDocuments: [],
 
   async loadAppointments() {
-    const appointments = await getAppointments();
+    const appointments = await getActiveAppointments();
     set({ appointments });
   },
 

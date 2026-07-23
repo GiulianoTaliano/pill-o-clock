@@ -31,6 +31,15 @@ export type MedicationCategory =
   | "vitamina"
   | "otro";
 
+/** A person (or pet) whose regimen lives on this device (F2 multi-profile). */
+export interface Profile {
+  id: string;
+  /** Empty string on the built-in 'default' profile → shown as localized "Me". */
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
 export interface Medication {
   id: string;
   name: string;
@@ -67,6 +76,8 @@ export interface Medication {
   prnMinIntervalMinutes?: number;
   /** RxNorm SXDG id from the autocomplete pick — powers duplicate-therapy checks. */
   rxcui?: string;
+  /** Owning profile (F2 multi-profile). Defaults to the active profile on insert. */
+  profileId?: string;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────
@@ -136,6 +147,8 @@ export interface Appointment {
   /** Expo notification identifier for cancellation. */
   notificationId?: string;
   createdAt: string;
+  /** Owning profile (F2 multi-profile). Defaults to the active profile on insert. */
+  profileId?: string;
 }
 
 // ─── Appointment documents ──────────────────────────────────────────────────
@@ -171,6 +184,8 @@ export interface HealthMeasurement {
   measuredAt: string;
   notes?: string;
   createdAt: string;
+  /** Owning profile (F2 multi-profile). Defaults to the active profile on insert. */
+  profileId?: string;
 }
 
 // ─── Daily check-in ────────────────────────────────────────────────────────
@@ -185,6 +200,8 @@ export interface DailyCheckin {
   symptoms: string[];
   notes?: string;
   createdAt: string;
+  /** Owning profile (F2 multi-profile). Defaults to the active profile on insert. */
+  profileId?: string;
 }
 
 // ─── Notification mapping ──────────────────────────────────────────────────

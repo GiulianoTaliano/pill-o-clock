@@ -2,10 +2,10 @@ import type { StateCreator } from "zustand";
 import type { AppState, HealthSlice } from "../types";
 import type { HealthMeasurement, DailyCheckin } from "../../types";
 import {
-  getHealthMeasurements,
+  getActiveHealthMeasurements,
   insertHealthMeasurement,
   deleteHealthMeasurement as deleteHealthMeasurementDb,
-  getDailyCheckins,
+  getActiveDailyCheckins,
   upsertDailyCheckin,
 } from "../../db/database";
 import { generateId, toISOString } from "../../utils";
@@ -16,7 +16,7 @@ export const createHealthSlice: StateCreator<AppState, [], [], HealthSlice> = (s
   dailyCheckins: [],
 
   async loadHealthMeasurements(type) {
-    const items = await getHealthMeasurements(type);
+    const items = await getActiveHealthMeasurements(type);
     set({ healthMeasurements: items });
   },
 
@@ -38,7 +38,7 @@ export const createHealthSlice: StateCreator<AppState, [], [], HealthSlice> = (s
   },
 
   async loadDailyCheckins() {
-    const items = await getDailyCheckins();
+    const items = await getActiveDailyCheckins();
     set({ dailyCheckins: items });
   },
 

@@ -6,7 +6,7 @@ import type { Medication, Schedule, DoseLog } from "../../types";
 import { storage } from "../../storage";
 import { STORAGE_KEYS } from "../../config";
 import {
-  getMedications,
+  getActiveMedications,
   getSchedulesByMedication,
   getAllActiveSchedules,
   insertMedication,
@@ -80,7 +80,7 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
     }
 
     const allSchedules = await getAllActiveSchedules();
-    const allMeds = await getMedications();
+    const allMeds = await getActiveMedications();
     set({ medications: allMeds, schedules: allSchedules });
 
     return med;
@@ -134,7 +134,7 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
     );
 
     const allSchedules = await getAllActiveSchedules();
-    const allMeds = await getMedications();
+    const allMeds = await getActiveMedications();
     set({ medications: allMeds, schedules: allSchedules });
   },
 
@@ -147,7 +147,7 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
     if (med) await cancelRenewalReminders(med);
     await deleteMedication(id);
     const allSchedules = await getAllActiveSchedules();
-    const allMeds = await getMedications();
+    const allMeds = await getActiveMedications();
     set({ medications: allMeds, schedules: allSchedules });
   },
 
@@ -167,7 +167,7 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
       await Promise.all(schedules.map((s) => _scheduleNotificationsForSchedule(updated, s)));
     }
 
-    const allMeds = await getMedications();
+    const allMeds = await getActiveMedications();
     set({ medications: allMeds });
   },
 
@@ -221,13 +221,13 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
           ) {
             await scheduleStockAlert({ ...latestMed, stockQuantity: newQty });
           }
-          const allMeds = await getMedications();
+          const allMeds = await getActiveMedications();
           set({ medications: allMeds });
         } else if (!isTaken) {
           // taken → skipped: give the pill back
           const newQty = latestMed.stockQuantity + 1;
           await updateMedicationStock(latestMed.id, newQty);
-          const allMeds = await getMedications();
+          const allMeds = await getActiveMedications();
           set({ medications: allMeds });
         }
       }
@@ -339,7 +339,7 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
         dose.medication;
       if (latestMed.stockQuantity != null) {
         await updateMedicationStock(latestMed.id, latestMed.stockQuantity + 1);
-        const allMeds = await getMedications();
+        const allMeds = await getActiveMedications();
         set({ medications: allMeds });
       }
     }
@@ -357,7 +357,10 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
   // ── History ────────────────────────────────────────────────────────────
 
   async getHistoryLogs(from, to) {
-    return getDoseLogsByDateRange(from, to);
+    // Scope to the active profile via its medications (F2 multi-profile).
+    const logs = await getDoseLogsByDateRange(from, to);
+    const medIds = new Set(get().medications.map((m) => m.id));
+    return logs.filter((l) => medIds.has(l.medicationId));
   },
 
   // ── Helper ────────────────────────────────────────────────────────────
@@ -407,7 +410,7 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
       ) {
         await scheduleStockAlert({ ...medication, stockQuantity: newQty });
       }
-      const allMeds = await getMedications();
+      const allMeds = await getActiveMedications();
       set({ medications: allMeds });
     }
 

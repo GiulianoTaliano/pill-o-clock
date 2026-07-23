@@ -490,6 +490,21 @@ const en: TranslationShape = {
   },
 
   // ─── PDF report ─────────────────────────────────────────────────────────
+  profiles: {
+    sectionTitle: "Profiles",
+    me: "Me",
+    add: "Add profile",
+    addTitle: "New profile",
+    editTitle: "Edit profile",
+    namePlaceholder: "Name (e.g. Mom)",
+    switcherLabel: "Switch profile",
+    switchedTo: "Viewing {{name}}'s profile",
+    deleted: "Profile deleted",
+    deleteConfirmTitle: "Delete this profile?",
+    deleteConfirmMsg: "\"{{name}}\" will be removed along with all their medications, alarms, appointments and records. This cannot be undone.",
+    deleteConfirmButton: "Delete everything",
+    alarmsNote: "Alarms ring for every profile, no matter which one you're viewing.",
+  },
   snapshot: {
     title: "Caregiver summary",
     generatedAt: "Generated: {{date}}",

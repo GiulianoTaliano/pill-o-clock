@@ -23,6 +23,14 @@ jest.mock("../../src/db/database", () => ({
   deleteDoseLog: jest.fn().mockResolvedValue(undefined),
   getDoseLogByScheduleAndDate: jest.fn().mockResolvedValue(null),
   getMedications: jest.fn().mockResolvedValue([]),
+  getActiveMedications: jest.fn().mockResolvedValue([]),
+  getActiveAppointments: jest.fn().mockResolvedValue([]),
+  getActiveHealthMeasurements: jest.fn().mockResolvedValue([]),
+  getActiveDailyCheckins: jest.fn().mockResolvedValue([]),
+  getProfiles: jest.fn().mockResolvedValue([{ id: "default", name: "", color: "blue", createdAt: "2026-01-01" }]),
+  insertProfile: jest.fn().mockResolvedValue(undefined),
+  updateProfile: jest.fn().mockResolvedValue(undefined),
+  deleteProfileData: jest.fn().mockResolvedValue(undefined),
   getAllActiveSchedules: jest.fn().mockResolvedValue([]),
   updateMedicationStock: jest.fn().mockResolvedValue(undefined),
   getDoseLogsByDate: jest.fn().mockResolvedValue([]),
@@ -41,6 +49,7 @@ jest.mock("../../src/db/database", () => ({
 jest.mock("../../src/services/notifications", () => ({
   cancelDoseNotifications: jest.fn().mockResolvedValue(undefined),
   cancelScheduleNotifications: jest.fn().mockResolvedValue(undefined),
+  cancelAppointmentNotification: jest.fn().mockResolvedValue(undefined),
   scheduleDoseChain: jest.fn().mockResolvedValue(undefined),
   snoozeDose: jest.fn().mockResolvedValue(undefined),
   scheduleStockAlert: jest.fn().mockResolvedValue(undefined),
@@ -75,6 +84,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockLoadTodayLogs.mockResolvedValue(undefined);
   jest.mocked(db.getMedications).mockResolvedValue([]);
+  jest.mocked(db.getActiveMedications).mockResolvedValue([]);
   jest.mocked(db.getAllActiveSchedules).mockResolvedValue([]);
   jest.mocked(db.getDoseLogsByDate).mockResolvedValue([]);
 });
@@ -119,7 +129,7 @@ describe("addMedication", () => {
   });
 
   it("reloads medications and schedules after insertion", async () => {
-    jest.mocked(db.getMedications).mockResolvedValue([makeMedication()]);
+    jest.mocked(db.getActiveMedications).mockResolvedValue([makeMedication()]);
     jest.mocked(db.getAllActiveSchedules).mockResolvedValue([makeSchedule()]);
 
     const store = makeTestStore();
@@ -148,13 +158,13 @@ describe("deleteMedication", () => {
 
   it("reloads state after deletion", async () => {
     jest.mocked(db.getSchedulesByMedication).mockResolvedValue([]);
-    jest.mocked(db.getMedications).mockResolvedValue([]);
+    jest.mocked(db.getActiveMedications).mockResolvedValue([]);
     jest.mocked(db.getAllActiveSchedules).mockResolvedValue([]);
 
     const store = makeTestStore({ medications: [makeMedication()] });
     await store.getState().deleteMedication("med-1");
 
-    expect(jest.mocked(db.getMedications)).toHaveBeenCalled();
+    expect(jest.mocked(db.getActiveMedications)).toHaveBeenCalled();
   });
 });
 
@@ -295,7 +305,7 @@ describe("logPRNDose", () => {
 
   it("decrements PRN medication stock", async () => {
     const med = makeMedication({ isPRN: true, stockQuantity: 5 });
-    jest.mocked(db.getMedications).mockResolvedValue([{ ...med, stockQuantity: 4 }]);
+    jest.mocked(db.getActiveMedications).mockResolvedValue([{ ...med, stockQuantity: 4 }]);
     const store = makeTestStore({ medications: [med] });
 
     await store.getState().logPRNDose(med);
@@ -315,15 +325,26 @@ describe("logPRNDose", () => {
 // ─── getHistoryLogs ────────────────────────────────────────────────────────
 
 describe("getHistoryLogs", () => {
-  it("delegates to getDoseLogsByDateRange with the given date range", async () => {
+  it("returns logs of the active profile's meds for the given range", async () => {
     const logs = [makeDoseLog()];
     jest.mocked(db.getDoseLogsByDateRange).mockResolvedValue(logs);
 
     const store = makeTestStore();
+    store.setState({ medications: [makeMedication({ id: logs[0].medicationId })] });
     const result = await store.getState().getHistoryLogs("2025-06-01", "2025-06-16");
 
     expect(jest.mocked(db.getDoseLogsByDateRange)).toHaveBeenCalledWith("2025-06-01", "2025-06-16");
     expect(result).toEqual(logs);
+  });
+
+  it("filters out other profiles' logs (F2 multi-profile)", async () => {
+    jest.mocked(db.getDoseLogsByDateRange).mockResolvedValue([makeDoseLog({ medicationId: "other-profile-med" })]);
+
+    const store = makeTestStore();
+    store.setState({ medications: [] });
+    const result = await store.getState().getHistoryLogs("2025-06-01", "2025-06-16");
+
+    expect(result).toEqual([]);
   });
 });
 

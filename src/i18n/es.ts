@@ -488,6 +488,21 @@ const es = {
   },
 
   // ─── Informe PDF ────────────────────────────────────────────────────────
+  profiles: {
+    sectionTitle: "Perfiles",
+    me: "Yo",
+    add: "Agregar perfil",
+    addTitle: "Nuevo perfil",
+    editTitle: "Editar perfil",
+    namePlaceholder: "Nombre (ej.: Mamá)",
+    switcherLabel: "Cambiar de perfil",
+    switchedTo: "Viendo el perfil de {{name}}",
+    deleted: "Perfil eliminado",
+    deleteConfirmTitle: "¿Eliminar este perfil?",
+    deleteConfirmMsg: "Se eliminará \"{{name}}\" con todos sus medicamentos, alarmas, turnos y registros. Esta acción no se puede deshacer.",
+    deleteConfirmButton: "Eliminar todo",
+    alarmsNote: "Las alarmas suenan para todos los perfiles, sin importar cuál estés viendo.",
+  },
   snapshot: {
     title: "Resumen para cuidadores",
     generatedAt: "Generado: {{date}}",

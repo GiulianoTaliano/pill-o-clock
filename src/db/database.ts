@@ -3,8 +3,9 @@ import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import { File } from "expo-file-system";
 import { drizzle } from "drizzle-orm/expo-sqlite";
-import { eq, and, gte, lte, desc, asc } from "drizzle-orm";
+import { eq, ne, and, gte, lte, desc, asc } from "drizzle-orm";
 import * as schema from "./schema";
+import { getActiveProfileId, DEFAULT_PROFILE_ID } from "../services/profileStore";
 import type {
   Medication,
   Schedule,
@@ -18,6 +19,7 @@ import type {
   MeasurementType,
   DailyCheckin,
   SkipReason,
+  Profile,
 } from "../types";
 
 // ─── Open DB (encrypted at rest via SQLCipher, F1) ─────────────────────────
@@ -164,6 +166,7 @@ function toMedication(row: typeof schema.medications.$inferSelect): Medication {
     prnMaxPerDay: row.prnMaxPerDay ?? undefined,
     prnMinIntervalMinutes: row.prnMinIntervalMinutes ?? undefined,
     rxcui: row.rxcui ?? undefined,
+    profileId: row.profileId,
   };
 }
 
@@ -215,6 +218,7 @@ function toAppointment(row: typeof schema.appointments.$inferSelect): Appointmen
     reminderMinutes: row.reminderMinutes ?? undefined,
     notificationId: row.notificationId ?? undefined,
     createdAt: row.createdAt,
+    profileId: row.profileId,
   };
 }
 
@@ -239,6 +243,7 @@ function toHealthMeasurement(row: typeof schema.healthMeasurements.$inferSelect)
     measuredAt: row.measuredAt,
     notes: row.notes ?? undefined,
     createdAt: row.createdAt,
+    profileId: row.profileId,
   };
 }
 
@@ -257,6 +262,7 @@ function toDailyCheckin(row: typeof schema.dailyCheckins.$inferSelect): DailyChe
     symptoms,
     notes: row.notes ?? undefined,
     createdAt: row.createdAt,
+    profileId: row.profileId,
   };
 }
 
@@ -264,6 +270,13 @@ function toDailyCheckin(row: typeof schema.dailyCheckins.$inferSelect): DailyChe
 
 export async function initDatabase(): Promise<void> {
   expoDb.execSync(`
+    CREATE TABLE IF NOT EXISTS profiles (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      color      TEXT NOT NULL DEFAULT 'blue',
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS medications (
       id            TEXT PRIMARY KEY,
       name          TEXT NOT NULL,
@@ -285,7 +298,8 @@ export async function initDatabase(): Promise<void> {
       renewal_notif_ids TEXT,
       prn_max_per_day INTEGER,
       prn_min_interval_minutes INTEGER,
-      rxcui         TEXT
+      rxcui         TEXT,
+      profile_id    TEXT NOT NULL DEFAULT 'default'
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -322,7 +336,8 @@ export async function initDatabase(): Promise<void> {
       time              TEXT,
       reminder_minutes  INTEGER,
       notification_id   TEXT,
-      created_at        TEXT NOT NULL
+      created_at        TEXT NOT NULL,
+      profile_id        TEXT NOT NULL DEFAULT 'default'
     );
 
     CREATE TABLE IF NOT EXISTS health_measurements (
@@ -332,17 +347,22 @@ export async function initDatabase(): Promise<void> {
       value2       REAL,
       measured_at  TEXT NOT NULL,
       notes        TEXT,
-      created_at   TEXT NOT NULL
+      created_at   TEXT NOT NULL,
+      profile_id   TEXT NOT NULL DEFAULT 'default'
     );
 
     CREATE TABLE IF NOT EXISTS daily_checkins (
       id          TEXT PRIMARY KEY,
-      date        TEXT NOT NULL UNIQUE,
+      date        TEXT NOT NULL,
       mood        INTEGER NOT NULL,
       symptoms    TEXT NOT NULL DEFAULT '[]',
       notes       TEXT,
-      created_at  TEXT NOT NULL
+      created_at  TEXT NOT NULL,
+      profile_id  TEXT NOT NULL DEFAULT 'default'
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_checkin_profile_date
+      ON daily_checkins(profile_id, date);
   `);
 
   const [{ user_version }] = expoDb.getAllSync<{ user_version: number }>(
@@ -486,12 +506,114 @@ export async function initDatabase(): Promise<void> {
     try { expoDb.execSync("ALTER TABLE medications ADD COLUMN rxcui TEXT"); } catch { /* exists */ }
     expoDb.execSync("PRAGMA user_version = 13");
   }
+
+  if (user_version < 14) {
+    // F2 multi-profile: profiles table + profile_id on person-owned roots.
+    // The 'default' profile always exists; its empty name displays as a
+    // localized "Me". Children (schedules, dose_logs, appointment_documents)
+    // inherit scope through their medication/appointment FK.
+    expoDb.execSync(`
+      CREATE TABLE IF NOT EXISTS profiles (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        color      TEXT NOT NULL DEFAULT 'blue',
+        created_at TEXT NOT NULL
+      );
+    `);
+    expoDb.execSync(
+      `INSERT OR IGNORE INTO profiles (id, name, color, created_at)
+       VALUES ('default', '', 'blue', '${new Date().toISOString()}');`
+    );
+    for (const table of ["medications", "appointments", "health_measurements"]) {
+      try {
+        expoDb.execSync(
+          `ALTER TABLE ${table} ADD COLUMN profile_id TEXT NOT NULL DEFAULT 'default'`
+        );
+      } catch { /* exists */ }
+    }
+    // daily_checkins had UNIQUE(date); per-profile it must be
+    // UNIQUE(profile_id, date) — SQLite requires a table rebuild. Guarded on
+    // the column so a crash-interrupted run (rebuild done, user_version not
+    // yet bumped) never rebuilds twice and corrupts profile assignments.
+    const checkinCols = expoDb.getAllSync<{ name: string }>(
+      "PRAGMA table_info(daily_checkins)"
+    );
+    if (!checkinCols.some((c) => c.name === "profile_id")) {
+      expoDb.execSync(`
+        DROP TABLE IF EXISTS daily_checkins_v14;
+        CREATE TABLE daily_checkins_v14 (
+          id         TEXT PRIMARY KEY,
+          date       TEXT NOT NULL,
+          mood       INTEGER NOT NULL,
+          symptoms   TEXT NOT NULL DEFAULT '[]',
+          notes      TEXT,
+          created_at TEXT NOT NULL,
+          profile_id TEXT NOT NULL DEFAULT 'default'
+        );
+        INSERT INTO daily_checkins_v14 (id, date, mood, symptoms, notes, created_at)
+          SELECT id, date, mood, symptoms, notes, created_at FROM daily_checkins;
+        DROP TABLE daily_checkins;
+        ALTER TABLE daily_checkins_v14 RENAME TO daily_checkins;
+      `);
+    }
+    expoDb.execSync(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_checkin_profile_date ON daily_checkins(profile_id, date);"
+    );
+    expoDb.execSync("PRAGMA user_version = 14");
+  }
+}
+
+
+// ─── Profiles (F2 multi-profile) ───────────────────────────────────────────
+// The 'default' profile always exists. UI lists use the getActive* getters
+// below; alarm/background paths keep the unfiltered getters so every
+// profile's doses keep ringing regardless of who is on screen.
+
+export async function getProfiles(): Promise<Profile[]> {
+  const rows = db.select().from(schema.profiles).orderBy(asc(schema.profiles.createdAt)).all();
+  return rows.map((r) => ({ id: r.id, name: r.name, color: r.color, createdAt: r.createdAt }));
+}
+
+export async function insertProfile(profile: Profile): Promise<void> {
+  db.insert(schema.profiles).values(profile).run();
+}
+
+export async function updateProfile(profile: Profile): Promise<void> {
+  db.update(schema.profiles)
+    .set({ name: profile.name, color: profile.color })
+    .where(eq(schema.profiles.id, profile.id))
+    .run();
+}
+
+/**
+ * Deletes a profile row and its person-owned data (appointments, health
+ * measurements, check-ins). Medications are NOT touched here — the caller
+ * must delete them first through the store so alarms and scheduled
+ * notifications get cancelled (patient safety).
+ */
+export async function deleteProfileData(profileId: string): Promise<void> {
+  if (profileId === DEFAULT_PROFILE_ID) {
+    throw new Error("The default profile cannot be deleted");
+  }
+  db.delete(schema.appointments).where(eq(schema.appointments.profileId, profileId)).run();
+  db.delete(schema.healthMeasurements).where(eq(schema.healthMeasurements.profileId, profileId)).run();
+  db.delete(schema.dailyCheckins).where(eq(schema.dailyCheckins.profileId, profileId)).run();
+  db.delete(schema.profiles).where(eq(schema.profiles.id, profileId)).run();
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────
 
 export async function getMedications(): Promise<Medication[]> {
   const rows = db.select().from(schema.medications).orderBy(desc(schema.medications.createdAt)).all();
+  return rows.map(toMedication);
+}
+
+/** Medications of the active profile only — UI lists. Alarms use getMedications(). */
+export async function getActiveMedications(): Promise<Medication[]> {
+  const rows = db.select().from(schema.medications)
+    .where(eq(schema.medications.profileId, getActiveProfileId()))
+    .orderBy(desc(schema.medications.createdAt))
+    .all();
   return rows.map(toMedication);
 }
 
@@ -523,6 +645,7 @@ export async function insertMedication(med: Medication): Promise<void> {
     prnMaxPerDay: med.prnMaxPerDay ?? null,
     prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
     rxcui: med.rxcui ?? null,
+    profileId: med.profileId ?? getActiveProfileId(),
   }).run();
 }
 
@@ -751,12 +874,23 @@ export async function clearAllData(): Promise<void> {
   db.delete(schema.appointments).run();
   db.delete(schema.healthMeasurements).run();
   db.delete(schema.dailyCheckins).run();
+  // Extra profiles go too; the built-in 'default' row must survive.
+  db.delete(schema.profiles).where(ne(schema.profiles.id, DEFAULT_PROFILE_ID)).run();
 }
 
 // ─── Appointments ──────────────────────────────────────────────────────────
 
 export async function getAppointments(): Promise<Appointment[]> {
   const rows = db.select().from(schema.appointments)
+    .orderBy(asc(schema.appointments.date), asc(schema.appointments.time))
+    .all();
+  return rows.map(toAppointment);
+}
+
+/** Appointments of the active profile only — UI lists. */
+export async function getActiveAppointments(): Promise<Appointment[]> {
+  const rows = db.select().from(schema.appointments)
+    .where(eq(schema.appointments.profileId, getActiveProfileId()))
     .orderBy(asc(schema.appointments.date), asc(schema.appointments.time))
     .all();
   return rows.map(toAppointment);
@@ -776,6 +910,7 @@ export async function insertAppointment(appt: Appointment): Promise<void> {
     reminderMinutes: appt.reminderMinutes ?? null,
     notificationId: appt.notificationId ?? null,
     createdAt: appt.createdAt,
+    profileId: appt.profileId ?? getActiveProfileId(),
   }).run();
 }
 
@@ -862,6 +997,20 @@ export async function getHealthMeasurements(
   return rows.map(toHealthMeasurement);
 }
 
+/** Measurements of the active profile only — UI lists. */
+export async function getActiveHealthMeasurements(
+  type?: MeasurementType,
+  limit = 60
+): Promise<HealthMeasurement[]> {
+  const scope = eq(schema.healthMeasurements.profileId, getActiveProfileId());
+  const rows = db.select().from(schema.healthMeasurements)
+    .where(type ? and(scope, eq(schema.healthMeasurements.type, type)) : scope)
+    .orderBy(desc(schema.healthMeasurements.measuredAt))
+    .limit(limit)
+    .all();
+  return rows.map(toHealthMeasurement);
+}
+
 export async function insertHealthMeasurement(m: HealthMeasurement): Promise<void> {
   db.insert(schema.healthMeasurements).values({
     id: m.id,
@@ -871,6 +1020,7 @@ export async function insertHealthMeasurement(m: HealthMeasurement): Promise<voi
     measuredAt: m.measuredAt,
     notes: m.notes ?? null,
     createdAt: m.createdAt,
+    profileId: m.profileId ?? getActiveProfileId(),
   }).run();
 }
 
@@ -898,9 +1048,31 @@ export async function getDailyCheckins(
   return rows.map(toDailyCheckin);
 }
 
+/** Check-ins of the active profile only — UI lists. */
+export async function getActiveDailyCheckins(
+  fromDate?: string,
+  toDate?: string
+): Promise<DailyCheckin[]> {
+  const scope = eq(schema.dailyCheckins.profileId, getActiveProfileId());
+  if (fromDate && toDate) {
+    const rows = db.select().from(schema.dailyCheckins)
+      .where(and(scope, gte(schema.dailyCheckins.date, fromDate), lte(schema.dailyCheckins.date, toDate)))
+      .orderBy(desc(schema.dailyCheckins.date))
+      .all();
+    return rows.map(toDailyCheckin);
+  }
+  const rows = db.select().from(schema.dailyCheckins)
+    .where(scope)
+    .orderBy(desc(schema.dailyCheckins.date))
+    .limit(90)
+    .all();
+  return rows.map(toDailyCheckin);
+}
+
 export async function getDailyCheckinByDate(date: string): Promise<DailyCheckin | null> {
+  // One check-in per person per day — scoped to the active profile.
   const row = db.select().from(schema.dailyCheckins)
-    .where(eq(schema.dailyCheckins.date, date))
+    .where(and(eq(schema.dailyCheckins.profileId, getActiveProfileId()), eq(schema.dailyCheckins.date, date)))
     .get();
   return row ? toDailyCheckin(row) : null;
 }
@@ -913,8 +1085,9 @@ export async function upsertDailyCheckin(checkin: DailyCheckin): Promise<void> {
     symptoms: JSON.stringify(checkin.symptoms),
     notes: checkin.notes ?? null,
     createdAt: checkin.createdAt,
+    profileId: checkin.profileId ?? getActiveProfileId(),
   }).onConflictDoUpdate({
-    target: schema.dailyCheckins.date,
+    target: [schema.dailyCheckins.profileId, schema.dailyCheckins.date],
     set: {
       mood: checkin.mood,
       symptoms: JSON.stringify(checkin.symptoms),
