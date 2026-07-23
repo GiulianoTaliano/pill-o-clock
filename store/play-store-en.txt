@@ -7,13 +7,13 @@
 Pill O-Clock: Pill Reminder
 
 ── SHORT DESCRIPTION (max 80 characters) ───────────────
-Medication alarm & health diary. No account required — 100% free & private.
+Medication alarm & health diary. No account required — free & private.
 
 ── FULL DESCRIPTION (max 4000 characters) ──────────────
 
 💊 Pill O-Clock — The medication alarm that actually rings
 
-Never miss a dose again. Pill O-Clock is a complete personal health assistant: it fires a real alarm sound when it's time to take your medication, tracks every dose you take (or skip), monitors your health measurements with trend charts, and records how you feel each day — all stored privately on your phone. No account. No subscription. No data leaving your device. Ever.
+Never miss a dose again. Pill O-Clock is a complete personal health assistant: it fires a real alarm sound when it's time to take your medication, tracks every dose you take (or skip), monitors your health measurements with trend charts, and records how you feel each day — all stored privately on your phone. No account. No subscription. Your health data never leaves your device.
 
 ▸ ALARMS THAT ACTUALLY RING
 Most reminder apps send a silent notification that's easy to ignore. Pill O-Clock rings a full alarm sound that repeats every 5 minutes until you respond. Take the dose, snooze for 15 minutes, or skip — all directly from the notification or lock screen, without opening the app.
@@ -43,7 +43,7 @@ Monthly view that groups your doses by day and status — pending, taken, skippe
 Keep all your upcoming and past medical appointments organized: doctor name, location with map pin, date/time, notes, and a configurable reminder (1 hour, 2 hours, or 1 day before).
 
 ▸ YOUR DATA IS YOURS — ALWAYS
-Everything is stored in a private local database on your device. Nothing is ever sent to external servers. No account, no cloud sync, no analytics, no ads. Export a full backup (medications, history, appointments, health data, and diary) at any time and restore it if you switch phones.
+Your health data — medications, history, measurements, and diary — lives in a private local database and never leaves your device. The only exceptions: technical crash diagnostics (which never include your health data) and, if you add a location to an appointment, the map lookup. No account, no cloud sync, no usage analytics, no ads. Export a full backup (medications, history, appointments, health data, and diary) at any time and restore it if you switch phones.
 
 ▸ SPANISH & ENGLISH
 The app automatically detects your device language. Spanish and English are both fully supported, and you can switch languages manually from Settings at any time.
@@ -100,10 +100,12 @@ privacy@pilloclock.app
 https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html
 
 ── DATA SAFETY FORM (answers) ───────────────────────────
-Does the app collect data?           → No (all data is local-only)
-Does the app share data?             → No
-Can users request data deletion?     → Yes (Settings → Delete all data)
-Is data encrypted in transit?        → N/A (no data is transmitted)
+(corrected & submitted to Play 2026-07-22 — see audit C6/H14/H15)
+Does the app collect/share data?     → Yes — Location (precise; appointment map picker → Google Maps)
+                                       and Crash logs + Diagnostics (Sentry).
+                                       All other health data stays on-device only.
+Can users request data deletion?     → No request mechanism (data is local; removed on uninstall)
+Is data encrypted in transit?        → Yes (HTTPS to Google / Sentry)
 Does it follow Families guidelines?  → No
 
 ── FEATURE GRAPHIC SUGGESTED COPY ──────────────────────
