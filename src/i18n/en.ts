@@ -34,6 +34,16 @@ const en: TranslationShape = {
     capsulas: "caps.",
   },
 
+  // Full unit names for running text (alarm, emergency, TTS) — pluralized by amount.
+  dosageUnitsLong: {
+    gotas_one: "drop",
+    gotas_other: "drops",
+    comprimidos_one: "tablet",
+    comprimidos_other: "tablets",
+    capsulas_one: "capsule",
+    capsulas_other: "capsules",
+  },
+
   // ─── Categories ───────────────────────────────────────────────────────────
   categories: {
     antibiotico: "Antibiotic",

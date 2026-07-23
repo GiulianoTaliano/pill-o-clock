@@ -20,6 +20,7 @@ import {
   getProfiles,
 } from "../src/db/database";
 import { getActiveProfileId } from "../src/services/profileStore";
+import { getLocalizedDosageLong } from "../src/utils";
 import type { Allergy, Medication, Profile } from "../src/types";
 
 export default function EmergencyScreen() {
@@ -105,7 +106,7 @@ export default function EmergencyScreen() {
           ) : (
             meds.map((m) => (
               <Text key={m.id} className="text-lg font-semibold text-text leading-7">
-                • {m.name} — {m.dosage}
+                • {m.name} — {getLocalizedDosageLong(m, t)}
               </Text>
             ))
           )}
