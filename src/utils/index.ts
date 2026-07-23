@@ -130,6 +130,40 @@ export function getLocalizedDosage(med: { dosageAmount: number; dosageUnit: Dosa
   return `${med.dosageAmount} ${getDosageLabel(med.dosageUnit, t)}`;
 }
 
+/**
+ * Like getLocalizedDosage but with the FULL unit name, singular/plural by
+ * amount ("1 comprimido" / "2 comprimidos"). For surfaces read as running
+ * text — alarm screen, emergency card, TTS — where "1 comp." is cryptic and
+ * a fixed-plural "1 comprimidos" is wrong.
+ */
+export function getLocalizedDosageLong(med: { dosageAmount: number; dosageUnit: DosageUnit }, t: TFunction): string {
+  const countable: Partial<Record<DosageUnit, string>> = {
+    gotas:       "gotas",
+    comprimidos: "comprimidos",
+    capsulas:    "capsulas",
+  };
+  const key = countable[med.dosageUnit];
+  if (!key) return `${med.dosageAmount} ${med.dosageUnit}`;
+  return `${med.dosageAmount} ${t(`dosageUnitsLong.${key}`, { count: med.dosageAmount })}`;
+}
+
+/**
+ * Multi-profile attribution (F2): whose med is this? Returns the owning
+ * profile's display name, or null when the device has a single profile —
+ * with no ambiguity the label is just clutter. Mirrors medDisplayName in
+ * services/notifications.ts so screens and notifications agree.
+ */
+export function getProfileLabel(
+  med: { profileId?: string },
+  profiles: { id: string; name: string }[],
+  t: TFunction
+): string | null {
+  if (profiles.length <= 1) return null;
+  const p = profiles.find((x) => x.id === (med.profileId ?? "default"));
+  if (!p) return null;
+  return p.name || (t("profiles.me") as string);
+}
+
 /** Color palette for preset medication colors */
 export const MEDICATION_COLORS: Record<string, { bg: string; light: string; text: string; border: string }> = {
   blue:   { bg: "#3b82f6", light: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },

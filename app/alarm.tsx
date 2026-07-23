@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../src/store";
-import { getColorConfig, formatTimeForDisplay, getLocalizedDosage, isScheduleActiveOnDate } from "../src/utils";
+import { getColorConfig, formatTimeForDisplay, getLocalizedDosageLong, getProfileLabel, isScheduleActiveOnDate } from "../src/utils";
 import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes } from "../src/services/snoozeSettings";
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
@@ -54,6 +54,7 @@ export default function AlarmScreen() {
 
   const medications = useAppStore((s) => s.medications);
   const schedules = useAppStore((s) => s.schedules);
+  const profiles = useAppStore((s) => s.profiles);
   const isLoading = useAppStore((s) => s.isLoading);
   const markDose = useAppStore((s) => s.markDose);
   const snoozeDose = useAppStore((s) => s.snoozeDose);
@@ -96,7 +97,7 @@ export default function AlarmScreen() {
   useEffect(() => {
     if (action || !medication || spokeRef.current) return;
     spokeRef.current = true;
-    speakDoseReminder(medication.name, getLocalizedDosage(medication, t));
+    speakDoseReminder(medication.name, getLocalizedDosageLong(medication, t));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [medication, action]);
 
@@ -171,6 +172,10 @@ export default function AlarmScreen() {
   if (!medication || !schedule || action) return null;
 
   const colors = getColorConfig(medication.color);
+  // Whose dose is this? Non-null only with 2+ profiles on the device (F2) —
+  // a caregiver juggling several regimens must see the owner on THIS screen,
+  // not just in the notification title.
+  const ownerLabel = getProfileLabel(medication, profiles, t);
 
   const dose = {
     medication,
@@ -265,9 +270,20 @@ export default function AlarmScreen() {
           </View>
         </Animated.View>
 
+        {/* Profile attribution (F2): with several regimens on the phone the
+            caregiver must see WHOSE dose is ringing, right next to the name. */}
+        {ownerLabel && (
+          <View
+            style={{ backgroundColor: colors.bg }}
+            className="mt-6 px-3 py-1 rounded-full flex-row items-center gap-1.5"
+          >
+            <Ionicons name="person" size={13} color="#ffffff" />
+            <Text className="text-sm font-bold text-white">{ownerLabel}</Text>
+          </View>
+        )}
         <Text
           style={{ color: colors.text }}
-          className="text-3xl font-black mt-6 text-center"
+          className={`text-3xl font-black text-center ${ownerLabel ? "mt-2" : "mt-6"}`}
         >
           {medication.name}
         </Text>
@@ -277,7 +293,7 @@ export default function AlarmScreen() {
           className="mt-2 px-4 py-1 rounded-full border"
         >
           <Text style={{ color: colors.text }} className="text-sm font-semibold text-center">
-            {getLocalizedDosage(medication, t)}
+            {getLocalizedDosageLong(medication, t)}
           </Text>
         </View>
         {medication.notes ? (
@@ -325,6 +341,7 @@ export default function AlarmScreen() {
           </Text>
           {coDue.map((co) => {
             const handled = handledCo[co.schedule.id];
+            const coOwner = getProfileLabel(co.medication, profiles, t);
             return (
               <View
                 key={co.schedule.id}
@@ -332,7 +349,7 @@ export default function AlarmScreen() {
                 className="flex-row items-center gap-2 rounded-2xl border px-3 py-2 mb-2"
               >
                 <Text className="flex-1 text-sm font-semibold" style={{ color: colors.text }} numberOfLines={1}>
-                  {co.medication.name} · {co.medication.dosage}
+                  {coOwner ? `${coOwner} · ` : ""}{co.medication.name} · {getLocalizedDosageLong(co.medication, t)}
                 </Text>
                 {handled ? (
                   <Ionicons

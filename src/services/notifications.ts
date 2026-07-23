@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Schedule, Medication, NotificationMap, Appointment } from "../types";
-import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocalizedDosage } from "../utils";
+import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocalizedDosage, getProfileLabel } from "../utils";
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
@@ -332,11 +332,8 @@ export async function getNotifMapEntry(
 async function medDisplayName(med: Medication): Promise<string> {
   try {
     const profiles = await getProfiles();
-    if (profiles.length <= 1) return med.name;
-    const p = profiles.find((x) => x.id === (med.profileId ?? "default"));
-    if (!p) return med.name;
-    const who = p.name || (i18n.t("profiles.me") as string);
-    return `${who} · ${med.name}`;
+    const who = getProfileLabel(med, profiles, i18n.t.bind(i18n));
+    return who ? `${who} · ${med.name}` : med.name;
   } catch {
     return med.name;
   }
