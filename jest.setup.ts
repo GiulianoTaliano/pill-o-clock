@@ -47,6 +47,9 @@ jest.mock("expo-secure-store", () => {
     setItemAsync: jest.fn(async (k: string, v: string) => { store.set(k, v); }),
     getItemAsync: jest.fn(async (k: string) => store.get(k) ?? null),
     deleteItemAsync: jest.fn(async (k: string) => { store.delete(k); }),
+    // Sync variants (used by the SQLCipher key bootstrap in database.ts).
+    setItem: jest.fn((k: string, v: string) => { store.set(k, v); }),
+    getItem: jest.fn((k: string) => store.get(k) ?? null),
   };
 });
 

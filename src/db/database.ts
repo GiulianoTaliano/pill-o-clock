@@ -1,4 +1,7 @@
 import * as SQLite from "expo-sqlite";
+import * as SecureStore from "expo-secure-store";
+import * as Crypto from "expo-crypto";
+import { File } from "expo-file-system";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { eq, and, gte, lte, desc, asc } from "drizzle-orm";
 import * as schema from "./schema";
@@ -17,9 +20,115 @@ import type {
   SkipReason,
 } from "../types";
 
-// ─── Open DB ───────────────────────────────────────────────────────────────
+// ─── Open DB (encrypted at rest via SQLCipher, F1) ─────────────────────────
+//
+// expo-sqlite is compiled with SQLCipher (app.json plugin `useSQLCipher` +
+// android/gradle.properties `expo.sqlite.useSQLCipher=true`). The 32-byte raw
+// key lives in expo-secure-store (Android Keystore / iOS Keychain) and is read
+// SYNCHRONOUSLY so the PRAGMA key can be the first statement on the
+// connection — required both for cold starts and headless (background-task)
+// entries that never run _layout's async init.
+//
+// SAFETY CONTRACT: any failure — SecureStore unavailable, migration error,
+// corrupted encrypted copy — falls back to the plaintext database and reports
+// to Sentry. A medication-safety app must never brick or lose data over
+// encryption; the fallback keeps the previous behaviour.
 
-const expoDb = SQLite.openDatabaseSync("pilloclock.db");
+const DB_NAME = "pilloclock.db";
+const DB_KEY_STORE_KEY = "pilloclock.db_key";
+
+function getOrCreateDbKey(): string | null {
+  try {
+    let key = SecureStore.getItem(DB_KEY_STORE_KEY);
+    if (!key) {
+      const bytes = Crypto.getRandomBytes(32);
+      key = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      SecureStore.setItem(DB_KEY_STORE_KEY, key);
+    }
+    return key;
+  } catch {
+    return null; // e.g. Expo Go / no Keystore → plaintext fallback
+  }
+}
+
+/** SQLCipher raw-key PRAGMA — must be the first statement on a connection. */
+function applyDbKey(handle: SQLite.SQLiteDatabase, key: string): void {
+  handle.execSync(`PRAGMA key = "x'${key}'";`);
+}
+
+function sqliteDirPaths(): { uri: string; plain: string } {
+  const dir = String(SQLite.defaultDatabaseDirectory);
+  const plain = dir.replace(/^file:\/\//, "");
+  const uri = dir.startsWith("file://") ? dir : `file://${dir}`;
+  return { uri, plain };
+}
+
+function openSecureDatabase(): SQLite.SQLiteDatabase {
+  const key = getOrCreateDbKey();
+  if (!key) return SQLite.openDatabaseSync(DB_NAME);
+
+  // Fast path: already-encrypted (or brand-new) database.
+  let handle = SQLite.openDatabaseSync(DB_NAME);
+  try {
+    applyDbKey(handle, key);
+    handle.getFirstSync("PRAGMA user_version;");
+    return handle;
+  } catch {
+    try { handle.closeSync(); } catch { /* already closed */ }
+  }
+
+  // Legacy plaintext database → one-time migration via sqlcipher_export.
+  try {
+    const { uri, plain } = sqliteDirPaths();
+    const ENC_NAME = "pilloclock-enc.db";
+    const encFile = new File(uri, ENC_NAME);
+    if (encFile.exists) encFile.delete(); // stale partial migration
+
+    const plainDb = SQLite.openDatabaseSync(DB_NAME);
+    const ver =
+      plainDb.getFirstSync<{ user_version: number }>("PRAGMA user_version;")
+        ?.user_version ?? 0;
+    plainDb.execSync(
+      `ATTACH DATABASE '${plain}/${ENC_NAME}' AS enc KEY "x'${key}'";`
+    );
+    plainDb.execSync("SELECT sqlcipher_export('enc');");
+    plainDb.execSync(`PRAGMA enc.user_version = ${ver};`);
+    plainDb.execSync("DETACH DATABASE enc;");
+    plainDb.closeSync();
+
+    // Verify the encrypted copy is readable BEFORE touching the original.
+    const check = SQLite.openDatabaseSync(ENC_NAME);
+    applyDbKey(check, key);
+    check.getFirstSync("SELECT count(*) AS c FROM sqlite_master;");
+    check.closeSync();
+
+    // Swap: remove the plaintext db (+ WAL/SHM leftovers), rename encrypted.
+    new File(uri, DB_NAME).delete();
+    for (const suffix of ["-wal", "-shm", "-journal"]) {
+      const leftover = new File(uri, DB_NAME + suffix);
+      if (leftover.exists) leftover.delete();
+    }
+    encFile.move(new File(uri, DB_NAME));
+
+    const enc = SQLite.openDatabaseSync(DB_NAME);
+    applyDbKey(enc, key);
+    enc.getFirstSync("PRAGMA user_version;");
+    console.log("[db] plaintext database migrated to SQLCipher");
+    return enc;
+  } catch (e) {
+    console.warn("[db] encryption migration failed — using plaintext DB", e);
+    try {
+      // Deferred import keeps Sentry optional in test environments.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("@sentry/react-native").captureException(e, {
+        tags: { task: "sqlcipherMigration" },
+      });
+    } catch { /* sentry unavailable */ }
+    return SQLite.openDatabaseSync(DB_NAME);
+  }
+}
+
+const expoDb = openSecureDatabase();
 expoDb.execSync("PRAGMA journal_mode=WAL;");
 expoDb.execSync("PRAGMA foreign_keys = ON;");
 
