@@ -15,6 +15,7 @@ import { useTranslation, getDateLocale } from "../../src/i18n";
 import i18n from "../../src/i18n";
 import { SimpleLineChart } from "../../components/SimpleLineChart";
 import { CheckinModal } from "../../components/CheckinModal";
+import { AdBanner } from "../../components/AdBanner";
 import { EmptyState } from "../../components/EmptyState";
 import { useToast } from "../../src/context/ToastContext";
 import { today, formatTimeForDisplay } from "../../src/utils";
@@ -871,6 +872,8 @@ export default function HealthScreen() {
         onClose={() => setCheckinVisible(false)}
         existing={editCheckin}
       />
+      {/* Monetization slot (renders null while ads are disabled — see ads.ts) */}
+      <AdBanner />
     </SafeAreaView>
   );
 }
