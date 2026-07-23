@@ -3,7 +3,7 @@ module.exports = {
   // Only treat *.test.* and *.spec.* files as test suites (excludes helpers like factories.ts)
   testMatch: ["**/?(*.)+(spec|test).[jt]s?(x)"],
   transformIgnorePatterns: [
-    "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|react-native-css-interop|date-fns)",
+    "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|react-native-css-interop|date-fns|@noble/.*)",
   ],
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   // Claude Code worktrees under .claude/ contain a full copy of the repo;

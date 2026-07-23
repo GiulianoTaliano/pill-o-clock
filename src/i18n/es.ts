@@ -509,6 +509,19 @@ const es = {
   },
 
   // ─── Informe PDF ────────────────────────────────────────────────────────
+  backupCrypto: {
+    setTitle: "¿Proteger con contraseña?",
+    setSubtitle: "El archivo queda cifrado: nadie puede leerlo sin la contraseña, ni siquiera donde lo guardes (Drive, etc.).",
+    enterTitle: "Backup cifrado",
+    enterSubtitle: "Ingresá la contraseña con la que se creó este backup.",
+    passphrasePlaceholder: "Contraseña (mín. 6 caracteres)",
+    confirmPlaceholder: "Repetir contraseña",
+    warning: "Si la olvidás, no hay forma de recuperar el backup. No la guardamos en ningún lado.",
+    skip: "Sin contraseña",
+    encrypt: "Cifrar",
+    unlock: "Abrir",
+    wrongPassphrase: "Contraseña incorrecta o archivo dañado.",
+  },
   fhir: {
     settingsTitle: "Exportar para tu médico (FHIR)",
     settingsSubtitle: "Archivo estándar HL7 FHIR con medicación y alergias del perfil activo",
