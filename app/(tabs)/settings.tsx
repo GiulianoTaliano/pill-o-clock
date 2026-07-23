@@ -11,6 +11,7 @@ import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore, ThemeMode } from "../../src/store";
 import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
 import { generateAndShareReport } from "../../src/services/pdfReport";
+import { generateAndShareCaregiverSnapshot } from "../../src/services/caregiverSnapshot";
 import { checkFullScreenIntentPermission, requestFullScreenIntentPermission, getAlarmSound, stopSoundPreview } from "expo-alarm";
 import type { AlarmSound } from "expo-alarm";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
@@ -135,6 +136,7 @@ export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [generatingSnapshot, setGeneratingSnapshot] = useState(false);
   const { showToast } = useToast();
 
   // Full-screen intent permission (Android 14+ only)
@@ -333,6 +335,18 @@ export default function SettingsScreen() {
       Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
     } finally {
       setGeneratingPdf(false);
+    }
+  }
+
+  async function handleCaregiverSnapshot() {
+    setGeneratingSnapshot(true);
+    try {
+      await generateAndShareCaregiverSnapshot();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
+    } finally {
+      setGeneratingSnapshot(false);
     }
   }
 
@@ -581,6 +595,16 @@ export default function SettingsScreen() {
             subtitle={t("report.generateSubtitle")}
             onPress={handleGeneratePdf}
             loading={generatingPdf}
+          />
+          <Divider />
+          {/* Caregiver handoff snapshot (F2) — operational, 100% local. */}
+          <SettingRow
+            icon="people-outline"
+            iconColor={theme.accent}
+            title={t("settings.caregiverSnapshot")}
+            subtitle={t("settings.caregiverSnapshotSubtitle")}
+            onPress={handleCaregiverSnapshot}
+            loading={generatingSnapshot}
           />
         </View>
 
