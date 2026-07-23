@@ -167,6 +167,7 @@ function toMedication(row: typeof schema.medications.$inferSelect): Medication {
     prnMinIntervalMinutes: row.prnMinIntervalMinutes ?? undefined,
     rxcui: row.rxcui ?? undefined,
     profileId: row.profileId,
+    regimen: row.regimen ?? undefined,
   };
 }
 
@@ -299,7 +300,8 @@ export async function initDatabase(): Promise<void> {
       prn_max_per_day INTEGER,
       prn_min_interval_minutes INTEGER,
       rxcui         TEXT,
-      profile_id    TEXT NOT NULL DEFAULT 'default'
+      profile_id    TEXT NOT NULL DEFAULT 'default',
+      regimen       TEXT
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -561,6 +563,12 @@ export async function initDatabase(): Promise<void> {
     );
     expoDb.execSync("PRAGMA user_version = 14");
   }
+
+  if (user_version < 15) {
+    // F3: complex regimens (everyN / cycle / taper) as nullable JSON.
+    try { expoDb.execSync("ALTER TABLE medications ADD COLUMN regimen TEXT"); } catch { /* exists */ }
+    expoDb.execSync("PRAGMA user_version = 15");
+  }
 }
 
 
@@ -646,6 +654,7 @@ export async function insertMedication(med: Medication): Promise<void> {
     prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
     rxcui: med.rxcui ?? null,
     profileId: med.profileId ?? getActiveProfileId(),
+    regimen: med.regimen ?? null,
   }).run();
 }
 
@@ -670,6 +679,7 @@ export async function updateMedication(med: Medication): Promise<void> {
     prnMaxPerDay: med.prnMaxPerDay ?? null,
     prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
     rxcui: med.rxcui ?? null,
+    regimen: med.regimen ?? null,
   }).where(eq(schema.medications.id, med.id)).run();
 }
 

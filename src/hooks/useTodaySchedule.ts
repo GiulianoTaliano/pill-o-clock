@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { useAppStore } from "../store";
 import { TodayDose, TodayDoseStatus } from "../types";
 import { isScheduleActiveOnDate, parseTime } from "../utils";
+import { withEffectiveDose } from "../services/regimen";
 
 /**
  * Returns the list of TodayDose items for a given date (default: today).
@@ -53,7 +54,8 @@ export function useTodaySchedule(dateStr?: string): TodayDose[] {
 
       doses.push({
         doseLogId: log?.id,
-        medication: med,
+        // Taper-aware dose for the target date (F3); same object otherwise.
+        medication: withEffectiveDose(med, targetDate),
         schedule,
         scheduledDate: targetDate,
         scheduledTime: schedule.time,

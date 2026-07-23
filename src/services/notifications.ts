@@ -9,6 +9,7 @@ import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocal
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
+import { withEffectiveDose } from "./regimen";
 import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb, getProfiles } from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -349,6 +350,8 @@ async function scheduleOneNotification(
   isRepeat: boolean
 ): Promise<string> {
   const scheduledDate = toDateString(fireDate);
+  // Taper-aware dose for this specific date (F3).
+  medication = withEffectiveDose(medication, scheduledDate);
 
   const notifId = await Notifications.scheduleNotificationAsync({
     content: {
@@ -402,7 +405,7 @@ export async function scheduleDoseChain(
       scheduledDate,
       scheduledTime:  schedule.time,
       medicationName: await medDisplayName(medication),
-      dose:           getLocalizedDosage(medication, i18n.t.bind(i18n)),
+      dose:           getLocalizedDosage(withEffectiveDose(medication, scheduledDate), i18n.t.bind(i18n)),
       fireTimestamp:  baseDate.getTime(),
     });
     // Track in the notification map so rescheduleAllNotifications can detect

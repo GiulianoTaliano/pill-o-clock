@@ -78,6 +78,8 @@ export interface Medication {
   rxcui?: string;
   /** Owning profile (F2 multi-profile). Defaults to the active profile on insert. */
   profileId?: string;
+  /** Complex regimen JSON (F3): everyN / cycle / taper — see services/regimen.ts. */
+  regimen?: string;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────

@@ -36,6 +36,7 @@ export const medications = sqliteTable("medications", {
   prnMinIntervalMinutes: integer("prn_min_interval_minutes"),
   rxcui: text("rxcui"),
   profileId: text("profile_id").notNull().default("default"),
+  regimen: text("regimen"),
 });
 
 // ─── Schedules ─────────────────────────────────────────────────────────────

@@ -29,6 +29,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { medicationFormSchema, type MedicationFormData } from "../src/schemas/medication";
 import { searchDrugs, type DrugSuggestion } from "../src/services/drugDb";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
+import { parseRegimen, buildRegimenJson, type Regimen } from "../src/services/regimen";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 
 // ─── Inline error ──────────────────────────────────────────────────────────
@@ -263,6 +264,8 @@ export interface MedicationFormValues {
   prnMinIntervalMinutes?: number;
   /** RxNorm SXDG id from the autocomplete pick (cleared on manual edits). */
   rxcui?: string;
+  /** Complex regimen JSON (F3) — see services/regimen.ts. */
+  regimen?: string;
 }
 
 interface MedicationFormProps {
@@ -303,6 +306,27 @@ const SLIDE_FIELDS: Record<number, (keyof MedicationFormData)[]> = {
   4: [],
 };
 
+/** Maps the advanced-regimen form fields to the stored JSON (F3). */
+function buildRegimenFromForm(data: MedicationFormData): string | undefined {
+  if (data.repeatMode !== "repeat" || data.regimenType === "none") return undefined;
+  const int = (v?: string) => parseInt((v ?? "").trim(), 10);
+  let regimen: Regimen | null = null;
+  if (data.regimenType === "everyN") {
+    regimen = { type: "everyN", n: int(data.regimenNStr) };
+  } else if (data.regimenType === "cycle") {
+    regimen = { type: "cycle", on: int(data.regimenOnStr), off: int(data.regimenOffStr) };
+  } else if (data.regimenType === "taper") {
+    regimen = {
+      type: "taper",
+      steps: data.taperSteps.map((st) => ({
+        days: int(st.daysStr),
+        amount: parseFloat((st.amountStr ?? "").replace(",", ".")),
+      })),
+    };
+  }
+  return buildRegimenJson(regimen);
+}
+
 export function MedicationForm({
   initialValues,
   existingNames = [],
@@ -323,6 +347,11 @@ export function MedicationForm({
   const isInitiallyOnce = !!(
     initialValues?.startDate && initialValues.startDate === initialValues.endDate
   );
+
+  // Complex regimen defaults (F3) — decode the stored JSON for edit mode.
+  const initialRegimen: Regimen | null = initialValues?.regimen
+    ? parseRegimen({ regimen: initialValues.regimen })
+    : null;
 
   const { control, handleSubmit: rhfHandleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<MedicationFormData>({
     resolver: zodResolver(medicationFormSchema),
@@ -348,6 +377,14 @@ export function MedicationForm({
           ? String(Math.round((initialValues.prnMinIntervalMinutes / 60) * 100) / 100)
           : "",
       rxcui: initialValues?.rxcui,
+      regimenType: initialRegimen?.type ?? "none",
+      regimenNStr: initialRegimen?.type === "everyN" ? String(initialRegimen.n) : "",
+      regimenOnStr: initialRegimen?.type === "cycle" ? String(initialRegimen.on) : "",
+      regimenOffStr: initialRegimen?.type === "cycle" ? String(initialRegimen.off) : "",
+      taperSteps:
+        initialRegimen?.type === "taper"
+          ? initialRegimen.steps.map((st) => ({ daysStr: String(st.days), amountStr: String(st.amount) }))
+          : [],
     },
   });
 
@@ -355,6 +392,12 @@ export function MedicationForm({
     control,
     name: "schedules",
   });
+
+  const { fields: taperStepFields, append: appendTaperStep, remove: removeTaperStep } = useFieldArray({
+    control,
+    name: "taperSteps",
+  });
+  const regimenType = watch("regimenType");
 
   const dosageUnit = watch("dosageUnit");
   const category = watch("category");
@@ -439,6 +482,7 @@ export function MedicationForm({
           ? Math.max(1, Math.round(parseFloat(data.prnIntervalHoursStr.replace(",", ".")) * 60))
           : undefined,
       rxcui: data.rxcui,
+      regimen: buildRegimenFromForm(data),
     });
   };
 
@@ -920,6 +964,164 @@ export function MedicationForm({
                 minimumDate={startDate ? new Date(startDate + "T12:00") : undefined}
               />
               <FieldError message={errors.endDate?.message ? t(errors.endDate.message as any) : undefined} />
+            </View>
+          )}
+
+          {/* ── Advanced regimen (F3): everyN / cycle / taper ── */}
+          {repeatMode === "repeat" && (
+            <View className="mt-4">
+              <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
+                {t('form.sectionRegimen')}
+              </Text>
+              <View className="bg-card rounded-2xl border border-border p-4">
+                <View className="flex-row flex-wrap gap-2">
+                  {(["none", "everyN", "cycle", "taper"] as const).map((rt) => (
+                    <TouchableOpacity
+                      key={rt}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(`form.regimen_${rt}`)}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setValue("regimenType", rt);
+                        if (rt === "taper" && taperStepFields.length === 0) {
+                          appendTaperStep({ daysStr: "", amountStr: "" });
+                        }
+                      }}
+                      className={`rounded-xl px-3 py-2 border ${
+                        regimenType === rt ? "bg-primary border-primary" : "bg-card-alt border-border"
+                      }`}
+                    >
+                      <Text className={`text-sm font-semibold ${regimenType === rt ? "text-white" : "text-text"}`}>
+                        {t(`form.regimen_${rt}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {regimenType === "everyN" && (
+                  <>
+                    <View className="flex-row items-center gap-2 mt-3">
+                      <Text className="text-sm text-text">{t('form.regimenEveryPrefix')}</Text>
+                      <Controller
+                        control={control}
+                        name="regimenNStr"
+                        render={({ field: { onChange, value } }) => (
+                          <TextInput
+                            value={value}
+                            onChangeText={onChange}
+                            keyboardType="number-pad"
+                            placeholder="2"
+                            placeholderTextColor={theme.muted}
+                            className="border border-border rounded-xl px-3 py-2 text-text text-base bg-card-alt w-16 text-center"
+                          />
+                        )}
+                      />
+                      <Text className="text-sm text-text">{t('form.regimenEverySuffix')}</Text>
+                    </View>
+                    <FieldError message={errors.regimenNStr?.message ? t(errors.regimenNStr.message as any) : undefined} />
+                  </>
+                )}
+
+                {regimenType === "cycle" && (
+                  <>
+                    <View className="flex-row items-center gap-2 mt-3 flex-wrap">
+                      <Controller
+                        control={control}
+                        name="regimenOnStr"
+                        render={({ field: { onChange, value } }) => (
+                          <TextInput
+                            value={value}
+                            onChangeText={onChange}
+                            keyboardType="number-pad"
+                            placeholder="21"
+                            placeholderTextColor={theme.muted}
+                            className="border border-border rounded-xl px-3 py-2 text-text text-base bg-card-alt w-16 text-center"
+                          />
+                        )}
+                      />
+                      <Text className="text-sm text-text">{t('form.regimenCycleOn')}</Text>
+                      <Controller
+                        control={control}
+                        name="regimenOffStr"
+                        render={({ field: { onChange, value } }) => (
+                          <TextInput
+                            value={value}
+                            onChangeText={onChange}
+                            keyboardType="number-pad"
+                            placeholder="7"
+                            placeholderTextColor={theme.muted}
+                            className="border border-border rounded-xl px-3 py-2 text-text text-base bg-card-alt w-16 text-center"
+                          />
+                        )}
+                      />
+                      <Text className="text-sm text-text">{t('form.regimenCycleOff')}</Text>
+                    </View>
+                    <FieldError message={errors.regimenOnStr?.message ? t(errors.regimenOnStr.message as any) : undefined} />
+                  </>
+                )}
+
+                {regimenType === "taper" && (
+                  <View className="mt-3">
+                    <Text className="text-xs text-muted mb-2">{t('form.regimenTaperHint')}</Text>
+                    {taperStepFields.map((field, idx) => (
+                      <View key={field.id} className="flex-row items-center gap-2 mb-2">
+                        <Controller
+                          control={control}
+                          name={`taperSteps.${idx}.daysStr`}
+                          render={({ field: { onChange, value } }) => (
+                            <TextInput
+                              value={value}
+                              onChangeText={onChange}
+                              keyboardType="number-pad"
+                              placeholder="7"
+                              placeholderTextColor={theme.muted}
+                              className="border border-border rounded-xl px-3 py-2 text-text text-base bg-card-alt w-16 text-center"
+                            />
+                          )}
+                        />
+                        <Text className="text-sm text-text">{t('form.regimenTaperDays')}</Text>
+                        <Controller
+                          control={control}
+                          name={`taperSteps.${idx}.amountStr`}
+                          render={({ field: { onChange, value } }) => (
+                            <TextInput
+                              value={value}
+                              onChangeText={onChange}
+                              keyboardType="decimal-pad"
+                              placeholder="40"
+                              placeholderTextColor={theme.muted}
+                              className="border border-border rounded-xl px-3 py-2 text-text text-base bg-card-alt w-20 text-center"
+                            />
+                          )}
+                        />
+                        <Text className="text-sm text-text flex-1" numberOfLines={1}>
+                          {getDosageLabel(dosageUnit, t)}
+                        </Text>
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel={t('form.regimenTaperRemove')}
+                          onPress={() => removeTaperStep(idx)}
+                          className="p-1.5"
+                        >
+                          <Ionicons name="close-circle-outline" size={20} color={theme.muted} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      onPress={() => appendTaperStep({ daysStr: "", amountStr: "" })}
+                      className="flex-row items-center gap-1 self-start bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2"
+                    >
+                      <Ionicons name="add" size={14} color={theme.primary} />
+                      <Text className="text-blue-600 dark:text-blue-400 text-xs font-bold">{t('form.regimenTaperAdd')}</Text>
+                    </TouchableOpacity>
+                    <FieldError message={errors.taperSteps?.message ? t(errors.taperSteps.message as any) : undefined} />
+                  </View>
+                )}
+
+                {regimenType !== "none" && (
+                  <Text className="text-xs text-muted mt-3 leading-4">{t('form.regimenAnchorNote')}</Text>
+                )}
+              </View>
             </View>
           )}
         </View>

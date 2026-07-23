@@ -26,6 +26,12 @@ export const medicationFormSchema = z
     prnMaxStr: z.string().optional(),
     prnIntervalHoursStr: z.string().optional(),
     rxcui: z.string().optional(),
+    // Complex regimen (F3) — only meaningful in "repeat" mode.
+    regimenType: z.enum(["none", "everyN", "cycle", "taper"]).default("none"),
+    regimenNStr: z.string().optional().default(""),
+    regimenOnStr: z.string().optional().default(""),
+    regimenOffStr: z.string().optional().default(""),
+    taperSteps: z.array(z.object({ daysStr: z.string(), amountStr: z.string() })).default([]),
   })
   .superRefine((data, ctx) => {
     // Validate dosage is a positive number
@@ -58,6 +64,29 @@ export const medicationFormSchema = z
         message: "form.errorNoDaysMsg",
         path: ["schedules"],
       });
+    }
+
+    // Complex regimen validation (F3, repeat mode only)
+    if (data.repeatMode === "repeat") {
+      const int = (v?: string) => parseInt((v ?? "").trim(), 10);
+      if (data.regimenType === "everyN" && !(int(data.regimenNStr) >= 2)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "form.errorRegimenNMsg", path: ["regimenNStr"] });
+      }
+      if (data.regimenType === "cycle" && (!(int(data.regimenOnStr) >= 1) || !(int(data.regimenOffStr) >= 1))) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "form.errorRegimenCycleMsg", path: ["regimenOnStr"] });
+      }
+      if (data.regimenType === "taper") {
+        const ok =
+          data.taperSteps.length >= 1 &&
+          data.taperSteps.every((st) => {
+            const days = int(st.daysStr);
+            const amount = parseFloat((st.amountStr ?? "").replace(",", "."));
+            return days >= 1 && !isNaN(amount) && amount > 0;
+          });
+        if (!ok) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "form.errorRegimenTaperMsg", path: ["taperSteps"] });
+        }
+      }
     }
 
     // Date range check (repeat mode only)
