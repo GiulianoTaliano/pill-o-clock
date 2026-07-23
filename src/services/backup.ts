@@ -25,7 +25,9 @@ import {
   insertProfile,
   getAllAllergies,
   insertAllergy,
+  updateAppointment,
 } from "../db/database";
+import { scheduleAppointmentNotification, cancelAppointmentNotification } from "./notifications";
 
 // ─── Zod schemas ───────────────────────────────────────────────────────────
 
@@ -110,7 +112,11 @@ const appointmentSchema = z.object({
   date: z.string(),
   time: z.string().optional(),
   reminderMinutes: z.number().optional(),
-  notificationId: z.string().optional(),
+  // notificationId is deliberately absent (same reason as renewalNotifIds
+  // above): the id references a notification queued on the exporting device,
+  // so a restored install would believe a reminder is scheduled when nothing
+  // is. zod strips the key on parse; importBackup reschedules reminders for
+  // the appointments it inserts.
   createdAt: z.string(),
   profileId: z.string().optional(),
 });
@@ -280,6 +286,13 @@ export async function importBackup(
     const backup = parsed.data;
     const db = await getDb();
 
+    // "replace" wipes these rows below, but their reminders stay queued in the
+    // OS and would fire for appointments that no longer exist. Collect the ids
+    // now; cancel only after the transaction commits (a failed import must not
+    // cancel live reminders).
+    const staleAppointments = mode === "replace" ? await getAppointments() : [];
+    const importedAppointments: Appointment[] = [];
+
     await db.withTransactionAsync(async () => {
     if (mode === "replace") {
       await clearAllData();
@@ -331,6 +344,9 @@ export async function importBackup(
     for (const appt of backup.data.appointments) {
       try {
         await insertAppointment(appt as Appointment);
+        // Only appointments actually inserted get reminders rebuilt below —
+        // a merge-mode duplicate keeps the existing row's live reminder.
+        importedAppointments.push(appt as Appointment);
       } catch {
         // Skip duplicates on merge.
       }
@@ -360,6 +376,22 @@ export async function importBackup(
       }
     }
     });
+
+    for (const stale of staleAppointments) {
+      if (stale.notificationId) await cancelAppointmentNotification(stale.notificationId);
+    }
+
+    // Backups never carry notificationId (see appointmentSchema): rebuild each
+    // restored appointment's reminders on THIS device and persist the fresh
+    // ids. scheduleAppointmentNotification itself skips past dates and web.
+    for (const appt of importedAppointments) {
+      try {
+        const notificationId = await scheduleAppointmentNotification(appt);
+        if (notificationId) await updateAppointment({ ...appt, notificationId });
+      } catch {
+        // Best-effort: the appointment data itself is already committed.
+      }
+    }
 
     return { count: backup.data.medications.length };
   } finally {
