@@ -7,7 +7,7 @@
 Pill O-Clock: Pastillero
 
 ── DESCRIPCIÓN BREVE (max 80 caracteres) ───────────────
-Alarma de medicamentos y diario de salud. Sin cuenta — gratis y privado.
+Alarma de medicamentos y diario de salud. Sin cuenta y privado.
 
 ── DESCRIPCIÓN COMPLETA (max 4000 caracteres) ──────────
 

@@ -7,7 +7,7 @@
 Pill O-Clock: Pill Reminder
 
 ── SHORT DESCRIPTION (max 80 characters) ───────────────
-Medication alarm & health diary. No account required — free & private.
+Medication alarm & health diary. No account required — private.
 
 ── FULL DESCRIPTION (max 4000 characters) ──────────────
 
