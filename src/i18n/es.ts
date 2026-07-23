@@ -500,6 +500,24 @@ const es = {
   },
 
   // ─── Settings screen ──────────────────────────────────────────────────────
+  insights: {
+    title: "Tus patrones ({{days}} días)",
+    band_morning: "la mañana",
+    band_afternoon: "la tarde",
+    band_night: "la noche",
+    worstBand: "Las dosis de {{band}} son las que más se te escapan ({{rate}}% tomadas).",
+    worstWeekday: "Los {{day}} son tu día más difícil ({{rate}}% tomadas).",
+    lowMed: "{{name}} viene flojo: {{taken}} de {{total}} dosis tomadas ({{rate}}%).",
+    moodLink: "En días con todas las dosis tomadas tu ánimo promedió {{full}}/5, contra {{missed}}/5 en días con dosis perdidas.",
+    weekday_0: "domingos",
+    weekday_1: "lunes",
+    weekday_2: "martes",
+    weekday_3: "miércoles",
+    weekday_4: "jueves",
+    weekday_5: "viernes",
+    weekday_6: "sábados",
+    disclaimer: "Observaciones calculadas en tu dispositivo sobre tu propio registro. No implican causalidad.",
+  },
   interactions: {
     dupTitle: "Ingrediente repetido",
     dupLine: "{{name}} también contiene: {{ingredients}}",

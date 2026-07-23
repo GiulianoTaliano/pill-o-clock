@@ -502,6 +502,24 @@ const en: TranslationShape = {
   },
 
   // ─── Settings screen ──────────────────────────────────────────────────────
+  insights: {
+    title: "Your patterns ({{days}} days)",
+    band_morning: "morning",
+    band_afternoon: "afternoon",
+    band_night: "night",
+    worstBand: "Your {{band}} doses are the ones you miss most ({{rate}}% taken).",
+    worstWeekday: "{{day}} are your hardest day ({{rate}}% taken).",
+    lowMed: "{{name}} is lagging: {{taken}} of {{total}} doses taken ({{rate}}%).",
+    moodLink: "On days with every dose taken your mood averaged {{full}}/5, vs {{missed}}/5 on days with missed doses.",
+    weekday_0: "Sundays",
+    weekday_1: "Mondays",
+    weekday_2: "Tuesdays",
+    weekday_3: "Wednesdays",
+    weekday_4: "Thursdays",
+    weekday_5: "Fridays",
+    weekday_6: "Saturdays",
+    disclaimer: "Observations computed on your device from your own log. They do not imply causation.",
+  },
   interactions: {
     dupTitle: "Repeated ingredient",
     dupLine: "{{name}} also contains: {{ingredients}}",
