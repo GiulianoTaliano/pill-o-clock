@@ -193,6 +193,8 @@ const es = {
     fieldRenewal: "Renovación de receta (opcional)",
     fieldRenewalHint: "Te avisamos 7 días antes y el mismo día.",
     drugDbAttribution: "Sugerencias: RxTerms (U.S. National Library of Medicine)",
+    fieldInjectable: "Es inyectable",
+    fieldInjectableHint: "Activa la rotación de sitio y el conteo hasta la próxima aplicación.",
     sectionRegimen: "Régimen avanzado (opcional)",
     regimen_none: "Normal",
     regimen_everyN: "Cada N días",
@@ -505,6 +507,21 @@ const es = {
   },
 
   // ─── Informe PDF ────────────────────────────────────────────────────────
+  sites: {
+    title: "¿Dónde te la aplicaste?",
+    subtitle: "Registrar el sitio ayuda a rotar y evitar irritación. Es opcional.",
+    suggested: "sugerido",
+    record: "Registrar sitio de aplicación",
+    skip: "Omitir",
+    abdomen_l: "Abdomen izquierdo",
+    abdomen_r: "Abdomen derecho",
+    thigh_l: "Muslo izquierdo",
+    thigh_r: "Muslo derecho",
+    arm_l: "Brazo izquierdo",
+    arm_r: "Brazo derecho",
+    nextDoseTomorrow: "Próxima aplicación: mañana",
+    nextDoseInDays: "Próxima aplicación en {{count}} días",
+  },
   profiles: {
     sectionTitle: "Perfiles",
     me: "Yo",

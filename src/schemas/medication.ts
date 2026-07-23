@@ -32,6 +32,8 @@ export const medicationFormSchema = z
     regimenOnStr: z.string().optional().default(""),
     regimenOffStr: z.string().optional().default(""),
     taperSteps: z.array(z.object({ daysStr: z.string(), amountStr: z.string() })).default([]),
+    // Injectable flag (F3): enables site rotation + weekly countdown.
+    isInjectable: z.boolean().default(false),
   })
   .superRefine((data, ctx) => {
     // Validate dosage is a positive number

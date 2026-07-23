@@ -20,6 +20,8 @@ import { useAppTheme } from "../src/hooks/useAppTheme";
 import { AppPressable } from "./AppPressable";
 
 interface DoseCardProps {
+  /** Opens the injection-site picker (F3, injectables — taken doses only). */
+  onSetSite?: () => void;
   dose: TodayDose;
   onTake: () => void;
   onSkip: (reason?: SkipReason) => void;
@@ -82,7 +84,7 @@ const STATUS_ICONS = {
   missed:  "alert-circle-outline" as const,
 };
 
-export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedule, onUpdateNote }: DoseCardProps) {
+export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedule, onUpdateNote, onSetSite }: DoseCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   // Senior / low-vision mode (F1): larger type + taller touch targets.
@@ -427,6 +429,21 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
           <Ionicons name={dose.notes ? "chatbubble-outline" : "add-circle-outline"} size={16} color={theme.secondaryText} />
           <Text className="text-sm" style={{ color: theme.secondaryText }}>
             {dose.notes ? dose.notes : t('doseCard.addNote')}
+          </Text>
+        </AppPressable>
+      )}
+
+      {/* Injection-site chip (F3, taken injectable doses only) */}
+      {dose.status === "taken" && dose.medication.isInjectable && onSetSite && (
+        <AppPressable
+          accessibilityRole="button"
+          accessibilityLabel={t('sites.title')}
+          onPress={onSetSite}
+          className="flex-row items-center gap-1.5 ml-12 py-1 min-h-[44px]"
+        >
+          <Ionicons name="locate-outline" size={16} color={theme.secondaryText} />
+          <Text className="text-sm" style={{ color: theme.secondaryText }}>
+            {dose.injectionSite ? t(`sites.${dose.injectionSite}` as never) : t('sites.record')}
           </Text>
         </AppPressable>
       )}

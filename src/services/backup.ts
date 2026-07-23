@@ -49,6 +49,7 @@ const medicationSchema = z.object({
   rxcui: z.string().optional(),
   profileId: z.string().optional(),
   regimen: z.string().optional(),
+  isInjectable: z.boolean().optional(),
 });
 
 const profileSchema = z.object({
@@ -77,6 +78,7 @@ const doseLogSchema = z.object({
   createdAt: z.string(),
   notes: z.string().optional(),
   skipReason: z.enum(["forgot", "side_effect", "no_stock", "other"]).optional(),
+  injectionSite: z.string().optional(),
 });
 
 const appointmentSchema = z.object({

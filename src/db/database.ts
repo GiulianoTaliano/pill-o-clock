@@ -168,6 +168,7 @@ function toMedication(row: typeof schema.medications.$inferSelect): Medication {
     rxcui: row.rxcui ?? undefined,
     profileId: row.profileId,
     regimen: row.regimen ?? undefined,
+    isInjectable: row.isInjectable,
   };
 }
 
@@ -200,6 +201,7 @@ function toDoseLog(row: typeof schema.doseLogs.$inferSelect): DoseLog {
     createdAt: row.createdAt,
     notes: row.notes ?? undefined,
     skipReason: (row.skipReason as SkipReason) ?? undefined,
+    injectionSite: row.injectionSite ?? undefined,
   };
 }
 
@@ -301,7 +303,8 @@ export async function initDatabase(): Promise<void> {
       prn_min_interval_minutes INTEGER,
       rxcui         TEXT,
       profile_id    TEXT NOT NULL DEFAULT 'default',
-      regimen       TEXT
+      regimen       TEXT,
+      is_injectable INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -322,7 +325,8 @@ export async function initDatabase(): Promise<void> {
       taken_at        TEXT,
       created_at      TEXT NOT NULL,
       notes           TEXT,
-      skip_reason     TEXT
+      skip_reason     TEXT,
+      injection_site  TEXT
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_dose_unique
@@ -569,6 +573,17 @@ export async function initDatabase(): Promise<void> {
     try { expoDb.execSync("ALTER TABLE medications ADD COLUMN regimen TEXT"); } catch { /* exists */ }
     expoDb.execSync("PRAGMA user_version = 15");
   }
+
+  if (user_version < 16) {
+    // F3: injectables — site rotation on dose logs, opt-in per medication.
+    for (const stmt of [
+      "ALTER TABLE medications ADD COLUMN is_injectable INTEGER NOT NULL DEFAULT 0",
+      "ALTER TABLE dose_logs ADD COLUMN injection_site TEXT",
+    ]) {
+      try { expoDb.execSync(stmt); } catch { /* exists */ }
+    }
+    expoDb.execSync("PRAGMA user_version = 16");
+  }
 }
 
 
@@ -655,6 +670,7 @@ export async function insertMedication(med: Medication): Promise<void> {
     rxcui: med.rxcui ?? null,
     profileId: med.profileId ?? getActiveProfileId(),
     regimen: med.regimen ?? null,
+    isInjectable: med.isInjectable ?? false,
   }).run();
 }
 
@@ -680,6 +696,7 @@ export async function updateMedication(med: Medication): Promise<void> {
     prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
     rxcui: med.rxcui ?? null,
     regimen: med.regimen ?? null,
+    isInjectable: med.isInjectable ?? false,
   }).where(eq(schema.medications.id, med.id)).run();
 }
 
@@ -979,6 +996,17 @@ export async function deleteAppointmentDocument(id: string): Promise<void> {
 export async function updateMedicationStock(id: string, newQuantity: number): Promise<void> {
   db.update(schema.medications).set({ stockQuantity: newQuantity })
     .where(eq(schema.medications.id, id)).run();
+}
+
+/** Records the injection site on an already-logged dose (F3 injectables). */
+export async function setDoseInjectionSite(
+  scheduleId: string,
+  scheduledDate: string,
+  site: string
+): Promise<void> {
+  db.update(schema.doseLogs).set({ injectionSite: site })
+    .where(and(eq(schema.doseLogs.scheduleId, scheduleId), eq(schema.doseLogs.scheduledDate, scheduledDate)))
+    .run();
 }
 
 export async function updateDoseLogNotes(

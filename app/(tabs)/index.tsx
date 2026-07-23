@@ -16,6 +16,9 @@ import { EmptyState } from "../../components/EmptyState";
 import { CheckinModal } from "../../components/CheckinModal";
 import { AppointmentMiniCard } from "../../components/AppointmentMiniCard";
 import { ProfileChip } from "../../components/ProfileChip";
+import { SitePickerModal } from "../../components/SitePickerModal";
+import { suggestNextSite, type InjectionSite } from "../../src/services/injectionSites";
+import { setDoseInjectionSite } from "../../src/db/database";
 import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { TodayDose, SkipReason } from "../../src/types";
 import { CATEGORY_CONFIG, getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../../src/utils";
@@ -32,6 +35,7 @@ export default function HomeScreen() {
   const { showToast } = useToast();
   const loadTodayLogs = useAppStore((s) => s.loadTodayLogs);
   const markDose = useAppStore((s) => s.markDose);
+  const getHistoryLogs = useAppStore((s) => s.getHistoryLogs);
   const snoozeDose = useAppStore((s) => s.snoozeDose);
   const rescheduleOnce = useAppStore((s) => s.rescheduleOnce);
   const revertDose = useAppStore((s) => s.revertDose);
@@ -46,6 +50,10 @@ export default function HomeScreen() {
   const setSelectedAppointmentId = useAppStore((s) => s.setSelectedAppointmentId);
   const [refreshing, setRefreshing] = useState(false);
   const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(null);
+  // Injection-site picker (F3): opened after taking an injectable dose or
+  // from the site chip on a taken dose.
+  const [siteDose, setSiteDose] = useState<TodayDose | null>(null);
+  const [siteSuggestion, setSiteSuggestion] = useState<InjectionSite | null>(null);
 
   const reschedulePan = useRef(
     PanResponder.create({
@@ -176,6 +184,29 @@ export default function HomeScreen() {
   const handleMarkDose = (dose: TodayDose, status: "taken" | "skipped", skipReason?: SkipReason) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     markDose(dose, status, undefined, skipReason);
+    if (status === "taken" && dose.medication.isInjectable) openSitePicker(dose);
+  };
+
+  const openSitePicker = async (dose: TodayDose) => {
+    try {
+      const to = format(new Date(), "yyyy-MM-dd");
+      const from = format(new Date(Date.now() - 90 * 86_400_000), "yyyy-MM-dd");
+      const logs = (await getHistoryLogs(from, to)).filter(
+        (l) => l.medicationId === dose.medication.id
+      );
+      setSiteSuggestion(suggestNextSite(logs));
+    } catch {
+      setSiteSuggestion(null);
+    }
+    setSiteDose(dose);
+  };
+
+  const handlePickSite = async (site: InjectionSite) => {
+    const dose = siteDose;
+    setSiteDose(null);
+    if (!dose) return;
+    await setDoseInjectionSite(dose.schedule.id, dose.scheduledDate, site);
+    await loadTodayLogs();
   };
 
   const handleSnooze = (dose: TodayDose, minutes?: number) => {
@@ -432,6 +463,7 @@ export default function HomeScreen() {
                     onSnooze={(minutes) => handleSnooze(dose, minutes)}
                     onReschedule={() => openReschedule(dose)}
                     onRevert={dose.snoozedUntil ? () => handleRevertSnooze(dose) : undefined}
+                    onSetSite={() => openSitePicker(dose)}
                   />
                 ))}
               </>
@@ -480,6 +512,7 @@ export default function HomeScreen() {
                     onSnooze={(minutes) => handleSnooze(dose, minutes)}
                     onRevert={() => handleRevert(dose)}
                     onUpdateNote={(note) => handleUpdateNote(dose, note)}
+                    onSetSite={() => openSitePicker(dose)}
                   />
                 ))}
               </>
@@ -628,6 +661,14 @@ export default function HomeScreen() {
       <CheckinModal
         visible={checkinVisible}
         onClose={() => setCheckinVisible(false)}
+      />
+      {/* Injection-site picker (F3) */}
+      <SitePickerModal
+        visible={siteDose !== null}
+        suggested={siteSuggestion}
+        current={siteDose?.injectionSite}
+        onPick={handlePickSite}
+        onClose={() => setSiteDose(null)}
       />
     </SafeAreaView>
   );

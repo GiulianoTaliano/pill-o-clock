@@ -61,6 +61,7 @@ export function useTodaySchedule(dateStr?: string): TodayDose[] {
         scheduledTime: schedule.time,
         status,
         takenAt: log?.takenAt,
+        injectionSite: log?.injectionSite,
         notes: log?.notes,
         skipReason: log?.skipReason,
         snoozedUntil: isToday ? snoozedTimes[`${schedule.id}-${targetDate}`] : undefined,

@@ -80,6 +80,8 @@ export interface Medication {
   profileId?: string;
   /** Complex regimen JSON (F3): everyN / cycle / taper — see services/regimen.ts. */
   regimen?: string;
+  /** Injectable med (F3, GLP-1 wave): enables site rotation + weekly countdown. */
+  isInjectable?: boolean;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────
@@ -121,6 +123,8 @@ export interface DoseLog {
   notes?: string;
   /** Reason the user gave for skipping this dose (only set when status = 'skipped'). */
   skipReason?: SkipReason;
+  /** Injection site key (F3) — see services/injectionSites.ts; injectables only. */
+  injectionSite?: string;
 }
 
 // ─── Appointment ──────────────────────────────────────────────────────────
@@ -229,6 +233,8 @@ export interface TodayDose {
   scheduledDate: string;
   scheduledTime: string;
   status: TodayDoseStatus;
+  /** Injection site recorded on the log (F3 injectables). */
+  injectionSite?: string;
   takenAt?: string;
   /** Free-text note attached to the dose log (if any). */
   notes?: string;
