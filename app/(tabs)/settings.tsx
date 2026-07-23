@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback } from "react";
 import { AppState as RNAppState } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore, ThemeMode } from "../../src/store";
@@ -128,6 +128,7 @@ function SettingRow({
 
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const theme = useAppTheme();
   const resetAllData = useAppStore((s) => s.resetAllData);
   const loadAll = useAppStore((s) => s.loadAll);
@@ -160,15 +161,18 @@ export default function SettingsScreen() {
 
   const profileDisplayName = (p: Profile) => p.name || t("profiles.me");
 
-  async function handleProfileSave(name: string, color: string) {
+  async function handleProfileSave(name: string, color: string, contact: { name: string; phone: string }) {
     const editing = profileModal;
     setProfileModal(null);
     if (editing === "new") {
       const p = await addProfile(name, color);
+      if (contact.name || contact.phone) {
+        await renameProfile(p.id, name, color, contact);
+      }
       await switchProfile(p.id);
       showToast(t("profiles.switchedTo", { name: name || t("profiles.me") }), "success");
     } else if (editing) {
-      await renameProfile(editing.id, name, color);
+      await renameProfile(editing.id, name, color, contact);
     }
   }
 
@@ -634,6 +638,23 @@ export default function SettingsScreen() {
             title={t("profiles.add")}
             onPress={() => setProfileModal("new")}
             chevron={false}
+          />
+          <Divider />
+          {/* Allergies + emergency card (F3) — both scoped to the active profile */}
+          <SettingRow
+            icon="shield-outline"
+            iconColor={theme.accent}
+            title={t("allergies.title")}
+            subtitle={t("allergies.settingsSubtitle")}
+            onPress={() => router.push("/allergies")}
+          />
+          <Divider />
+          <SettingRow
+            icon="medkit-outline"
+            iconColor="#dc2626"
+            title={t("emergency.title")}
+            subtitle={t("emergency.settingsSubtitle")}
+            onPress={() => router.push("/emergency")}
           />
         </View>
 

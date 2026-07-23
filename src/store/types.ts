@@ -87,7 +87,12 @@ export interface ProfilesSlice {
   activeProfileId: string;
   loadProfiles: () => Promise<void>;
   addProfile: (name: string, color: string) => Promise<Profile>;
-  renameProfile: (id: string, name: string, color?: string) => Promise<void>;
+  renameProfile: (
+    id: string,
+    name: string,
+    color?: string,
+    contact?: { name: string; phone: string }
+  ) => Promise<void>;
   switchProfile: (id: string) => Promise<void>;
   /** Deletes the profile AND all its data, cancelling its alarms first. */
   removeProfile: (id: string) => Promise<void>;

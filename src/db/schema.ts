@@ -9,7 +9,25 @@ export const profiles = sqliteTable("profiles", {
   name: text("name").notNull(),
   color: text("color").notNull().default("blue"),
   createdAt: text("created_at").notNull(),
+  emergencyContactName: text("emergency_contact_name"),
+  emergencyContactPhone: text("emergency_contact_phone"),
 });
+
+// ─── Allergies (F3): per-profile, optionally pinned to an ingredient ───────
+
+export const allergies = sqliteTable(
+  "allergies",
+  {
+    id: text("id").primaryKey(),
+    profileId: text("profile_id").notNull().default("default"),
+    /** Display name as entered/picked by the user. */
+    name: text("name").notNull(),
+    /** Ingredient RxCUI when picked from the NLM autocomplete; null = free text. */
+    ingRxcui: text("ing_rxcui"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("idx_allergies_profile").on(t.profileId)]
+);
 
 // ─── Medications ───────────────────────────────────────────────────────────
 
