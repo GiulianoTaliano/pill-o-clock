@@ -27,6 +27,7 @@ import { useToast } from "../src/context/ToastContext";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { medicationFormSchema, type MedicationFormData } from "../src/schemas/medication";
+import { searchDrugs, type DrugSuggestion } from "../src/services/drugDb";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 
 // ─── Inline error ──────────────────────────────────────────────────────────
@@ -350,6 +351,9 @@ export function MedicationForm({
   const endDate = watch("endDate");
   const stockQtyStr = watch("stockQtyStr");
   const stockThreshStr = watch("stockThreshStr");
+
+  // Offline drug-name autocomplete (F1). Cleared on pick or when too short.
+  const [drugSuggestions, setDrugSuggestions] = useState<DrugSuggestion[]>([]);
   const photoUri = watch("photoUri");
   const repeatMode = watch("repeatMode");
   const onceDate = watch("onceDate");
@@ -517,7 +521,10 @@ export function MedicationForm({
                 render={({ field: { onChange, value } }) => (
                   <TextInput
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={(v) => {
+                      onChange(v);
+                      setDrugSuggestions(searchDrugs(v));
+                    }}
                     placeholder={t('form.fieldNamePlaceholder')}
                     placeholderTextColor={theme.muted}
                     className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
@@ -525,6 +532,30 @@ export function MedicationForm({
                   />
                 )}
               />
+              {drugSuggestions.length > 0 && (
+                <View className="mt-1 rounded-xl border border-border bg-card overflow-hidden">
+                  {drugSuggestions.map((s) => (
+                    <TouchableOpacity
+                      key={s.name}
+                      accessibilityRole="button"
+                      accessibilityLabel={s.name}
+                      onPress={() => {
+                        setValue("name", s.name, { shouldValidate: true });
+                        setDrugSuggestions([]);
+                      }}
+                      className="px-3 py-2.5 border-b border-border"
+                    >
+                      <Text className="text-sm font-medium text-text" numberOfLines={1}>{s.name}</Text>
+                      {s.strengths.length > 0 && (
+                        <Text className="text-[11px] text-muted mt-0.5" numberOfLines={1}>
+                          {s.strengths.slice(0, 6).join(" · ")}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                  <Text className="px-3 py-1.5 text-[10px] text-muted">{t('form.drugDbAttribution')}</Text>
+                </View>
+              )}
               <FieldError message={errors.name?.message ? t(errors.name.message as any) : undefined} />
             </View>
 
