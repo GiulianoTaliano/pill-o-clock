@@ -101,4 +101,7 @@ export const medicationFormSchema = z
     }
   });
 
-export type MedicationFormData = z.infer<typeof medicationFormSchema>;
+// Input vs output diverge because of the .default() fields: they are optional
+// before parsing and guaranteed after. useForm needs both sides (rhf >= 7.55).
+export type MedicationFormInput = z.input<typeof medicationFormSchema>;
+export type MedicationFormData = z.output<typeof medicationFormSchema>;
