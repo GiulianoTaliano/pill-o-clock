@@ -25,6 +25,7 @@ export const medicationFormSchema = z
     renewalDate: z.string().optional(),
     prnMaxStr: z.string().optional(),
     prnIntervalHoursStr: z.string().optional(),
+    rxcui: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     // Validate dosage is a positive number

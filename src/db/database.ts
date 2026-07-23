@@ -163,6 +163,7 @@ function toMedication(row: typeof schema.medications.$inferSelect): Medication {
     renewalNotifIds: row.renewalNotifIds ?? undefined,
     prnMaxPerDay: row.prnMaxPerDay ?? undefined,
     prnMinIntervalMinutes: row.prnMinIntervalMinutes ?? undefined,
+    rxcui: row.rxcui ?? undefined,
   };
 }
 
@@ -283,7 +284,8 @@ export async function initDatabase(): Promise<void> {
       renewal_date  TEXT,
       renewal_notif_ids TEXT,
       prn_max_per_day INTEGER,
-      prn_min_interval_minutes INTEGER
+      prn_min_interval_minutes INTEGER,
+      rxcui         TEXT
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -477,6 +479,13 @@ export async function initDatabase(): Promise<void> {
     }
     expoDb.execSync("PRAGMA user_version = 12");
   }
+
+  if (user_version < 13) {
+    // F2: RxNorm SXDG id captured from the autocomplete — powers the
+    // duplicate-therapy checker.
+    try { expoDb.execSync("ALTER TABLE medications ADD COLUMN rxcui TEXT"); } catch { /* exists */ }
+    expoDb.execSync("PRAGMA user_version = 13");
+  }
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────
@@ -513,6 +522,7 @@ export async function insertMedication(med: Medication): Promise<void> {
     renewalNotifIds: med.renewalNotifIds ?? null,
     prnMaxPerDay: med.prnMaxPerDay ?? null,
     prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
+    rxcui: med.rxcui ?? null,
   }).run();
 }
 
@@ -536,6 +546,7 @@ export async function updateMedication(med: Medication): Promise<void> {
     renewalNotifIds: med.renewalNotifIds ?? null,
     prnMaxPerDay: med.prnMaxPerDay ?? null,
     prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
+    rxcui: med.rxcui ?? null,
   }).where(eq(schema.medications.id, med.id)).run();
 }
 

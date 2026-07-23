@@ -65,6 +65,8 @@ export interface Medication {
   prnMaxPerDay?: number;
   /** PRN safety: minimum minutes between doses (optional). */
   prnMinIntervalMinutes?: number;
+  /** RxNorm SXDG id from the autocomplete pick — powers duplicate-therapy checks. */
+  rxcui?: string;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────

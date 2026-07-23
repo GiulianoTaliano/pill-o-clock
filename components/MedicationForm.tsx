@@ -260,6 +260,8 @@ export interface MedicationFormValues {
   /** PRN safety limits (F2). */
   prnMaxPerDay?: number;
   prnMinIntervalMinutes?: number;
+  /** RxNorm SXDG id from the autocomplete pick (cleared on manual edits). */
+  rxcui?: string;
 }
 
 interface MedicationFormProps {
@@ -344,6 +346,7 @@ export function MedicationForm({
         initialValues?.prnMinIntervalMinutes != null
           ? String(Math.round((initialValues.prnMinIntervalMinutes / 60) * 100) / 100)
           : "",
+      rxcui: initialValues?.rxcui,
     },
   });
 
@@ -432,6 +435,7 @@ export function MedicationForm({
         data.repeatMode === "prn" && data.prnIntervalHoursStr?.trim()
           ? Math.max(1, Math.round(parseFloat(data.prnIntervalHoursStr.replace(",", ".")) * 60))
           : undefined,
+      rxcui: data.rxcui,
     });
   };
 
@@ -539,6 +543,8 @@ export function MedicationForm({
                     value={value}
                     onChangeText={(v) => {
                       onChange(v);
+                      // A manual edit invalidates the picked RxCUI identity.
+                      setValue("rxcui", undefined);
                       setDrugSuggestions(searchDrugs(v));
                     }}
                     placeholder={t('form.fieldNamePlaceholder')}
@@ -557,6 +563,7 @@ export function MedicationForm({
                       accessibilityLabel={s.name}
                       onPress={() => {
                         setValue("name", s.name, { shouldValidate: true });
+                        setValue("rxcui", s.rxcui || undefined);
                         setDrugSuggestions([]);
                       }}
                       className="px-3 py-2.5 border-b border-border"
