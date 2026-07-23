@@ -511,6 +511,10 @@ const en: TranslationShape = {
   },
 
   // ─── PDF report ─────────────────────────────────────────────────────────
+  timezone: {
+    adjustedTitle: "Timezone change",
+    adjustedBody: "We adjusted your reminders to local time in {{tz}}.",
+  },
   archive: {
     action: "Archive",
     section: "Archived",

@@ -509,6 +509,10 @@ const es = {
   },
 
   // ─── Informe PDF ────────────────────────────────────────────────────────
+  timezone: {
+    adjustedTitle: "Cambio de huso horario",
+    adjustedBody: "Ajustamos tus recordatorios a la hora local de {{tz}}.",
+  },
   archive: {
     action: "Archivar",
     section: "Archivados",
