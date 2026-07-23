@@ -128,6 +128,8 @@ export default function SettingsScreen() {
   const loadAll = useAppStore((s) => s.loadAll);
   const themeMode = useAppStore((s) => s.themeMode);
   const setThemeMode = useAppStore((s) => s.setThemeMode);
+  const seniorMode = useAppStore((s) => s.seniorMode);
+  const setSeniorMode = useAppStore((s) => s.setSeniorMode);
 
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -579,6 +581,21 @@ export default function SettingsScreen() {
               />
             </View>
           ))}
+          {/* Senior / low-vision mode (F1) */}
+          <Divider />
+          <View className="flex-row items-center px-4 py-3.5 gap-3">
+            <Ionicons name="text-outline" size={20} color={theme.primary} />
+            <View className="flex-1">
+              <Text className="text-[15px] font-semibold text-text">{t("settings.seniorMode")}</Text>
+              <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.seniorModeSubtitle")}</Text>
+            </View>
+            <Switch
+              value={seniorMode}
+              onValueChange={(on) => { Haptics.selectionAsync(); setSeniorMode(on); }}
+              trackColor={{ false: undefined, true: theme.primary }}
+              accessibilityLabel={t("settings.seniorMode")}
+            />
+          </View>
         </View>
 
         {/* ─── About ─── */}

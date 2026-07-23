@@ -37,6 +37,13 @@ export const useAppStore = create<AppState>()((...a) => {
     todayLogs: [],
     isLoading: false,
     themeMode: "system" as ThemeMode,
+    // Senior mode reads synchronously so the first render is already scaled.
+    seniorMode: storage.getString(STORAGE_KEYS.SENIOR_MODE) === "1",
+
+    setSeniorMode(on: boolean) {
+      storage.set(STORAGE_KEYS.SENIOR_MODE, on ? "1" : "0");
+      set({ seniorMode: on });
+    },
 
     // ── Theme ──────────────────────────────────────────────────────────
 

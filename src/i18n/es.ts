@@ -564,6 +564,8 @@ const es = {
     rxtermsAttribution: "Las sugerencias de nombres de medicamentos incluyen datos de RxTerms, producido por la U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Apariencia",
+    seniorMode: "Texto y botones grandes",
+    seniorModeSubtitle: "Modo de visibilidad ampliada para las tarjetas de dosis",
     themeSystem: "Automático (sistema)",
     themeLight: "Claro",
     themeDark: "Oscuro",
