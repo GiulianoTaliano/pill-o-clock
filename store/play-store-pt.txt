@@ -1,0 +1,75 @@
+══════════════════════════════════════════════════════
+ PILL O-CLOCK — PLAY STORE LISTING (PORTUGUÊS - BRASIL)
+ Copy-paste into Google Play Console → Store listing (pt-BR)
+ Redactada para 1.7.0 (incluye Fases 2–4)
+══════════════════════════════════════════════════════
+
+── TÍTULO DE LA APP (max 30 caracteres) ────────────────
+Pill O-Clock: Remédios
+
+── DESCRIPCIÓN BREVE (max 80 caracteres) ───────────────
+Alarme de remédios e diário de saúde. Sem conta e privado.
+
+── DESCRIPCIÓN COMPLETA (max 4000 caracteres) ──────────
+
+💊 Pill O-Clock — O alarme de remédios que toca de verdade
+
+Nunca mais pule uma dose. O Pill O-Clock toca um alarme de verdade quando é hora do remédio, registra cada dose que você toma (ou não), e acompanha suas medições de saúde e como você se sente — tudo guardado de forma privada no seu telefone. Sem conta. Sem assinatura. Seus dados de saúde ficam no seu aparelho.
+
+▸ ALARMES QUE TOCAM DE VERDADE
+A maioria dos lembretes manda uma notificação silenciosa fácil de ignorar. O Pill O-Clock toca um alarme em tela cheia — mesmo com o telefone bloqueado ou no silencioso — e insiste a cada poucos minutos até você responder. Se vários remédios caem no mesmo horário, a tela agrupa todos para confirmar de uma vez. Também pode falar em voz alta o remédio e a dose (opcional).
+
+▸ PARA VOCÊ E PARA QUEM VOCÊ CUIDA
+Perfis múltiplos no mesmo telefone: gerencie seus remédios, os da sua mãe e os dos seus filhos, sem criar nenhuma conta. Os alarmes de todos os perfis sempre tocam, e cada um diz de quem é o remédio.
+
+▸ ESQUEMAS COMPLEXOS, SEM COMPLICAÇÃO
+Ciclos (21 dias sim, 7 não), desmame com doses decrescentes, dia sim dia não, e injetáveis semanais com rodízio de local de aplicação e contagem para a próxima dose. O alarme mostra a dose certa do dia.
+
+▸ GESTÃO COMPLETA DE REMÉDIOS
+Cadastre qualquer remédio com dose, categoria, instruções, foto da caixa e período de tratamento — ou escaneie o código de barras da embalagem para preencher mais rápido. Controle o estoque com alertas antes de acabar, lembrete de renovação de receita, e arquive tratamentos encerrados sem perder o histórico. Avisos de terapia duplicada e de alergias com dados da National Library of Medicine (EUA).
+
+▸ FICHA DE EMERGÊNCIA
+Uma tela com letras grandes mostra alergias, remédios em uso e contato de emergência — acessível sem desbloquear o app, pensada para primeiros socorros.
+
+▸ MEDIÇÕES E DIÁRIO DE BEM-ESTAR
+Pressão arterial, glicemia, peso, SpO₂ e frequência cardíaca, com gráficos de tendência e sincronização opcional com o Health Connect. Registre humor e sintomas todos os dias e compare com seu histórico de doses.
+
+▸ RELATÓRIOS PARA O MÉDICO
+Gere um PDF completo para a consulta, um resumo operacional para quem cuida de você, ou exporte no padrão HL7 FHIR para sistemas de saúde.
+
+▸ SEUS DADOS SÃO SEUS — SEMPRE
+Tudo fica em um banco de dados local criptografado e não sai do seu aparelho. As únicas exceções: diagnósticos técnicos de falhas (que nunca incluem seus dados de saúde) e, se você adicionar o local de uma consulta, a busca no mapa. Sem conta, sem nuvem obrigatória, sem análise de uso. Faça backup completo — com senha, se quiser — e restaure ao trocar de telefone.
+
+▸ EM PORTUGUÊS, ESPANHOL E INGLÊS
+O app detecta o idioma do aparelho e você pode trocar nos Ajustes. Modo escuro, modo de letras grandes para baixa visão e alarmes falados.
+
+⚠️ Aviso: o Pill O-Clock é uma ferramenta de lembrete e acompanhamento que não substitui a orientação de um profissional de saúde. Sempre consulte seu médico ou farmacêutico antes de mudar seu tratamento.
+
+── NOVEDADES / RELEASE NOTES 1.7.0 (max 500 caracteres) ─
+
+v1.7.0
+• Perfis múltiplos: cuide de toda a família em um telefone
+• Esquemas complexos: ciclos, desmame e injetáveis com rodízio de local
+• Escaneie o código de barras para cadastrar mais rápido
+• Alergias com avisos + ficha de emergência
+• Alarmes agrupados e falados em voz alta
+• Backup criptografado, exportação FHIR e Português (Brasil)
+
+── CATEGORÍA ────────────────────────────────────────────
+Health & Fitness
+
+── ETIQUETAS / KEYWORDS ─────────────────────────────────
+lembrete de remédio, alarme de remédio, hora do remédio, controle de medicação, lembrete de medicamento, pressão arterial, glicemia, diário de sintomas, saúde da família, cuidador, adesão ao tratamento, porta comprimidos, remédio diário, alarme de comprimido, relatório médico PDF, medication reminder, pill reminder
+
+── CORREO DE CONTACTO ───────────────────────────────────
+privacy@pilloclock.app
+
+── POLÍTICA DE PRIVACIDAD (URL) ─────────────────────────
+https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html
+
+── NOTA ─────────────────────────────────────────────────
+La sección "sin anuncios" NO se menciona en esta ficha (a diferencia
+de la ES/EN histórica) para no tener que reescribirla cuando se
+activen los banners. Si el flip de AdMob se decide antes del reenvío,
+las fichas ES/EN deben quitar su claim "sin anuncios" (ver checklist
+en src/services/ads.ts).
