@@ -511,6 +511,19 @@ const en: TranslationShape = {
   },
 
   // ─── PDF report ─────────────────────────────────────────────────────────
+  backupCrypto: {
+    setTitle: "Protect with a passphrase?",
+    setSubtitle: "The file is encrypted: nobody can read it without the passphrase, not even where you store it (Drive, etc.).",
+    enterTitle: "Encrypted backup",
+    enterSubtitle: "Enter the passphrase this backup was created with.",
+    passphrasePlaceholder: "Passphrase (min. 6 characters)",
+    confirmPlaceholder: "Repeat passphrase",
+    warning: "If you forget it, the backup cannot be recovered. We store it nowhere.",
+    skip: "No passphrase",
+    encrypt: "Encrypt",
+    unlock: "Open",
+    wrongPassphrase: "Wrong passphrase or corrupted file.",
+  },
   fhir: {
     settingsTitle: "Export for your doctor (FHIR)",
     settingsSubtitle: "Standard HL7 FHIR file with the active profile's medications and allergies",

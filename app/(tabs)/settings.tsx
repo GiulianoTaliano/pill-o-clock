@@ -9,7 +9,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore, ThemeMode } from "../../src/store";
-import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
+import { exportBackup, importBackup, BackupCancelledError, BackupFormatError, WrongPassphraseError } from "../../src/services/backup";
+import { PassphraseModal } from "../../components/PassphraseModal";
 import { generateAndShareReport } from "../../src/services/pdfReport";
 import { generateAndShareCaregiverSnapshot } from "../../src/services/caregiverSnapshot";
 import { generateAndShareFhirBundle } from "../../src/services/fhirExport";
@@ -143,6 +144,13 @@ export default function SettingsScreen() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [generatingSnapshot, setGeneratingSnapshot] = useState(false);
   const [exportingFhir, setExportingFhir] = useState(false);
+  // Passphrase prompt (F3 encrypted backup): promise resolved by the modal.
+  const [passModal, setPassModal] = useState<{
+    mode: "set" | "enter";
+    resolve: (pass: string | null) => void;
+  } | null>(null);
+  const promptPassphrase = (mode: "set" | "enter") =>
+    new Promise<string | null>((resolve) => setPassModal({ mode, resolve }));
   const { showToast } = useToast();
 
   // Multi-profile (F2)
@@ -322,9 +330,11 @@ export default function SettingsScreen() {
   }
 
   async function handleExport() {
+    // Optional passphrase (F3): skip = plain JSON, exactly as before.
+    const passphrase = await promptPassphrase("set");
     setExporting(true);
     try {
-      await exportBackup();
+      await exportBackup(passphrase ?? undefined);
       showToast(t("settings.exportSuccess"), "success");
     } catch (e) {
       if (e instanceof BackupCancelledError) return;
@@ -356,15 +366,17 @@ export default function SettingsScreen() {
   async function runImport(mode: "replace" | "merge") {
     setImporting(true);
     try {
-      const { count } = await importBackup(mode);
+      const { count } = await importBackup(mode, () => promptPassphrase("enter"));
       await loadAll();
       showToast(t("settings.importSuccessMsg", { count }), "success");
     } catch (e) {
       if (e instanceof BackupCancelledError) return;
       const msg =
-        e instanceof BackupFormatError
-          ? t("settings.importErrorFormat")
-          : t("settings.importErrorGeneric");
+        e instanceof WrongPassphraseError
+          ? t("backupCrypto.wrongPassphrase")
+          : e instanceof BackupFormatError
+            ? t("settings.importErrorFormat")
+            : t("settings.importErrorGeneric");
       showToast(msg, "error");
     } finally {
       setImporting(false);
@@ -833,6 +845,16 @@ export default function SettingsScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* Backup passphrase prompt (F3 encrypted backup) */}
+      <PassphraseModal
+        visible={passModal !== null}
+        mode={passModal?.mode ?? "set"}
+        onDone={(pass) => {
+          passModal?.resolve(pass);
+          setPassModal(null);
+        }}
+      />
 
       {/* Profile create/edit modal (F2 multi-profile) */}
       <ProfileModal

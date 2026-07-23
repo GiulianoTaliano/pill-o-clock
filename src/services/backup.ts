@@ -2,6 +2,7 @@ import { File, Paths } from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system/src/legacy";
 import * as DocumentPicker from "expo-document-picker";
 import { z } from "zod";
+import { encryptBackup, decryptBackup, isEncryptedEnvelope, WrongPassphraseError } from "./backupCrypto";
 import { Medication, Schedule, DoseLog, Appointment, AppointmentDocument, HealthMeasurement, DailyCheckin, Allergy } from "../types";
 import {
   getDb,
@@ -166,7 +167,7 @@ export type BackupData = z.infer<typeof backupSchema>;
 
 /** Serialises the entire database into a JSON file and lets the user
  *  pick a folder via the system file picker (SAF) to save it. */
-export async function exportBackup(): Promise<void> {
+export async function exportBackup(passphrase?: string): Promise<void> {
   const [medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins, profiles, allergies] = await Promise.all([
     getMedications(),
     getAllSchedules(),
@@ -186,9 +187,14 @@ export async function exportBackup(): Promise<void> {
     data: { medications, schedules, doseLogs, appointments, appointmentDocuments, healthMeasurements, dailyCheckins, profiles, allergies },
   };
 
-  const json = JSON.stringify(backup, null, 2);
+  const plain = JSON.stringify(backup, null, 2);
+  // Optional passphrase (F3): scrypt + XChaCha20-Poly1305 envelope so the
+  // file is unreadable wherever the SAF picker puts it (user's own cloud).
+  const json = passphrase ? encryptBackup(plain, passphrase) : plain;
   const date = new Date().toISOString().split("T")[0];
-  const filename = `pilloclock-backup-${date}`;
+  const filename = passphrase
+    ? `pilloclock-backup-${date}.encrypted`
+    : `pilloclock-backup-${date}`;
 
   const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
   if (!permissions.granted) throw new BackupCancelledError();
@@ -226,7 +232,10 @@ export class BackupFormatError extends Error {
  * @returns `{ count }` — number of medications that were imported.
  */
 export async function importBackup(
-  mode: "replace" | "merge"
+  mode: "replace" | "merge",
+  /** Called when the picked file is a passphrase-encrypted envelope.
+   *  Resolve null to cancel the import. */
+  getPassphrase?: () => Promise<string | null>
 ): Promise<{ count: number }> {
   const result = await DocumentPicker.getDocumentAsync({
     type: ["application/json", "text/plain", "*/*"],
@@ -246,6 +255,19 @@ export async function importBackup(
       raw = JSON.parse(json);
     } catch {
       throw new BackupFormatError();
+    }
+
+    // Encrypted envelope (F3): ask for the passphrase and unwrap.
+    if (isEncryptedEnvelope(raw)) {
+      if (!getPassphrase) throw new BackupFormatError();
+      const passphrase = await getPassphrase();
+      if (passphrase == null) throw new BackupCancelledError();
+      const decrypted = decryptBackup(raw, passphrase); // throws WrongPassphraseError
+      try {
+        raw = JSON.parse(decrypted);
+      } catch {
+        throw new BackupFormatError();
+      }
     }
 
     const parsed = backupSchema.safeParse(raw);
@@ -347,3 +369,5 @@ export async function importBackup(
     }
   }
 }
+
+export { WrongPassphraseError };
