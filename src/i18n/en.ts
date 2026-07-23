@@ -502,6 +502,11 @@ const en: TranslationShape = {
   },
 
   // ─── Settings screen ──────────────────────────────────────────────────────
+  interactions: {
+    dupTitle: "Repeated ingredient",
+    dupLine: "{{name}} also contains: {{ingredients}}",
+    disclaimer: "Informational notice based on RxTerms (NLM) data. Not a substitute for your doctor's or pharmacist's advice.",
+  },
   prn: {
     limitTitle: "Dose limit reached",
     limitMax: "You already logged {{count}} of {{max}} allowed doses today.",

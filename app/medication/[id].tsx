@@ -6,6 +6,7 @@ import { useAppStore } from "../../src/store";
 import { getSchedulesByMedication } from "../../src/db/database";
 import { Schedule } from "../../src/types";
 import { useTranslation } from "../../src/i18n";
+import { findDuplicateTherapy, duplicateTherapyMessage } from "../../src/services/interactions";
 import { useSkeletonAnimation, SkeletonBox } from "../../components/Skeleton";
 
 function MedicationFormSkeleton() {
@@ -101,6 +102,7 @@ export default function EditMedicationScreen() {
     renewalDate: medication.renewalDate,
     prnMaxPerDay: medication.prnMaxPerDay,
     prnMinIntervalMinutes: medication.prnMinIntervalMinutes,
+    rxcui: medication.rxcui,
     schedules: schedules.map((s) => ({
       id: s.id,
       time: s.time,
@@ -130,6 +132,7 @@ export default function EditMedicationScreen() {
           renewalDate: values.renewalDate,
           prnMaxPerDay: values.prnMaxPerDay,
           prnMinIntervalMinutes: values.prnMinIntervalMinutes,
+          rxcui: values.rxcui,
         },
         // Pass each schedule's id through so unchanged schedules keep their
         // identity (and their dose_logs) instead of being deleted + recreated
@@ -137,6 +140,16 @@ export default function EditMedicationScreen() {
         // local key that won't match any DB id, so they get a real id in the slice.
         values.schedules.map((s) => ({ id: s.id, time: s.time, days: s.days }))
       );
+      // Duplicate-therapy check (F2): informational, excludes this med itself.
+      const dupes = findDuplicateTherapy(values.rxcui, medications, medication.id);
+      if (dupes.length > 0) {
+        Alert.alert(
+          t('interactions.dupTitle'),
+          duplicateTherapyMessage(t, dupes),
+          [{ text: t('common.ok'), onPress: () => router.back() }]
+        );
+        return;
+      }
       router.back();
     } catch {
       Alert.alert(t('common.error'), t('form.errorGeneric'));

@@ -23,6 +23,7 @@ export const medications = sqliteTable("medications", {
   renewalNotifIds: text("renewal_notif_ids"),
   prnMaxPerDay: integer("prn_max_per_day"),
   prnMinIntervalMinutes: integer("prn_min_interval_minutes"),
+  rxcui: text("rxcui"),
 });
 
 // ─── Schedules ─────────────────────────────────────────────────────────────

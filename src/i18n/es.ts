@@ -500,6 +500,11 @@ const es = {
   },
 
   // ─── Settings screen ──────────────────────────────────────────────────────
+  interactions: {
+    dupTitle: "Ingrediente repetido",
+    dupLine: "{{name}} también contiene: {{ingredients}}",
+    disclaimer: "Aviso informativo basado en datos de RxTerms (NLM). No reemplaza el consejo de tu médico o farmacéutico.",
+  },
   prn: {
     limitTitle: "Límite de dosis alcanzado",
     limitMax: "Ya registraste {{count}} de {{max}} dosis permitidas hoy.",
