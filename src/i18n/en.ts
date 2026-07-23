@@ -509,6 +509,17 @@ const en: TranslationShape = {
   },
 
   // ─── PDF report ─────────────────────────────────────────────────────────
+  archive: {
+    action: "Archive",
+    section: "Archived",
+    restore: "Restore medication",
+    confirmTitle: "Archive {{name}}",
+    confirmMsg: "Its alarms are cancelled but the history is kept. Why are you stopping it?",
+    reason_finished: "Finished the treatment",
+    reason_doctor: "Doctor's instruction",
+    reason_side_effects: "Side effects",
+    reason_other: "Other reason",
+  },
   allergies: {
     title: "Allergies",
     settingsSubtitle: "For the active profile; we warn if a new medication contains an ingredient you're allergic to",

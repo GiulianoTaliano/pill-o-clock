@@ -56,6 +56,8 @@ export const medications = sqliteTable("medications", {
   profileId: text("profile_id").notNull().default("default"),
   regimen: text("regimen"),
   isInjectable: integer("is_injectable", { mode: "boolean" }).notNull().default(false),
+  archivedAt: text("archived_at"),
+  archiveReason: text("archive_reason"),
 });
 
 // ─── Schedules ─────────────────────────────────────────────────────────────

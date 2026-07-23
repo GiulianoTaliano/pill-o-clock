@@ -13,6 +13,8 @@ interface MedicationCardProps {
   schedules: Schedule[];
   onEdit: () => void;
   onDelete: () => void;
+  /** Retire keeping history (F3) — offered alongside delete. */
+  onArchive?: () => void;
   onToggleActive: (isActive: boolean) => void;
   /** Today's dose logs — used to compute the "next dose" indicator. */
   todayLogs?: DoseLog[];
@@ -26,6 +28,7 @@ export function MedicationCard({
   schedules,
   onEdit,
   onDelete,
+  onArchive,
   onToggleActive,
   todayLogs = [],
   onLogPRN,
@@ -288,6 +291,17 @@ export function MedicationCard({
           <Ionicons name="pencil-outline" size={16} color="#3b82f6" />
           <Text className="text-blue-600 dark:text-blue-400 text-sm font-semibold">{t('common.edit')}</Text>
         </TouchableOpacity>
+        {onArchive && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${t('archive.action')} ${medication.name}`}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onArchive(); }}
+            className="flex-row items-center justify-center gap-1.5 bg-card-alt border border-border rounded-xl px-4 py-3 min-h-[44px] min-w-[44px]"
+          >
+            <Ionicons name="archive-outline" size={16} color={theme.muted} />
+            <Text className="text-sm font-semibold text-muted">{t('archive.action')}</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={`${t('common.delete')} ${medication.name}`}

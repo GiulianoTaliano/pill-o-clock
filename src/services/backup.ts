@@ -52,6 +52,8 @@ const medicationSchema = z.object({
   profileId: z.string().optional(),
   regimen: z.string().optional(),
   isInjectable: z.boolean().optional(),
+  archivedAt: z.string().optional(),
+  archiveReason: z.string().optional(),
 });
 
 const profileSchema = z.object({

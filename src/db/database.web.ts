@@ -286,3 +286,24 @@ export async function getAppointments(): Promise<Appointment[]> {
 export async function getActiveAppointments(): Promise<Appointment[]> {
   return [];
 }
+
+/** Stock counter update (web parity with database.ts). */
+export async function updateMedicationStock(id: string, newQuantity: number): Promise<void> {
+  const meds = load<Medication>(KEYS.medications);
+  save(KEYS.medications, meds.map((m) => (m.id === id ? { ...m, stockQuantity: newQuantity } : m)));
+}
+
+/** Dose-log note update (web parity with database.ts). */
+export async function updateDoseLogNotes(
+  scheduleId: string,
+  scheduledDate: string,
+  notes: string
+): Promise<void> {
+  const logs = load<DoseLog>(KEYS.doseLogs);
+  save(
+    KEYS.doseLogs,
+    logs.map((l) =>
+      l.scheduleId === scheduleId && l.scheduledDate === scheduledDate ? { ...l, notes } : l
+    )
+  );
+}

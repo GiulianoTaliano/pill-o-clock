@@ -171,6 +171,35 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
     set({ medications: allMeds });
   },
 
+  // ── Archive / unarchive (F3): retire without losing history ────────────
+
+  async archiveMedication(id, reason) {
+    const med = get().medications.find((m) => m.id === id);
+    if (!med) return;
+    // Silence everything first — an archived med must never ring.
+    const schedules = await getSchedulesByMedication(id);
+    await Promise.all(schedules.map((s) => cancelScheduleNotifications(s.id)));
+    await cancelRenewalReminders(med);
+    await updateMedication({
+      ...med,
+      isActive: false,
+      archivedAt: new Date().toISOString(),
+      archiveReason: reason,
+      renewalNotifIds: undefined,
+    });
+    set({ medications: await getActiveMedications() });
+  },
+
+  async unarchiveMedication(id) {
+    const med = get().medications.find((m) => m.id === id);
+    if (!med) return;
+    const restored = { ...med, isActive: true, archivedAt: undefined, archiveReason: undefined };
+    await updateMedication(restored);
+    const schedules = await getSchedulesByMedication(id);
+    await Promise.all(schedules.map((s) => _scheduleNotificationsForSchedule(restored, s)));
+    set({ medications: await getActiveMedications() });
+  },
+
   // ── Mark dose (taken / skipped) ────────────────────────────────────────
 
   async markDose(dose, status, notes, skipReason) {

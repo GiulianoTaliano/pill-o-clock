@@ -24,6 +24,9 @@ export interface MedicationsSlice {
 
   deleteMedication: (id: string) => Promise<void>;
   toggleMedicationActive: (id: string, isActive: boolean) => Promise<void>;
+  /** Retire a med keeping its history (F3): cancels alarms, records reason+date. */
+  archiveMedication: (id: string, reason: string) => Promise<void>;
+  unarchiveMedication: (id: string) => Promise<void>;
 
   markDose: (
     dose: TodayDose,
