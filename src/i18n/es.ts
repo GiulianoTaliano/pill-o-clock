@@ -190,6 +190,8 @@ const es = {
     fieldStockThreshold: "Alertar cuando queden menos de",
     fieldStockThresholdPlaceholder: "ej: 5",
     fieldStockUnit: "unidades",
+    fieldRenewal: "Renovación de receta (opcional)",
+    fieldRenewalHint: "Te avisamos 7 días antes y el mismo día.",
     sectionPhoto: "Foto (opcional)",
     addPhoto: "Agregar foto",
     changePhoto: "Cambiar foto",
@@ -304,6 +306,11 @@ const es = {
     badge_other: "Quedan {{count}}",
     low: "Stock bajo",
     channelName: "Alertas de stock",
+    daysLeft: "≈{{count}} días",
+    renewalSoonTitle: "Receta de {{name}} por vencer",
+    renewalSoonBody: "La renovación vence en 7 días. Pedí el turno o la receta nueva.",
+    renewalTodayTitle: "Renovar receta: {{name}}",
+    renewalTodayBody: "Hoy vence la renovación de la receta.",
   },
 
   // ─── Citas ───────────────────────────────────────────────────────────────

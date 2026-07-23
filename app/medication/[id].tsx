@@ -98,6 +98,7 @@ export default function EditMedicationScreen() {
     stockAlertThreshold: medication.stockAlertThreshold,
     isPRN: medication.isPRN,
     photoUri: medication.photoUri,
+    renewalDate: medication.renewalDate,
     schedules: schedules.map((s) => ({
       id: s.id,
       time: s.time,
@@ -124,6 +125,7 @@ export default function EditMedicationScreen() {
           stockAlertThreshold: values.stockAlertThreshold,
           isPRN: values.isPRN,
           photoUri: values.photoUri,
+          renewalDate: values.renewalDate,
         },
         // Pass each schedule's id through so unchanged schedules keep their
         // identity (and their dose_logs) instead of being deleted + recreated

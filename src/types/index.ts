@@ -57,6 +57,10 @@ export interface Medication {
   photoUri?: string;
   /** If true, this medication has no fixed schedule — user logs it on demand. */
   isPRN?: boolean;
+  /** ISO date (YYYY-MM-DD) — when the prescription must be renewed (optional). */
+  renewalDate?: string;
+  /** Pipe-separated scheduled-notification ids for the renewal reminders. */
+  renewalNotifIds?: string;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────

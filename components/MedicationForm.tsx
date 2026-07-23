@@ -254,6 +254,8 @@ export interface MedicationFormValues {
   stockAlertThreshold?: number;
   isPRN?: boolean;
   photoUri?: string;
+  /** ISO date (YYYY-MM-DD) — optional prescription-renewal date. */
+  renewalDate?: string;
 }
 
 interface MedicationFormProps {
@@ -332,6 +334,7 @@ export function MedicationForm({
       stockQtyStr: initialValues?.stockQuantity != null ? String(initialValues.stockQuantity) : "",
       stockThreshStr: initialValues?.stockAlertThreshold != null ? String(initialValues.stockAlertThreshold) : "",
       photoUri: initialValues?.photoUri,
+      renewalDate: initialValues?.renewalDate,
     },
   });
 
@@ -408,6 +411,7 @@ export function MedicationForm({
       stockAlertThreshold: data.stockThreshStr?.trim() ? Math.max(0, parseInt(data.stockThreshStr, 10)) : undefined,
       isPRN: data.repeatMode === "prn",
       photoUri: data.photoUri,
+      renewalDate: data.renewalDate,
     });
   };
 
@@ -927,6 +931,14 @@ export function MedicationForm({
                 </View>
               </View>
             )}
+            {/* Prescription renewal (F1) */}
+            <DateRow
+              label={t('form.fieldRenewal')}
+              value={watch("renewalDate")}
+              onChange={(v) => setValue("renewalDate", v)}
+              minimumDate={new Date()}
+            />
+            <Text className="text-xs text-muted -mt-2">{t('form.fieldRenewalHint')}</Text>
           </View>
         </View>
       </ScrollView>

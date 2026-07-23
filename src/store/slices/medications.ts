@@ -35,8 +35,11 @@ import {
   cancelScheduleNotifications,
   snoozeDose,
   scheduleStockAlert,
+  scheduleRenewalReminders,
+  cancelRenewalReminders,
   DAYS_AHEAD,
 } from "../../services/notifications";
+import { setMedicationRenewalNotifIds } from "../../db/database";
 import { getDefaultSnoozeMinutes } from "../../services/snoozeSettings";
 
 export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsSlice> = (set, get) => ({
@@ -69,6 +72,12 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
       })
     );
 
+    // Prescription-renewal reminders (F1).
+    if (med.renewalDate) {
+      const renewalIds = await scheduleRenewalReminders(med);
+      await setMedicationRenewalNotifIds(med.id, renewalIds ?? null);
+    }
+
     const allSchedules = await getAllActiveSchedules();
     const allMeds = await getMedications();
     set({ medications: allMeds, schedules: allSchedules });
@@ -79,6 +88,13 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
   // ── Update medication ──────────────────────────────────────────────────
 
   async updateMedication(med, scheduleInputs) {
+    // Re-plan renewal reminders: cancel whatever was scheduled for the
+    // previous renewalDate, then schedule for the (possibly new) one.
+    const prev = get().medications.find((m) => m.id === med.id);
+    if (prev) await cancelRenewalReminders(prev);
+    const renewalIds = await scheduleRenewalReminders(med);
+    med = { ...med, renewalNotifIds: renewalIds };
+
     await updateMedication(med);
 
     const existing = await getSchedulesByMedication(med.id);
@@ -126,6 +142,8 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
   async deleteMedication(id) {
     const schedules = await getSchedulesByMedication(id);
     await Promise.all(schedules.map((s) => cancelScheduleNotifications(s.id)));
+    const med = get().medications.find((m) => m.id === id);
+    if (med) await cancelRenewalReminders(med);
     await deleteMedication(id);
     const allSchedules = await getAllActiveSchedules();
     const allMeds = await getMedications();

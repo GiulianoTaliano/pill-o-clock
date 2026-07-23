@@ -36,6 +36,8 @@ jest.mock("../src/services/notifications", () => ({
   scheduleDoseChain: jest.fn().mockResolvedValue(undefined),
   snoozeDose: jest.fn().mockResolvedValue(undefined),
   scheduleStockAlert: jest.fn().mockResolvedValue(undefined),
+  scheduleRenewalReminders: jest.fn().mockResolvedValue(undefined),
+  cancelRenewalReminders: jest.fn().mockResolvedValue(undefined),
   SNOOZE_MINUTES: 15,
   DEFAULT_SNOOZE_MINUTES: 15,
   SNOOZE_OPTIONS: [5, 10, 15, 20, 25, 30, 45, 60],

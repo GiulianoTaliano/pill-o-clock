@@ -158,8 +158,10 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
       {children}
       {overlayVisible && (
         <View
-          className="absolute inset-0 items-center justify-center px-8"
-          style={{ backgroundColor: theme.background, zIndex: 999, elevation: 999 }}
+          className="absolute inset-0 items-center justify-center px-8 bg-background"
+          // Solid fallback color in case NativeWind's bg-background var fails:
+          // the overlay must NEVER be transparent (it hides health data).
+          style={{ backgroundColor: theme.isDark ? "#0b1220" : "#f1f5f9", zIndex: 999, elevation: 999 }}
           accessibilityViewIsModal
         >
           <Text style={{ fontSize: 44 }}>💊</Text>

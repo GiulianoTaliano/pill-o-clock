@@ -192,3 +192,30 @@ export const CATEGORY_CONFIG: Record<
   vitamina:         { label: "Vitamina",          icon: "sunny-outline",        priority: 3, tint: "#eab308", labelLight: "#a16207", labelDark: "#facc15" },
   otro:             { label: "Otro",              icon: "medical-outline",      priority: 4, tint: "#64748b", labelLight: "#475569", labelDark: "#94a3b8" },
 };
+
+// ─── Days-of-supply estimate (F1: refill) ──────────────────────────────────
+
+/**
+ * Estimates how many days the current stock lasts, from the medication's
+ * active schedules (each scheduled dose consumes 1 stock unit, matching the
+ * markDose decrement). Returns null when it can't be estimated (no stock
+ * tracked, PRN meds, or no active schedules).
+ */
+export function estimateDaysOfSupply(
+  medication: Medication,
+  schedules: Schedule[]
+): number | null {
+  const qty = medication.stockQuantity;
+  if (qty == null || qty < 0 || medication.isPRN) return null;
+  const own = schedules.filter(
+    (s) => s.medicationId === medication.id && s.isActive
+  );
+  if (own.length === 0) return null;
+  // days = [] means "every day" (see schedule normalization in the form).
+  const dosesPerWeek = own.reduce(
+    (sum, s) => sum + (s.days.length === 0 ? 7 : s.days.length),
+    0
+  );
+  if (dosesPerWeek <= 0) return null;
+  return Math.floor((qty * 7) / dosesPerWeek);
+}

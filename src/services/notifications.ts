@@ -602,6 +602,67 @@ export async function scheduleStockAlert(medication: Medication): Promise<void> 
   });
 }
 
+// ─── Prescription-renewal reminders (F1) ───────────────────────────────────
+
+/** Cancels any scheduled renewal reminders recorded on the medication. */
+export async function cancelRenewalReminders(med: Medication): Promise<void> {
+  if (Platform.OS === "web" || !med.renewalNotifIds) return;
+  await Promise.all(
+    med.renewalNotifIds
+      .split("|")
+      .filter(Boolean)
+      .map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {}))
+  );
+}
+
+/**
+ * Schedules prescription-renewal reminders for the medication:
+ *  - a heads-up 7 days before `renewalDate` at 10:00 (when still in the future)
+ *  - a reminder on the renewal day itself at 10:00
+ * Returns a pipe-separated id string to persist (or undefined when nothing
+ * was scheduled). Always cancel previous ids (cancelRenewalReminders) first.
+ */
+export async function scheduleRenewalReminders(
+  med: Medication
+): Promise<string | undefined> {
+  if (Platform.OS === "web" || !med.renewalDate) return undefined;
+
+  const [y, m, d] = med.renewalDate.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  const now = new Date();
+  const ids: string[] = [];
+
+  const schedule = async (fireDate: Date, title: string, body: string) => {
+    if (fireDate <= now) return;
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: { type: "renewal", medicationId: med.id },
+        ...(Platform.OS === "android" ? { channelId: STOCK_ALERT_CHANNEL_ID } : {}),
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
+    });
+    ids.push(id);
+  };
+
+  const onDate = new Date(y, m - 1, d, 10, 0, 0, 0);
+  const headsUp = new Date(onDate.getTime() - 7 * 24 * 60 * 60_000);
+
+  await schedule(
+    headsUp,
+    i18n.t("stock.renewalSoonTitle", { name: med.name }),
+    i18n.t("stock.renewalSoonBody")
+  );
+  await schedule(
+    onDate,
+    i18n.t("stock.renewalTodayTitle", { name: med.name }),
+    i18n.t("stock.renewalTodayBody")
+  );
+
+  return ids.length ? ids.join("|") : undefined;
+}
+
 // ─── Appointment notifications ─────────────────────────────────────────────
 
 export const APPOINTMENTS_CHANNEL_ID = "appointment-reminders";

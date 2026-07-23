@@ -22,6 +22,7 @@ export const medicationFormSchema = z
     stockQtyStr: z.string().optional().default(""),
     stockThreshStr: z.string().optional().default(""),
     photoUri: z.string().optional(),
+    renewalDate: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     // Validate dosage is a positive number

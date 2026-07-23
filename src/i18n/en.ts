@@ -192,6 +192,8 @@ const en: TranslationShape = {
     fieldStockThreshold: "Alert when below",
     fieldStockThresholdPlaceholder: "e.g. 5",
     fieldStockUnit: "units",
+    fieldRenewal: "Prescription renewal (optional)",
+    fieldRenewalHint: "We'll remind you 7 days before and on the day itself.",
     sectionPhoto: "Photo (optional)",
     addPhoto: "Add photo",
     changePhoto: "Change photo",
@@ -306,6 +308,11 @@ const en: TranslationShape = {
     badge_other: "{{count}} left",
     low: "Low stock",
     channelName: "Stock alerts",
+    daysLeft: "≈{{count}} days",
+    renewalSoonTitle: "{{name}} prescription expiring",
+    renewalSoonBody: "The renewal is due in 7 days. Book the appointment or request a new prescription.",
+    renewalTodayTitle: "Renew prescription: {{name}}",
+    renewalTodayBody: "The prescription renewal is due today.",
   },
 
   // ─── Appointments ─────────────────────────────────────────────────────────

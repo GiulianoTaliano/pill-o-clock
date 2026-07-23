@@ -35,6 +35,7 @@ jest.mock("../../src/db/database", () => ({
   deleteMedication: jest.fn().mockResolvedValue(undefined),
   deleteSchedule: jest.fn().mockResolvedValue(undefined),
   updateDoseLogNotes: jest.fn().mockResolvedValue(undefined),
+  setMedicationRenewalNotifIds: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock("../../src/services/notifications", () => ({
@@ -43,6 +44,8 @@ jest.mock("../../src/services/notifications", () => ({
   scheduleDoseChain: jest.fn().mockResolvedValue(undefined),
   snoozeDose: jest.fn().mockResolvedValue(undefined),
   scheduleStockAlert: jest.fn().mockResolvedValue(undefined),
+  scheduleRenewalReminders: jest.fn().mockResolvedValue(undefined),
+  cancelRenewalReminders: jest.fn().mockResolvedValue(undefined),
   rescheduleAllNotifications: jest.fn().mockResolvedValue(undefined),
   SNOOZE_MINUTES: 15,
   DEFAULT_SNOOZE_MINUTES: 15,
