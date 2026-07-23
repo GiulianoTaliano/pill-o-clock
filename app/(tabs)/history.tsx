@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { AdBanner } from "../../components/AdBanner";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
@@ -450,6 +451,8 @@ export default function HistoryScreen() {
         }
         ListFooterComponent={<View className="h-6" />}
       />
+      {/* Monetization slot (renders null while ads are disabled — see ads.ts) */}
+      <AdBanner />
     </SafeAreaView>
   );
 }
