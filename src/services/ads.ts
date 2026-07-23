@@ -6,19 +6,18 @@
  *    screen, the Today list, or the medication form. No interstitials, ever.
  *  - Non-personalized ad requests only (privacy posture).
  *
- * MASTER SWITCH: ADS_ENABLED stays false until ALL of the following happen —
- *  1. A real AdMob account exists and real app/unit IDs replace the Google
- *     TEST IDs below (app IDs live in app.json + android AndroidManifest).
- *  2. Play Console declarations are updated: "Anuncios" = Sí, "ID de
- *     publicidad" = Sí, Data safety + advertising category.
- *  3. Store listing copy no longer claims "no ads" (see store/play-store-*).
- *  4. android/app/src/main/AndroidManifest.xml: REMOVE the four
- *     tools:node="remove" lines (`com.google.android.gms.permission.AD_ID`
- *     and the three `android.permission.ACCESS_ADSERVICES_*`) — while ads
- *     are off we strip every ad-identifier permission the AdMob lib merges
- *     in so the honest "no ad ID" Play declaration matches the bundle
- *     (Play rejected the vc23 release over exactly this mismatch).
- * Flipping this flag without (2)/(3) is a Play-policy violation.
+ * FLIPPED ON 2026-07-23 (AdMob account giuliano.taliano1@gmail.com):
+ *  ✓ Real app/unit IDs below and in app.json + android AndroidManifest.
+ *  ✓ The four tools:node="remove" ad-permission strips removed from the
+ *    persistent manifest (AD_ID + ACCESS_ADSERVICES_* are declared again).
+ *  ✓ Store listing copy no longer claims "no ads".
+ *  ✓ app-ads.txt published at giulianotaliano.github.io/app-ads.txt.
+ *  ⚠ REMAINING (manual, at the org-account resubmission): Play Console
+ *    declarations "Anuncios" = Sí and "ID de publicidad" = Sí + Data
+ *    safety advertising entries. Shipping a release before those are set
+ *    is a Play-policy violation.
+ * Dev builds keep Google's TEST ids (clicking real ads in dev violates
+ * AdMob policy); release builds use the real units.
  *
  * DEP PIN: react-native-google-mobile-ads is pinned to ^15.7.0
  * (play-services-ads 24.5.0). Do NOT bump to 16.x until the project's Kotlin
@@ -27,17 +26,27 @@
  */
 import { Platform } from "react-native";
 
-export const ADS_ENABLED = false;
+export const ADS_ENABLED = true;
 
-/** Google's official test banner unit ids — safe to ship, never monetize. */
+/** Google's official test banner unit ids — used in dev builds only. */
 const TEST_BANNER_ANDROID = "ca-app-pub-3940256099942544/9214589741";
 const TEST_BANNER_IOS = "ca-app-pub-3940256099942544/2435281174";
+
+/** Real units (AdMob app Pill O-Clock, Android). One per surface so revenue
+ *  and fill can be compared per screen in AdMob reporting. */
+const REAL_BANNER_HISTORY = "ca-app-pub-6639820412660854/2454231920";
+const REAL_BANNER_HEALTH = "ca-app-pub-6639820412660854/4331400319";
+
+export type BannerScreen = "history" | "health";
 
 export function adsEnabled(): boolean {
   return ADS_ENABLED && Platform.OS !== "web";
 }
 
-export function getBannerUnitId(): string {
-  // Swap for real unit ids at launch (keep test ids for dev builds).
-  return Platform.OS === "ios" ? TEST_BANNER_IOS : TEST_BANNER_ANDROID;
+export function getBannerUnitId(screen: BannerScreen = "history"): string {
+  if (__DEV__ || Platform.OS === "ios") {
+    // No iOS app registered in AdMob yet — test id keeps iOS dev builds safe.
+    return Platform.OS === "ios" ? TEST_BANNER_IOS : TEST_BANNER_ANDROID;
+  }
+  return screen === "health" ? REAL_BANNER_HEALTH : REAL_BANNER_HISTORY;
 }

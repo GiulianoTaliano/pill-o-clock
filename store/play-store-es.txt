@@ -43,7 +43,7 @@ Vista mensual que agrupa tus dosis por día y estado para identificar al instant
 Organizá todas tus citas médicas próximas y pasadas: nombre del médico, ubicación con pin en el mapa, fecha/hora, notas y recordatorio configurable (1 hora, 2 horas o 1 día antes).
 
 ▸ TUS DATOS SON TUYOS — SIEMPRE
-Tus datos de salud — medicamentos, historial, mediciones y diario — viven en una base de datos local privada y nunca salen de tu dispositivo. Las únicas excepciones: diagnósticos técnicos de fallos (que jamás incluyen tus datos de salud) y, si agregás la ubicación de una cita, la consulta al mapa. Sin cuenta, sin sincronización en la nube, sin analíticas de uso, sin anuncios. Exportá una copia de seguridad completa en cualquier momento y restaurala si cambiás de teléfono.
+Tus datos de salud — medicamentos, historial, mediciones y diario — viven en una base de datos local privada y nunca salen de tu dispositivo. Las únicas excepciones: diagnósticos técnicos de fallos (que jamás incluyen tus datos de salud) y, si agregás la ubicación de una cita, la consulta al mapa. Sin cuenta, sin sincronización en la nube, sin analíticas de uso. La app es gratuita y se sostiene con avisos discretos, solo en pantallas secundarias — nunca en tus alarmas ni en tu medicación. Exportá una copia de seguridad completa en cualquier momento y restaurala si cambiás de teléfono.
 
 ▸ DISPONIBLE EN ESPAÑOL E INGLÉS
 La app detecta el idioma de tu dispositivo — español e inglés con soporte completo — y podés cambiarlo desde Ajustes cuando quieras.
