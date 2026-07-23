@@ -258,6 +258,8 @@ const es = {
   alarm: {
     subtitle: "Recordatorio de {{name}}",
     dose: "Dosis",
+    alsoDue_one: "También a esta hora ({{count}})",
+    alsoDue_other: "También a esta hora ({{count}})",
     takeMed: "Confirmar",
     snooze: "Posponer",
     snoozePickerTitle: "¿Cuántos minutos?",
