@@ -9,7 +9,8 @@
  * Key assertions:
  *  - The exported JSON carries every Medication field as-is.
  *  - A Medication with ALL optional fields set survives export→import.
- *  - renewalNotifIds is the one intentional exception (device-local OS ids).
+ *  - renewalNotifIds is the one intentional exception (device-local OS ids),
+ *    and import reschedules renewal reminders on the importing device instead.
  *  - Appointment.notificationId is stripped the same way, and import
  *    reschedules reminders on the importing device instead.
  *  - Legacy backups without the newer optional fields still import.
@@ -63,11 +64,14 @@ jest.mock("../src/db/database", () => ({
   insertProfile: jest.fn(),
   insertAllergy: jest.fn(),
   updateAppointment: jest.fn(),
+  setMedicationRenewalNotifIds: jest.fn(),
 }));
 
 jest.mock("../src/services/notifications", () => ({
   scheduleAppointmentNotification: jest.fn(),
   cancelAppointmentNotification: jest.fn(),
+  scheduleRenewalReminders: jest.fn(),
+  cancelRenewalReminders: jest.fn(),
 }));
 
 import * as DocumentPicker from "expo-document-picker";
@@ -124,6 +128,9 @@ const FULL_APPT: Required<Appointment> = {
 /** FULL_APPT as import must deliver it: without the exporting device's id. */
 const { notificationId: _oldDeviceId, ...IMPORTED_APPT } = FULL_APPT;
 
+/** FULL_MED as import must deliver it: without the exporting device's ids. */
+const { renewalNotifIds: _oldDeviceRenewalIds, ...IMPORTED_MED } = FULL_MED;
+
 /** Runs exportBackup with the given entities and returns the JSON it wrote. */
 async function runExport(medications: Medication[], appointments: Appointment[] = []): Promise<string> {
   jest.mocked(db.getMedications).mockResolvedValue(medications);
@@ -159,14 +166,18 @@ type AnyMock = {
   mockResolvedValue: (value: unknown) => void;
 };
 
-/** Runs importBackup against the given backup JSON. `existingAppointments`
- *  is what the device already holds when the import starts (stale-reminder
- *  cancellation on "replace"). */
+/** Runs importBackup against the given backup JSON. `existingAppointments` /
+ *  `existingMedications` are what the device already holds when the import
+ *  starts (stale-reminder cancellation on "replace"). */
 async function runImport(
   json: string,
-  opts: { mode?: "replace" | "merge"; existingAppointments?: Appointment[] } = {}
+  opts: {
+    mode?: "replace" | "merge";
+    existingAppointments?: Appointment[];
+    existingMedications?: Medication[];
+  } = {}
 ): Promise<{ count: number }> {
-  const { mode = "replace", existingAppointments = [] } = opts;
+  const { mode = "replace", existingAppointments = [], existingMedications = [] } = opts;
   jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
     canceled: false,
     assets: [{ uri: "file:///picked.json" }],
@@ -179,6 +190,7 @@ async function runImport(
     withTransactionAsync: (fn: () => Promise<void>) => fn(),
   });
   jest.mocked(db.getAppointments).mockResolvedValue(existingAppointments);
+  jest.mocked(db.getMedications).mockResolvedValue(existingMedications);
   return importBackup(mode);
 }
 
@@ -292,5 +304,71 @@ describe("appointment reminders across export→import", () => {
     expect(notifications.cancelAppointmentNotification).not.toHaveBeenCalled();
     expect(notifications.scheduleAppointmentNotification).not.toHaveBeenCalled();
     expect(db.updateAppointment).not.toHaveBeenCalled();
+  });
+});
+
+describe("renewal reminders across export→import", () => {
+  it("strips the exporting device's renewalNotifIds and reschedules on this device", async () => {
+    const written = await runExport([FULL_MED]);
+    jest
+      .mocked(notifications.scheduleRenewalReminders)
+      .mockResolvedValue("fresh-renewal-1|fresh-renewal-2");
+
+    await runImport(written);
+
+    // The renewal reminders are rebuilt here, and the fresh ids are persisted
+    // so a later edit/delete can cancel them.
+    expect(notifications.scheduleRenewalReminders).toHaveBeenCalledWith(IMPORTED_MED);
+    expect(db.setMedicationRenewalNotifIds).toHaveBeenCalledWith(
+      FULL_MED.id,
+      "fresh-renewal-1|fresh-renewal-2"
+    );
+  });
+
+  it("persists nothing when no reminder could be scheduled (past date / web)", async () => {
+    const written = await runExport([FULL_MED]);
+    jest.mocked(notifications.scheduleRenewalReminders).mockResolvedValue(undefined);
+
+    await runImport(written);
+
+    expect(db.setMedicationRenewalNotifIds).not.toHaveBeenCalled();
+  });
+
+  it("does not reschedule for medications without a renewalDate", async () => {
+    const written = await runExport([makeMedication()]);
+
+    await runImport(written);
+
+    expect(notifications.scheduleRenewalReminders).not.toHaveBeenCalled();
+    expect(db.setMedicationRenewalNotifIds).not.toHaveBeenCalled();
+  });
+
+  it("replace-import cancels the renewal reminders queued for the wiped medications", async () => {
+    const written = await runExport([FULL_MED]);
+    const staleMed = makeMedication({ id: "med-old", renewalNotifIds: "stale-1|stale-2" });
+    const onDevice: Medication[] = [
+      staleMed,
+      makeMedication({ id: "med-never-scheduled" }), // no ids → nothing to cancel
+    ];
+
+    await runImport(written, { existingMedications: onDevice });
+
+    expect(notifications.cancelRenewalReminders).toHaveBeenCalledTimes(1);
+    expect(notifications.cancelRenewalReminders).toHaveBeenCalledWith(staleMed);
+  });
+
+  it("merge-import neither cancels existing renewal reminders nor reschedules duplicates", async () => {
+    const written = await runExport([FULL_MED]);
+    // Same id already on the device → insertMedication rejects (duplicate).
+    jest.mocked(db.insertMedication).mockRejectedValueOnce(new Error("UNIQUE constraint"));
+
+    await runImport(written, {
+      mode: "merge",
+      existingMedications: [{ ...FULL_MED, renewalNotifIds: "live-1" }],
+    });
+
+    expect(notifications.cancelRenewalReminders).not.toHaveBeenCalled();
+    expect(notifications.scheduleRenewalReminders).not.toHaveBeenCalled();
+    expect(db.setMedicationRenewalNotifIds).not.toHaveBeenCalled();
   });
 });

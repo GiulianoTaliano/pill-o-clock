@@ -26,8 +26,14 @@ import {
   getAllAllergies,
   insertAllergy,
   updateAppointment,
+  setMedicationRenewalNotifIds,
 } from "../db/database";
-import { scheduleAppointmentNotification, cancelAppointmentNotification } from "./notifications";
+import {
+  scheduleAppointmentNotification,
+  cancelAppointmentNotification,
+  scheduleRenewalReminders,
+  cancelRenewalReminders,
+} from "./notifications";
 
 // ─── Zod schemas ───────────────────────────────────────────────────────────
 
@@ -50,9 +56,9 @@ const medicationSchema = z.object({
   isPRN: z.boolean().optional(),
   renewalDate: z.string().optional(),
   // renewalNotifIds is deliberately absent: OS notification ids only exist on
-  // the device that scheduled them, and renewal reminders are only rebuilt on
-  // med edit — importing stale ids would make a restored install believe
-  // reminders are scheduled. zod strips the key on parse.
+  // the device that scheduled them, so a restored install would believe
+  // reminders are scheduled when nothing is. zod strips the key on parse;
+  // importBackup reschedules renewal reminders for the medications it inserts.
   prnMaxPerDay: z.number().optional(),
   prnMinIntervalMinutes: z.number().optional(),
   rxcui: z.string().optional(),
@@ -287,11 +293,13 @@ export async function importBackup(
     const db = await getDb();
 
     // "replace" wipes these rows below, but their reminders stay queued in the
-    // OS and would fire for appointments that no longer exist. Collect the ids
-    // now; cancel only after the transaction commits (a failed import must not
-    // cancel live reminders).
+    // OS and would fire for appointments/medications that no longer exist.
+    // Collect the ids now; cancel only after the transaction commits (a failed
+    // import must not cancel live reminders).
     const staleAppointments = mode === "replace" ? await getAppointments() : [];
+    const staleMedications = mode === "replace" ? await getMedications() : [];
     const importedAppointments: Appointment[] = [];
+    const importedMedications: Medication[] = [];
 
     await db.withTransactionAsync(async () => {
     if (mode === "replace") {
@@ -317,6 +325,9 @@ export async function importBackup(
     for (const med of backup.data.medications) {
       try {
         await insertMedication(med as Medication);
+        // Only medications actually inserted get renewal reminders rebuilt
+        // below — a merge-mode duplicate keeps the existing row's reminders.
+        importedMedications.push(med as Medication);
       } catch {
         // On merge mode a duplicate ID means the record already exists — skip it.
       }
@@ -381,6 +392,10 @@ export async function importBackup(
       if (stale.notificationId) await cancelAppointmentNotification(stale.notificationId);
     }
 
+    for (const stale of staleMedications) {
+      if (stale.renewalNotifIds) await cancelRenewalReminders(stale);
+    }
+
     // Backups never carry notificationId (see appointmentSchema): rebuild each
     // restored appointment's reminders on THIS device and persist the fresh
     // ids. scheduleAppointmentNotification itself skips past dates and web.
@@ -390,6 +405,20 @@ export async function importBackup(
         if (notificationId) await updateAppointment({ ...appt, notificationId });
       } catch {
         // Best-effort: the appointment data itself is already committed.
+      }
+    }
+
+    // Same rebuild for prescription-renewal reminders (see medicationSchema):
+    // backups never carry renewalNotifIds, so schedule fresh ones on THIS
+    // device and persist the ids. scheduleRenewalReminders itself skips past
+    // dates and web.
+    for (const med of importedMedications) {
+      if (!med.renewalDate) continue;
+      try {
+        const renewalIds = await scheduleRenewalReminders(med);
+        if (renewalIds) await setMedicationRenewalNotifIds(med.id, renewalIds);
+      } catch {
+        // Best-effort: the medication data itself is already committed.
       }
     }
 
