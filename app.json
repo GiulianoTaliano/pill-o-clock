@@ -31,7 +31,7 @@
     },
     "android": {
       "package": "com.pilloclock.app",
-      "versionCode": 24,
+      "versionCode": 25,
       "adaptiveIcon": {
         "backgroundColor": "#f0f6ff",
         "foregroundImage": "./assets/android-icon-foreground.png",
