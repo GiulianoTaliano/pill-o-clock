@@ -511,6 +511,12 @@ const en: TranslationShape = {
   },
 
   // ─── PDF report ─────────────────────────────────────────────────────────
+  fhir: {
+    settingsTitle: "Export for your doctor (FHIR)",
+    settingsSubtitle: "Standard HL7 FHIR file with the active profile's medications and allergies",
+    shareTitle: "Export FHIR",
+    prn: "as needed",
+  },
   timezone: {
     adjustedTitle: "Timezone change",
     adjustedBody: "We adjusted your reminders to local time in {{tz}}.",

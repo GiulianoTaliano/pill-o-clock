@@ -509,6 +509,12 @@ const es = {
   },
 
   // ─── Informe PDF ────────────────────────────────────────────────────────
+  fhir: {
+    settingsTitle: "Exportar para tu médico (FHIR)",
+    settingsSubtitle: "Archivo estándar HL7 FHIR con medicación y alergias del perfil activo",
+    shareTitle: "Exportar FHIR",
+    prn: "según necesidad",
+  },
   timezone: {
     adjustedTitle: "Cambio de huso horario",
     adjustedBody: "Ajustamos tus recordatorios a la hora local de {{tz}}.",

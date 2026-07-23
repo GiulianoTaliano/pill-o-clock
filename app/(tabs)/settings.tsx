@@ -12,6 +12,7 @@ import { useAppStore, ThemeMode } from "../../src/store";
 import { exportBackup, importBackup, BackupCancelledError, BackupFormatError } from "../../src/services/backup";
 import { generateAndShareReport } from "../../src/services/pdfReport";
 import { generateAndShareCaregiverSnapshot } from "../../src/services/caregiverSnapshot";
+import { generateAndShareFhirBundle } from "../../src/services/fhirExport";
 import { checkFullScreenIntentPermission, requestFullScreenIntentPermission, getAlarmSound, stopSoundPreview } from "expo-alarm";
 import type { AlarmSound } from "expo-alarm";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
@@ -141,6 +142,7 @@ export default function SettingsScreen() {
   const [importing, setImporting] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [generatingSnapshot, setGeneratingSnapshot] = useState(false);
+  const [exportingFhir, setExportingFhir] = useState(false);
   const { showToast } = useToast();
 
   // Multi-profile (F2)
@@ -378,6 +380,18 @@ export default function SettingsScreen() {
       Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
     } finally {
       setGeneratingPdf(false);
+    }
+  }
+
+  async function handleFhirExport() {
+    setExportingFhir(true);
+    try {
+      await generateAndShareFhirBundle();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
+    } finally {
+      setExportingFhir(false);
     }
   }
 
@@ -717,6 +731,16 @@ export default function SettingsScreen() {
             subtitle={t("settings.caregiverSnapshotSubtitle")}
             onPress={handleCaregiverSnapshot}
             loading={generatingSnapshot}
+          />
+          <Divider />
+          {/* FHIR R4 export (F3): interop with clinics/EHRs, read-only */}
+          <SettingRow
+            icon="share-outline"
+            iconColor={theme.accent}
+            title={t("fhir.settingsTitle")}
+            subtitle={t("fhir.settingsSubtitle")}
+            onPress={handleFhirExport}
+            loading={exportingFhir}
           />
         </View>
 
