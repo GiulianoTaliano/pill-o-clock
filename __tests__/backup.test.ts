@@ -10,12 +10,19 @@
  *  - The exported JSON carries every Medication field as-is.
  *  - A Medication with ALL optional fields set survives export→import.
  *  - renewalNotifIds is the one intentional exception (device-local OS ids).
+ *  - Appointment.notificationId is stripped the same way, and import
+ *    reschedules reminders on the importing device instead.
  *  - Legacy backups without the newer optional fields still import.
  */
 
+/* eslint-disable import/namespace -- the eslint resolver picks
+   db/database.web.ts (an intentionally partial stub), so `db.*` members that
+   only exist in the native db/database.ts are false-positive "not found".
+   Jest itself resolves the native module. */
+
 import { exportBackup, importBackup } from "../src/services/backup";
 import { makeMedication } from "./factories";
-import type { Medication } from "../src/types";
+import type { Appointment, Medication } from "../src/types";
 
 jest.mock("expo-file-system", () => ({
   File: jest.fn(),
@@ -55,12 +62,19 @@ jest.mock("../src/db/database", () => ({
   upsertDailyCheckin: jest.fn(),
   insertProfile: jest.fn(),
   insertAllergy: jest.fn(),
+  updateAppointment: jest.fn(),
+}));
+
+jest.mock("../src/services/notifications", () => ({
+  scheduleAppointmentNotification: jest.fn(),
+  cancelAppointmentNotification: jest.fn(),
 }));
 
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system/src/legacy";
 import * as db from "../src/db/database";
+import * as notifications from "../src/services/notifications";
 
 /**
  * Every optional Medication field set. `Required<>` makes this fail to compile
@@ -88,12 +102,34 @@ const FULL_MED: Required<Medication> = {
   archiveReason: "doctor",
 };
 
+/**
+ * Every optional Appointment field set — same compile-time guard as FULL_MED:
+ * a new Appointment field breaks this until appointmentSchema is revisited.
+ */
+const FULL_APPT: Required<Appointment> = {
+  id: "appt-1",
+  title: "Cardiología",
+  doctor: "Dra. Pérez",
+  location: "Hospital Italiano",
+  locationCoords: { latitude: -34.6037, longitude: -58.3816 },
+  notes: "llevar estudios previos",
+  date: "2099-05-20",
+  time: "09:30",
+  reminderMinutes: 60,
+  notificationId: "old-device-notif-1|old-device-notif-2",
+  createdAt: "2026-07-01T00:00:00.000Z",
+  profileId: "profile-2",
+};
+
+/** FULL_APPT as import must deliver it: without the exporting device's id. */
+const { notificationId: _oldDeviceId, ...IMPORTED_APPT } = FULL_APPT;
+
 /** Runs exportBackup with the given entities and returns the JSON it wrote. */
-async function runExport(medications: Medication[]): Promise<string> {
+async function runExport(medications: Medication[], appointments: Appointment[] = []): Promise<string> {
   jest.mocked(db.getMedications).mockResolvedValue(medications);
   jest.mocked(db.getAllSchedules).mockResolvedValue([]);
   jest.mocked(db.getAllDoseLogs).mockResolvedValue([]);
-  jest.mocked(db.getAppointments).mockResolvedValue([]);
+  jest.mocked(db.getAppointments).mockResolvedValue(appointments);
   jest.mocked(db.getAllAppointmentDocuments).mockResolvedValue([]);
   jest.mocked(db.getHealthMeasurements).mockResolvedValue([]);
   jest.mocked(db.getDailyCheckins).mockResolvedValue([]);
@@ -123,8 +159,14 @@ type AnyMock = {
   mockResolvedValue: (value: unknown) => void;
 };
 
-/** Runs importBackup("replace") against the given backup JSON. */
-async function runImport(json: string): Promise<{ count: number }> {
+/** Runs importBackup against the given backup JSON. `existingAppointments`
+ *  is what the device already holds when the import starts (stale-reminder
+ *  cancellation on "replace"). */
+async function runImport(
+  json: string,
+  opts: { mode?: "replace" | "merge"; existingAppointments?: Appointment[] } = {}
+): Promise<{ count: number }> {
+  const { mode = "replace", existingAppointments = [] } = opts;
   jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
     canceled: false,
     assets: [{ uri: "file:///picked.json" }],
@@ -136,7 +178,8 @@ async function runImport(json: string): Promise<{ count: number }> {
   (db.getDb as unknown as AnyMock).mockResolvedValue({
     withTransactionAsync: (fn: () => Promise<void>) => fn(),
   });
-  return importBackup("replace");
+  jest.mocked(db.getAppointments).mockResolvedValue(existingAppointments);
+  return importBackup(mode);
 }
 
 beforeEach(() => {
@@ -183,5 +226,71 @@ describe("backup export→import round-trip", () => {
     const { count } = await runImport(legacy);
     expect(count).toBe(1);
     expect(jest.mocked(db.insertMedication).mock.calls[0][0]).toEqual(makeMedication());
+  });
+});
+
+describe("appointment reminders across export→import", () => {
+  it("exports every Appointment field as-is", async () => {
+    const written = await runExport([], [FULL_APPT]);
+    const parsed = JSON.parse(written);
+    expect(parsed.data.appointments[0]).toEqual(FULL_APPT);
+  });
+
+  it("strips the exporting device's notificationId and reschedules on this device", async () => {
+    const written = await runExport([], [FULL_APPT]);
+    jest
+      .mocked(notifications.scheduleAppointmentNotification)
+      .mockResolvedValue("fresh-notif-1|fresh-notif-2");
+
+    await runImport(written);
+
+    const inserted = jest.mocked(db.insertAppointment).mock.calls[0][0];
+    expect(inserted).toEqual(IMPORTED_APPT);
+    expect("notificationId" in inserted).toBe(false);
+
+    // The reminder is rebuilt here, and the fresh ids are persisted so a later
+    // edit/delete can cancel them.
+    expect(notifications.scheduleAppointmentNotification).toHaveBeenCalledWith(IMPORTED_APPT);
+    expect(db.updateAppointment).toHaveBeenCalledWith({
+      ...IMPORTED_APPT,
+      notificationId: "fresh-notif-1|fresh-notif-2",
+    });
+  });
+
+  it("persists nothing when no reminder could be scheduled (past date / web)", async () => {
+    const written = await runExport([], [FULL_APPT]);
+    jest.mocked(notifications.scheduleAppointmentNotification).mockResolvedValue(undefined);
+
+    await runImport(written);
+
+    expect(db.updateAppointment).not.toHaveBeenCalled();
+  });
+
+  it("replace-import cancels the reminders queued for the wiped appointments", async () => {
+    const written = await runExport([], [FULL_APPT]);
+    const onDevice: Appointment[] = [
+      { ...FULL_APPT, id: "appt-old", notificationId: "stale-1|stale-2" },
+      { ...IMPORTED_APPT, id: "appt-never-scheduled" }, // no id → nothing to cancel
+    ];
+
+    await runImport(written, { existingAppointments: onDevice });
+
+    expect(notifications.cancelAppointmentNotification).toHaveBeenCalledTimes(1);
+    expect(notifications.cancelAppointmentNotification).toHaveBeenCalledWith("stale-1|stale-2");
+  });
+
+  it("merge-import neither cancels existing reminders nor reschedules duplicates", async () => {
+    const written = await runExport([], [FULL_APPT]);
+    // Same id already on the device → insertAppointment rejects (duplicate).
+    jest.mocked(db.insertAppointment).mockRejectedValueOnce(new Error("UNIQUE constraint"));
+
+    await runImport(written, {
+      mode: "merge",
+      existingAppointments: [{ ...FULL_APPT, notificationId: "live-1" }],
+    });
+
+    expect(notifications.cancelAppointmentNotification).not.toHaveBeenCalled();
+    expect(notifications.scheduleAppointmentNotification).not.toHaveBeenCalled();
+    expect(db.updateAppointment).not.toHaveBeenCalled();
   });
 });
