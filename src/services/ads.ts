@@ -12,6 +12,10 @@
  *  2. Play Console declarations are updated: "Anuncios" = Sí, "ID de
  *     publicidad" = Sí, Data safety + advertising category.
  *  3. Store listing copy no longer claims "no ads" (see store/play-store-*).
+ *  4. android/app/src/main/AndroidManifest.xml: REMOVE the
+ *     `com.google.android.gms.permission.AD_ID` tools:node="remove" line —
+ *     while ads are off we strip that permission so the honest "no ad ID"
+ *     Play declaration matches the bundle (Play rejects the mismatch).
  * Flipping this flag without (2)/(3) is a Play-policy violation.
  *
  * DEP PIN: react-native-google-mobile-ads is pinned to ^15.7.0
