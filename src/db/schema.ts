@@ -37,6 +37,7 @@ export const medications = sqliteTable("medications", {
   rxcui: text("rxcui"),
   profileId: text("profile_id").notNull().default("default"),
   regimen: text("regimen"),
+  isInjectable: integer("is_injectable", { mode: "boolean" }).notNull().default(false),
 });
 
 // ─── Schedules ─────────────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ export const doseLogs = sqliteTable(
     createdAt: text("created_at").notNull(),
     notes: text("notes"),
     skipReason: text("skip_reason"),
+    injectionSite: text("injection_site"),
   },
   (t) => [
     uniqueIndex("idx_dose_unique").on(t.scheduleId, t.scheduledDate),

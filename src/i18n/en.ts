@@ -195,6 +195,8 @@ const en: TranslationShape = {
     fieldRenewal: "Prescription renewal (optional)",
     fieldRenewalHint: "We'll remind you 7 days before and on the day itself.",
     drugDbAttribution: "Suggestions: RxTerms (U.S. National Library of Medicine)",
+    fieldInjectable: "Injectable",
+    fieldInjectableHint: "Enables site rotation and the countdown to the next application.",
     sectionRegimen: "Advanced regimen (optional)",
     regimen_none: "Normal",
     regimen_everyN: "Every N days",
@@ -507,6 +509,21 @@ const en: TranslationShape = {
   },
 
   // ─── PDF report ─────────────────────────────────────────────────────────
+  sites: {
+    title: "Where did you inject?",
+    subtitle: "Recording the site helps you rotate and avoid irritation. Optional.",
+    suggested: "suggested",
+    record: "Record injection site",
+    skip: "Skip",
+    abdomen_l: "Left abdomen",
+    abdomen_r: "Right abdomen",
+    thigh_l: "Left thigh",
+    thigh_r: "Right thigh",
+    arm_l: "Left arm",
+    arm_r: "Right arm",
+    nextDoseTomorrow: "Next dose: tomorrow",
+    nextDoseInDays: "Next dose in {{count}} days",
+  },
   profiles: {
     sectionTitle: "Profiles",
     me: "Me",

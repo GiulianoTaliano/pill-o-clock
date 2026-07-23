@@ -1,4 +1,5 @@
 ﻿import { View, Text, TouchableOpacity, Switch, Image } from "react-native";
+import { nextDueDate } from "../src/services/injectionSites";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Medication, Schedule, DoseLog } from "../src/types";
@@ -193,6 +194,22 @@ export function MedicationCard({
                 return days != null ? ` · ${t('stock.daysLeft', { count: days })}` : "";
               })()}
               {isLow ? ` · ${t('stock.low')}` : ""}
+            </Text>
+          </View>
+        );
+      })()}
+
+      {/* Weekly-injectable countdown (F3): next application date */}
+      {medication.isInjectable && medication.isActive && (() => {
+        const next = nextDueDate(medication, schedules, new Date());
+        if (!next) return null;
+        return (
+          <View className="flex-row items-center gap-1.5 mt-2">
+            <Ionicons name="timer-outline" size={14} color={theme.primary} />
+            <Text className="text-xs font-semibold" style={{ color: theme.primary }}>
+              {next.inDays === 1
+                ? t('sites.nextDoseTomorrow')
+                : t('sites.nextDoseInDays', { count: next.inDays })}
             </Text>
           </View>
         );

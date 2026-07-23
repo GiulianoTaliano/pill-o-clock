@@ -7,6 +7,7 @@ import {
   Platform,
   Image,
   FlatList,
+  Switch,
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -266,6 +267,8 @@ export interface MedicationFormValues {
   rxcui?: string;
   /** Complex regimen JSON (F3) — see services/regimen.ts. */
   regimen?: string;
+  /** Injectable med (F3): site rotation + weekly countdown. */
+  isInjectable?: boolean;
 }
 
 interface MedicationFormProps {
@@ -377,6 +380,7 @@ export function MedicationForm({
           ? String(Math.round((initialValues.prnMinIntervalMinutes / 60) * 100) / 100)
           : "",
       rxcui: initialValues?.rxcui,
+      isInjectable: initialValues?.isInjectable ?? false,
       regimenType: initialRegimen?.type ?? "none",
       regimenNStr: initialRegimen?.type === "everyN" ? String(initialRegimen.n) : "",
       regimenOnStr: initialRegimen?.type === "cycle" ? String(initialRegimen.on) : "",
@@ -483,6 +487,7 @@ export function MedicationForm({
           : undefined,
       rxcui: data.rxcui,
       regimen: buildRegimenFromForm(data),
+      isInjectable: data.isInjectable,
     });
   };
 
@@ -1247,6 +1252,27 @@ export function MedicationForm({
                 </View>
               </View>
             )}
+            {/* Injectable (F3): site rotation + weekly countdown, opt-in */}
+            <View className="flex-row items-center gap-3 py-1">
+              <Ionicons name="fitness-outline" size={18} color={theme.primary} />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-text">{t('form.fieldInjectable')}</Text>
+                <Text className="text-xs text-muted mt-0.5">{t('form.fieldInjectableHint')}</Text>
+              </View>
+              <Controller
+                control={control}
+                name="isInjectable"
+                render={({ field: { onChange, value } }) => (
+                  <Switch
+                    value={value}
+                    onValueChange={(v) => { Haptics.selectionAsync(); onChange(v); }}
+                    trackColor={{ false: undefined, true: theme.primary }}
+                    accessibilityLabel={t('form.fieldInjectable')}
+                  />
+                )}
+              />
+            </View>
+
             {/* Prescription renewal (F1) */}
             <DateRow
               label={t('form.fieldRenewal')}
