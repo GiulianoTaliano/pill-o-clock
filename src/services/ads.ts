@@ -12,10 +12,12 @@
  *  2. Play Console declarations are updated: "Anuncios" = Sí, "ID de
  *     publicidad" = Sí, Data safety + advertising category.
  *  3. Store listing copy no longer claims "no ads" (see store/play-store-*).
- *  4. android/app/src/main/AndroidManifest.xml: REMOVE the
- *     `com.google.android.gms.permission.AD_ID` tools:node="remove" line —
- *     while ads are off we strip that permission so the honest "no ad ID"
- *     Play declaration matches the bundle (Play rejects the mismatch).
+ *  4. android/app/src/main/AndroidManifest.xml: REMOVE the four
+ *     tools:node="remove" lines (`com.google.android.gms.permission.AD_ID`
+ *     and the three `android.permission.ACCESS_ADSERVICES_*`) — while ads
+ *     are off we strip every ad-identifier permission the AdMob lib merges
+ *     in so the honest "no ad ID" Play declaration matches the bundle
+ *     (Play rejected the vc23 release over exactly this mismatch).
  * Flipping this flag without (2)/(3) is a Play-policy violation.
  *
  * DEP PIN: react-native-google-mobile-ads is pinned to ^15.7.0
