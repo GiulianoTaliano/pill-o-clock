@@ -696,6 +696,7 @@ const pt: TranslationShape = {
     enabledToast: "Bloqueio do app ativado",
     disabledToast: "Bloqueio do app desativado",
     pinChangedToast: "PIN atualizado",
+    errorGeneric: "Não foi possível atualizar o bloqueio. Tente de novo.",
   },
   settings: {
     title: "Ajustes",

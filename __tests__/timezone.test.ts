@@ -6,7 +6,7 @@ import { storage } from "../src/storage";
 import { STORAGE_KEYS } from "../src/config";
 
 beforeEach(() => {
-  storage.delete(STORAGE_KEYS.LAST_TIMEZONE);
+  storage.remove(STORAGE_KEYS.LAST_TIMEZONE);
 });
 
 describe("detectTimezoneChange", () => {

@@ -78,7 +78,7 @@ export async function enableAppLock(pin: string): Promise<void> {
 
 /** Disables the lock and wipes the stored PIN hash. */
 export async function disableAppLock(): Promise<void> {
-  storage.delete(STORAGE_KEYS.APP_LOCK_ENABLED);
+  storage.remove(STORAGE_KEYS.APP_LOCK_ENABLED);
   await SecureStore.deleteItemAsync(PIN_HASH_KEY).catch(() => {});
   await SecureStore.deleteItemAsync(PIN_SALT_KEY).catch(() => {});
 }

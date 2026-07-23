@@ -55,7 +55,7 @@ export async function enableHealthSync(): Promise<boolean> {
 }
 
 export function disableHealthSync(): void {
-  storage.delete(STORAGE_KEYS.HEALTH_SYNC);
+  storage.remove(STORAGE_KEYS.HEALTH_SYNC);
 }
 
 /**
