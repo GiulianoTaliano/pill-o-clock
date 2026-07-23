@@ -27,7 +27,7 @@ import * as Haptics from "expo-haptics";
 import { useToast } from "../src/context/ToastContext";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { medicationFormSchema, type MedicationFormData } from "../src/schemas/medication";
+import { medicationFormSchema, type MedicationFormData, type MedicationFormInput } from "../src/schemas/medication";
 import { searchDrugs, type DrugSuggestion } from "../src/services/drugDb";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
 import { parseRegimen, buildRegimenJson, type Regimen } from "../src/services/regimen";
@@ -356,7 +356,7 @@ export function MedicationForm({
     ? parseRegimen({ regimen: initialValues.regimen })
     : null;
 
-  const { control, handleSubmit: rhfHandleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<MedicationFormData>({
+  const { control, handleSubmit: rhfHandleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<MedicationFormInput, unknown, MedicationFormData>({
     resolver: zodResolver(medicationFormSchema),
     defaultValues: {
       name: initialValues?.name ?? "",
