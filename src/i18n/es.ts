@@ -588,6 +588,11 @@ const es = {
     snoozeDefaultTitle: "Intervalo por defecto",
     snoozeDefaultSubtitle: "Cuánto se pospone una dosis con el botón ⏰ de la notificación",
     snoozeOptionA11y: "Posponer por defecto {{minutes}} minutos",
+    // Health Connect
+    healthSync: "Sincronizar con Health Connect",
+    healthSyncSubtitle: "Copia tus mediciones (presión, glucosa, peso, SpO₂, pulso) al almacén de salud de tu dispositivo",
+    healthSyncEnabled: "Sincronización con Health Connect activada",
+    healthSyncDenied: "No se otorgaron permisos de Health Connect",
     // Security
     sectionSecurity: "Seguridad",
     appLockTitle: "Bloqueo de app",

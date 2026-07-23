@@ -9,6 +9,7 @@ import {
   upsertDailyCheckin,
 } from "../../db/database";
 import { generateId, toISOString } from "../../utils";
+import { syncMeasurementToHealthConnect } from "../../services/healthSync";
 
 export const createHealthSlice: StateCreator<AppState, [], [], HealthSlice> = (set) => ({
   healthMeasurements: [],
@@ -27,6 +28,8 @@ export const createHealthSlice: StateCreator<AppState, [], [], HealthSlice> = (s
     };
     await insertHealthMeasurement(m);
     set((s) => ({ healthMeasurements: [m, ...s.healthMeasurements] }));
+    // One-way Health Connect push (F2) — fire-and-forget, never blocks the save.
+    syncMeasurementToHealthConnect(m).catch(() => {});
   },
 
   async deleteHealthMeasurement(id) {

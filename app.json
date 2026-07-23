@@ -75,6 +75,7 @@
         }
       ],
       "expo-secure-store",
+      "react-native-health-connect",
       [
         "react-native-google-mobile-ads",
         {
@@ -101,7 +102,8 @@
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": false
+            "enableProguardInReleaseBuilds": false,
+            "minSdkVersion": 26
           }
         }
       ],

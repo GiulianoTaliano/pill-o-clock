@@ -61,6 +61,14 @@ jest.mock("expo-crypto", () => ({
   getRandomBytes: jest.fn((n: number) => new Uint8Array(n).fill(7)),
 }));
 
+// ─── react-native-health-connect ───────────────────────────────────────────
+jest.mock("react-native-health-connect", () => ({
+  initialize: jest.fn().mockResolvedValue(true),
+  getSdkStatus: jest.fn().mockResolvedValue(3),
+  requestPermission: jest.fn().mockResolvedValue([]),
+  insertRecords: jest.fn().mockResolvedValue([]),
+}));
+
 // ─── expo-local-authentication ─────────────────────────────────────────────
 jest.mock("expo-local-authentication", () => ({
   hasHardwareAsync: jest.fn().mockResolvedValue(false),
