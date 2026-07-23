@@ -260,6 +260,8 @@ const en: TranslationShape = {
   alarm: {
     subtitle: "Reminder for {{name}}",
     dose: "Dose",
+    alsoDue_one: "Also due now ({{count}})",
+    alsoDue_other: "Also due now ({{count}})",
     takeMed: "Confirm",
     snooze: "Snooze",
     snoozePickerTitle: "How many minutes?",

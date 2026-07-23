@@ -4,10 +4,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../src/store";
-import { getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
+import { getColorConfig, formatTimeForDisplay, getLocalizedDosage, isScheduleActiveOnDate } from "../src/utils";
 import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes } from "../src/services/snoozeSettings";
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
+import { getMedications } from "../src/db/database";
+import type { Medication } from "../src/types";
 import { AppPressable } from "../components/AppPressable";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 
@@ -57,9 +59,23 @@ export default function AlarmScreen() {
   const [noteText, setNoteText] = useState("");
   const [showNote, setShowNote] = useState(false);
   const [showSnoozeOptions, setShowSnoozeOptions] = useState(false);
+  const todayLogs = useAppStore((s) => s.todayLogs);
+  /** Co-due doses already confirmed from this screen (F3 group dose). */
+  const [handledCo, setHandledCo] = useState<Record<string, "taken" | "skipped">>({});
 
   const schedule = schedules.find((s) => s.id === scheduleId);
-  const medication = schedule ? medications.find((m) => m.id === schedule.medicationId) : null;
+  // CRITICAL (multi-profile): store.medications only holds the ACTIVE
+  // profile, but alarms ring for every profile. Resolve meds from the DB so
+  // a dependent's alarm renders instead of silently bailing out.
+  const [allMeds, setAllMeds] = useState<Medication[] | null>(null);
+  useEffect(() => {
+    getMedications().then(setAllMeds).catch(() => setAllMeds([]));
+  }, []);
+  const medication = schedule
+    ? (medications.find((m) => m.id === schedule.medicationId) ??
+       allMeds?.find((m) => m.id === schedule.medicationId) ??
+       null)
+    : null;
 
   // Set lock-screen / wake-up window flags so the activity shows above the
   // lock screen exactly like a regular alarm clock.  Clear them on unmount
@@ -84,13 +100,13 @@ export default function AlarmScreen() {
   // Navigate back if data is unavailable — but only after the store has
   // finished loading to avoid false-negatives on cold start.
   useEffect(() => {
-    if (isLoading) return;          // store not ready yet, don't bail
+    if (isLoading || allMeds === null) return; // store/DB not ready, don't bail
     if (!medication || !schedule) {
       stopAlarm().catch(() => {});
       if (router.canGoBack()) router.back();
       else router.replace("/");
     }
-  }, [isLoading, medication, schedule, router]);
+  }, [isLoading, allMeds, medication, schedule, router]);
 
   const pendingDose = schedule && medication ? {
     medication,
@@ -150,6 +166,39 @@ export default function AlarmScreen() {
     scheduledDate: date,
     scheduledTime: time ?? schedule.time,
     status: "pending" as const,
+  };
+
+  const [y, mo, d] = date.split("-").map(Number);
+  const dateObj = new Date(y, mo - 1, d, 12);
+  const coDue = schedules
+    .filter((s2) => s2.id !== schedule.id && s2.isActive && s2.time === schedule.time)
+    .map((s2) => ({
+      schedule: s2,
+      medication: (allMeds ?? medications).find((m) => m.id === s2.medicationId),
+    }))
+    .filter((x): x is { schedule: typeof schedule; medication: Medication } =>
+      !!x.medication && x.medication.isActive && isScheduleActiveOnDate(x.schedule, dateObj, x.medication)
+    )
+    .filter((x) => {
+      const log = todayLogs.find(
+        (l) => l.scheduleId === x.schedule.id && l.scheduledDate === date
+      );
+      return !log || log.status === "pending";
+    });
+
+  const handleCoDose = async (co: (typeof coDue)[number], status: "taken" | "skipped") => {
+    setHandledCo((prev) => ({ ...prev, [co.schedule.id]: status }));
+    // markDose cancels the queued alarm for that dose — no sequential ringing.
+    await markDose(
+      {
+        medication: co.medication,
+        schedule: co.schedule,
+        scheduledDate: date,
+        scheduledTime: co.schedule.time,
+        status: "pending" as const,
+      },
+      status
+    );
   };
 
   const handleTake = async () => {
@@ -251,6 +300,58 @@ export default function AlarmScreen() {
           />
         )}
       </View>
+
+      {/* Group dose (F3): other meds due at this same time — confirming here
+          cancels their queued alarms so they don't ring one after another. */}
+      {coDue.length > 0 && (
+        <View className="w-full mb-3">
+          <Text className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: colors.text, opacity: 0.7 }}>
+            {t("alarm.alsoDue", { count: coDue.length })}
+          </Text>
+          {coDue.map((co) => {
+            const handled = handledCo[co.schedule.id];
+            return (
+              <View
+                key={co.schedule.id}
+                style={{ backgroundColor: colors.bg + "18", borderColor: colors.bg + "44" }}
+                className="flex-row items-center gap-2 rounded-2xl border px-3 py-2 mb-2"
+              >
+                <Text className="flex-1 text-sm font-semibold" style={{ color: colors.text }} numberOfLines={1}>
+                  {co.medication.name} · {co.medication.dosage}
+                </Text>
+                {handled ? (
+                  <Ionicons
+                    name={handled === "taken" ? "checkmark-circle" : "close-circle"}
+                    size={22}
+                    color={colors.text}
+                  />
+                ) : (
+                  <>
+                    <AppPressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t("alarm.takeMed")} ${co.medication.name}`}
+                      onPress={() => handleCoDose(co, "taken")}
+                      className="rounded-xl px-3 py-2 min-h-[40px] items-center justify-center"
+                      style={{ backgroundColor: colors.bg }}
+                    >
+                      <Ionicons name="checkmark" size={18} color="#ffffff" />
+                    </AppPressable>
+                    <AppPressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t("alarm.skip")} ${co.medication.name}`}
+                      onPress={() => handleCoDose(co, "skipped")}
+                      className="rounded-xl px-3 py-2 min-h-[40px] items-center justify-center border"
+                      style={{ borderColor: colors.bg + "66" }}
+                    >
+                      <Ionicons name="close" size={18} color={colors.text} />
+                    </AppPressable>
+                  </>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       {/* Actions */}
       <View className="w-full gap-3">
