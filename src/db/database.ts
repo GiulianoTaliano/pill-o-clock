@@ -161,6 +161,8 @@ function toMedication(row: typeof schema.medications.$inferSelect): Medication {
     isPRN: row.isPRN,
     renewalDate: row.renewalDate ?? undefined,
     renewalNotifIds: row.renewalNotifIds ?? undefined,
+    prnMaxPerDay: row.prnMaxPerDay ?? undefined,
+    prnMinIntervalMinutes: row.prnMinIntervalMinutes ?? undefined,
   };
 }
 
@@ -279,7 +281,9 @@ export async function initDatabase(): Promise<void> {
       photo_uri     TEXT,
       is_prn        INTEGER NOT NULL DEFAULT 0,
       renewal_date  TEXT,
-      renewal_notif_ids TEXT
+      renewal_notif_ids TEXT,
+      prn_max_per_day INTEGER,
+      prn_min_interval_minutes INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -462,6 +466,17 @@ export async function initDatabase(): Promise<void> {
     }
     expoDb.execSync("PRAGMA user_version = 11");
   }
+
+  if (user_version < 12) {
+    // F2: PRN safety limits (max doses/day + minimum spacing).
+    for (const s of [
+      "ALTER TABLE medications ADD COLUMN prn_max_per_day INTEGER",
+      "ALTER TABLE medications ADD COLUMN prn_min_interval_minutes INTEGER",
+    ]) {
+      try { expoDb.execSync(s); } catch { /* exists */ }
+    }
+    expoDb.execSync("PRAGMA user_version = 12");
+  }
 }
 
 // ─── Medications ───────────────────────────────────────────────────────────
@@ -496,6 +511,8 @@ export async function insertMedication(med: Medication): Promise<void> {
     isPRN: med.isPRN ?? false,
     renewalDate: med.renewalDate ?? null,
     renewalNotifIds: med.renewalNotifIds ?? null,
+    prnMaxPerDay: med.prnMaxPerDay ?? null,
+    prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
   }).run();
 }
 
@@ -517,6 +534,8 @@ export async function updateMedication(med: Medication): Promise<void> {
     isPRN: med.isPRN ?? false,
     renewalDate: med.renewalDate ?? null,
     renewalNotifIds: med.renewalNotifIds ?? null,
+    prnMaxPerDay: med.prnMaxPerDay ?? null,
+    prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
   }).where(eq(schema.medications.id, med.id)).run();
 }
 

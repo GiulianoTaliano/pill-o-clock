@@ -99,6 +99,8 @@ export default function EditMedicationScreen() {
     isPRN: medication.isPRN,
     photoUri: medication.photoUri,
     renewalDate: medication.renewalDate,
+    prnMaxPerDay: medication.prnMaxPerDay,
+    prnMinIntervalMinutes: medication.prnMinIntervalMinutes,
     schedules: schedules.map((s) => ({
       id: s.id,
       time: s.time,
@@ -126,6 +128,8 @@ export default function EditMedicationScreen() {
           isPRN: values.isPRN,
           photoUri: values.photoUri,
           renewalDate: values.renewalDate,
+          prnMaxPerDay: values.prnMaxPerDay,
+          prnMinIntervalMinutes: values.prnMinIntervalMinutes,
         },
         // Pass each schedule's id through so unchanged schedules keep their
         // identity (and their dose_logs) instead of being deleted + recreated

@@ -21,6 +21,8 @@ export const medications = sqliteTable("medications", {
   isPRN: integer("is_prn", { mode: "boolean" }).notNull().default(false),
   renewalDate: text("renewal_date"),
   renewalNotifIds: text("renewal_notif_ids"),
+  prnMaxPerDay: integer("prn_max_per_day"),
+  prnMinIntervalMinutes: integer("prn_min_interval_minutes"),
 });
 
 // ─── Schedules ─────────────────────────────────────────────────────────────

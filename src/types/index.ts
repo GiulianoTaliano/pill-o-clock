@@ -61,6 +61,10 @@ export interface Medication {
   renewalDate?: string;
   /** Pipe-separated scheduled-notification ids for the renewal reminders. */
   renewalNotifIds?: string;
+  /** PRN safety: maximum doses per calendar day (optional). */
+  prnMaxPerDay?: number;
+  /** PRN safety: minimum minutes between doses (optional). */
+  prnMinIntervalMinutes?: number;
 }
 
 // ─── Schedule ──────────────────────────────────────────────────────────────

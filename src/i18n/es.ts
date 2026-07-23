@@ -193,6 +193,12 @@ const es = {
     fieldRenewal: "Renovación de receta (opcional)",
     fieldRenewalHint: "Te avisamos 7 días antes y el mismo día.",
     drugDbAttribution: "Sugerencias: RxTerms (U.S. National Library of Medicine)",
+    prnLimitsSection: "Límites de seguridad (opcional)",
+    prnMax: "Máximo de dosis por día",
+    prnMaxPlaceholder: "ej: 4",
+    prnInterval: "Horas mínimas entre dosis",
+    prnIntervalPlaceholder: "ej: 6",
+    prnLimitsHint: "Si intentás registrar una dosis por encima del límite, te avisamos antes (podés confirmar igual).",
     sectionPhoto: "Foto (opcional)",
     addPhoto: "Agregar foto",
     changePhoto: "Cambiar foto",
@@ -494,6 +500,12 @@ const es = {
   },
 
   // ─── Settings screen ──────────────────────────────────────────────────────
+  prn: {
+    limitTitle: "Límite de dosis alcanzado",
+    limitMax: "Ya registraste {{count}} de {{max}} dosis permitidas hoy.",
+    limitSoon: "Muy pronto para otra dosis. Próxima permitida: {{time}}.",
+    logAnyway: "Registrar igual",
+  },
   appLock: {
     enterPin: "Ingresá tu PIN",
     wrongPin: "PIN incorrecto",

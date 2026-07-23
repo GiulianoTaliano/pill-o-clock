@@ -40,6 +40,7 @@ import {
   DAYS_AHEAD,
 } from "../../services/notifications";
 import { setMedicationRenewalNotifIds } from "../../db/database";
+import { checkPrnLimits } from "../../services/prnLimits";
 import { getDefaultSnoozeMinutes } from "../../services/snoozeSettings";
 
 export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsSlice> = (set, get) => ({
@@ -367,8 +368,22 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
 
   // ── Log PRN dose ──────────────────────────────────────────────────────
 
-  async logPRNDose(medication) {
+  async logPRNDose(medication, opts) {
     const now = new Date();
+
+    // PRN safety limits (F2): when configured, evaluate BEFORE logging and
+    // return the check so the UI can warn + require an explicit "log anyway"
+    // (opts.force). Yesterday+today covers any realistic min-interval window.
+    if (
+      !opts?.force &&
+      (medication.prnMaxPerDay != null || medication.prnMinIntervalMinutes != null)
+    ) {
+      const from = toDateString(new Date(now.getTime() - 86_400_000));
+      const recent = await getDoseLogsByDateRange(from, toDateString(now));
+      const check = checkPrnLimits(medication, recent, now);
+      if (check.blocked) return check;
+    }
+
     // Each PRN log gets a unique scheduleId so that multiple doses on the
     // same day are tracked as separate entries (not overwritten by upsert).
     const log: DoseLog = {

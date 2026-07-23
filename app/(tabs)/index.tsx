@@ -4,6 +4,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
+import { prnWarningMessage } from "../../src/services/prnLimits";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { storage } from "../../src/storage";
 import { STORAGE_KEYS } from "../../src/config";
@@ -527,9 +528,25 @@ export default function HomeScreen() {
                               { text: t('common.cancel'), style: "cancel" },
                               {
                                 text: t('medicationCard.logPRNConfirmBtn'),
-                                onPress: () => {
+                                onPress: async () => {
+                                  const check = await logPRNDose(med);
+                                  if (check?.blocked) {
+                                    // PRN safety limit hit — warn, allow explicit override (F2).
+                                    Alert.alert(
+                                      t('prn.limitTitle'),
+                                      prnWarningMessage(t, med, check),
+                                      [
+                                        { text: t('common.cancel'), style: "cancel" },
+                                        {
+                                          text: t('prn.logAnyway'),
+                                          style: "destructive",
+                                          onPress: () => { logPRNDose(med, { force: true }); },
+                                        },
+                                      ]
+                                    );
+                                    return;
+                                  }
                                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                  logPRNDose(med);
                                 },
                               },
                             ]

@@ -8,6 +8,7 @@ import { MedicationCard } from "../../components/MedicationCard";
 import { EmptyState } from "../../components/EmptyState";
 import { useState } from "react";
 import { useTranslation } from "../../src/i18n";
+import { prnWarningMessage } from "../../src/services/prnLimits";
 
 export default function MedicationsScreen() {
   const router = useRouter();
@@ -59,12 +60,27 @@ export default function MedicationsScreen() {
         { text: t('common.cancel'), style: "cancel" },
         {
           text: t('medicationCard.logPRNConfirmBtn'),
-          onPress: () => {
+          onPress: async () => {
             const med = medications.find((m) => m.id === id);
-            if (med) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              logPRNDose(med);
+            if (!med) return;
+            const check = await logPRNDose(med);
+            if (check?.blocked) {
+              // PRN safety limit hit — warn, allow explicit override (F2).
+              Alert.alert(
+                t('prn.limitTitle'),
+                prnWarningMessage(t, med, check),
+                [
+                  { text: t('common.cancel'), style: "cancel" },
+                  {
+                    text: t('prn.logAnyway'),
+                    style: "destructive",
+                    onPress: () => { logPRNDose(med, { force: true }); },
+                  },
+                ]
+              );
+              return;
             }
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },
       ]

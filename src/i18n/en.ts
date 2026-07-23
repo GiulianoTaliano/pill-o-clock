@@ -195,6 +195,12 @@ const en: TranslationShape = {
     fieldRenewal: "Prescription renewal (optional)",
     fieldRenewalHint: "We'll remind you 7 days before and on the day itself.",
     drugDbAttribution: "Suggestions: RxTerms (U.S. National Library of Medicine)",
+    prnLimitsSection: "Safety limits (optional)",
+    prnMax: "Maximum doses per day",
+    prnMaxPlaceholder: "e.g. 4",
+    prnInterval: "Minimum hours between doses",
+    prnIntervalPlaceholder: "e.g. 6",
+    prnLimitsHint: "If you try to log a dose over the limit we'll warn you first (you can still confirm).",
     sectionPhoto: "Photo (optional)",
     addPhoto: "Add photo",
     changePhoto: "Change photo",
@@ -496,6 +502,12 @@ const en: TranslationShape = {
   },
 
   // ─── Settings screen ──────────────────────────────────────────────────────
+  prn: {
+    limitTitle: "Dose limit reached",
+    limitMax: "You already logged {{count}} of {{max}} allowed doses today.",
+    limitSoon: "Too soon for another dose. Next allowed: {{time}}.",
+    logAnyway: "Log anyway",
+  },
   appLock: {
     enterPin: "Enter your PIN",
     wrongPin: "Wrong PIN",
