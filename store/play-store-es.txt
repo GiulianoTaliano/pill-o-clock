@@ -7,25 +7,25 @@
 Pill O-Clock: Pastillero
 
 ── DESCRIPCIÓN BREVE (max 80 caracteres) ───────────────
-Alarma de medicamentos y diario de salud. Sin cuenta — gratis y 100% privado.
+Alarma de medicamentos y diario de salud. Sin cuenta — gratis y privado.
 
 ── DESCRIPCIÓN COMPLETA (max 4000 caracteres) ──────────
 
 💊 Pill O-Clock — La alarma de medicamentos que realmente suena
 
-Nunca más olvidés una dosis. Pill O-Clock es tu asistente personal de salud completo: hace sonar una alarma real cuando es hora de tomar tu medicamento, registra cada dosis que tomás (o no), hace seguimiento de tus mediciones con gráficos de tendencia, y te permite anotar cómo te sentís cada día — todo guardado de forma privada en tu teléfono. Sin cuenta. Sin suscripción. Sin que tus datos salgan de tu dispositivo. Nunca.
+Nunca más olvidés una dosis. Pill O-Clock es tu asistente personal de salud completo: hace sonar una alarma real cuando es hora de tomar tu medicamento, registra cada dosis que tomás (o no), y sigue tus mediciones de salud y cómo te sentís cada día — todo guardado de forma privada en tu teléfono. Sin cuenta. Sin suscripción. Tus datos de salud nunca salen de tu dispositivo.
 
 ▸ ALARMAS QUE REALMENTE SUENAN
 La mayoría de las apps de recordatorio envían una notificación silenciosa fácil de ignorar. Pill O-Clock hace sonar una alarma completa que se repite cada 5 minutos hasta que respondés. Tomá la dosis, posponé 15 minutos u omití — todo directamente desde la notificación o la pantalla de bloqueo, sin abrir la app.
 
 ▸ GESTIÓN COMPLETA DE MEDICAMENTOS
-Agregá cualquier medicamento con su nombre, dosis (mg, ml, gotas, comprimidos, cápsulas…), categoría, instrucciones especiales, color, período de tratamiento y una foto opcional del envase. Configurá una o múltiples alarmas por día, solo algunos días de la semana, o todos los días — o marcálo como a demanda (PRN) para registrar tomas no programadas como analgésicos o antihistamínicos. Controlá el stock actual y recibí alertas automáticas de stock bajo antes de quedarte sin dosis.
+Agregá cualquier medicamento con su nombre, dosis (mg, ml, gotas, comprimidos, cápsulas…), categoría, instrucciones especiales, color, período de tratamiento y una foto opcional del envase. Configurá una o varias alarmas por día, ciertos días de la semana o todos los días — o marcálo como a demanda (PRN) para tomas no programadas como analgésicos. Controlá el stock y recibí alertas automáticas antes de quedarte sin dosis.
 
 ▸ MEDICIONES DE SALUD
-Registrá presión arterial (sistólica/diastólica), glucemia, peso, SpO₂ y frecuencia cardíaca. Cada métrica muestra el último valor, una mini gráfica y un gráfico de tendencia completo para detectar patrones a lo largo del tiempo. Configurá un recordatorio diario opcional para medir.
+Registrá presión arterial (sistólica/diastólica), glucemia, peso, SpO₂ y frecuencia cardíaca. Cada métrica muestra el último valor, una mini gráfica y un gráfico de tendencia completo para detectar patrones. Configurá un recordatorio diario opcional para medir.
 
 ▸ DIARIO DE BIENESTAR DIARIO
-Registrá tu estado de ánimo en una escala de 5 niveles y hacé seguimiento de síntomas cada día — dolor de cabeza, náuseas, fatiga, mareos, dolor de estómago, ansiedad, insomnio y más. Las entradas pasadas son editables en cualquier momento. Correlacioná cómo te sentís con tu historial de medicación de un vistazo.
+Registrá tu estado de ánimo en una escala de 5 niveles y hacé seguimiento de síntomas cada día — dolor de cabeza, náuseas, fatiga, mareos, dolor de estómago, ansiedad, insomnio y más. Correlacioná cómo te sentís con tu historial de medicación de un vistazo.
 
 ▸ REPORTE PDF PARA TU MÉDICO
 Generá un informe completo de salud en PDF con un toque — medicamentos activos, historial de dosis de los últimos 30 días, mediciones y diario de bienestar — listo para compartir con tu médico o especialista en tu próxima consulta.
@@ -34,19 +34,19 @@ Generá un informe completo de salud en PDF con un toque — medicamentos activo
 Colocá un widget 2×1 en tu pantalla de inicio para ver tu próxima dosis pendiente y marcarla como tomada — sin abrir la app.
 
 ▸ RACHA DE ADHERENCIA E HISTORIAL
-Un chip de llama en la pantalla principal muestra tus días consecutivos de adherencia completa. La pestaña Historial muestra dosis tomadas, omitidas y no tomadas con un porcentaje de adherencia claro. Activá la vista mensual para ver un mapa de calor de adherencia — días verdes, amarillos y rojos — de todo el mes de un vistazo.
+Un chip de llama en la pantalla principal muestra tus días consecutivos de adherencia completa. La pestaña Historial muestra dosis tomadas, omitidas y no tomadas con un porcentaje de adherencia claro. Activá la vista mensual para ver un mapa de calor de adherencia de todo el mes.
 
 ▸ CALENDARIO VISUAL
-Vista mensual que agrupa tus dosis por día y estado — pendientes, tomadas, omitidas y no tomadas — para identificar al instante los días con incidencias y mantenerte en control.
+Vista mensual que agrupa tus dosis por día y estado para identificar al instante los días con incidencias.
 
 ▸ CITAS MÉDICAS
 Organizá todas tus citas médicas próximas y pasadas: nombre del médico, ubicación con pin en el mapa, fecha/hora, notas y recordatorio configurable (1 hora, 2 horas o 1 día antes).
 
 ▸ TUS DATOS SON TUYOS — SIEMPRE
-Todo se almacena en una base de datos local privada en tu dispositivo. Nada se envía a servidores externos. Sin cuenta, sin sincronización en la nube, sin analíticas, sin anuncios. Exportá una copia de seguridad completa (medicamentos, historial, turnos, mediciones de salud y diario) en cualquier momento y restaurala si cambiás de teléfono.
+Tus datos de salud — medicamentos, historial, mediciones y diario — viven en una base de datos local privada y nunca salen de tu dispositivo. Las únicas excepciones: diagnósticos técnicos de fallos (que jamás incluyen tus datos de salud) y, si agregás la ubicación de una cita, la consulta al mapa. Sin cuenta, sin sincronización en la nube, sin analíticas de uso, sin anuncios. Exportá una copia de seguridad completa en cualquier momento y restaurala si cambiás de teléfono.
 
 ▸ DISPONIBLE EN ESPAÑOL E INGLÉS
-La app detecta automáticamente el idioma de tu dispositivo. Español e inglés tienen soporte completo, y podés cambiar el idioma manualmente desde Ajustes en cualquier momento.
+La app detecta el idioma de tu dispositivo — español e inglés con soporte completo — y podés cambiarlo desde Ajustes cuando quieras.
 
 ▸ MODO OSCURO Y DISEÑO LIMPIO
 Sigue automáticamente el tema claro/oscuro del sistema. Tipografía clara y legible con indicadores de estado por colores para un uso rápido y fácil.
@@ -100,10 +100,12 @@ privacy@pilloclock.app
 https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html
 
 ── DATA SAFETY (respuestas para el formulario) ──────────
-¿Recopila datos?          → No (todos los datos son locales)
-¿Comparte datos?          → No
-¿Permite eliminar datos?  → Sí (Ajustes → Borrar todos los datos)
-¿Cifrado en tránsito?     → No aplica (no hay tránsito de datos)
+(corregido y enviado a Play el 2026-07-22 — ver auditoría C6/H14/H15)
+¿Recopila / comparte datos?  → Sí — Ubicación (precisa; selector de mapa de citas → Google Maps)
+                               y Registros de fallos + Diagnósticos (Sentry).
+                               El resto de los datos de salud queda solo en el dispositivo.
+¿Permite eliminar datos?     → Sin mecanismo de solicitud (datos locales; se eliminan al desinstalar)
+¿Cifrado en tránsito?        → Sí (HTTPS hacia Google / Sentry)
 ¿Sigue pautas de datos de familia?  → No
 
 ── COPIA SUGERIDA PARA EL FEATURE GRAPHIC ───────────────
