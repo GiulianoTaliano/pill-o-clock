@@ -194,6 +194,7 @@ const en: TranslationShape = {
     fieldStockUnit: "units",
     fieldRenewal: "Prescription renewal (optional)",
     fieldRenewalHint: "We'll remind you 7 days before and on the day itself.",
+    drugDbAttribution: "Suggestions: RxTerms (U.S. National Library of Medicine)",
     sectionPhoto: "Photo (optional)",
     addPhoto: "Add photo",
     changePhoto: "Change photo",
@@ -562,6 +563,7 @@ const en: TranslationShape = {
     appLockBiometricSubtitle: "Use fingerprint or face when available",
     appLockChangePin: "Change PIN",
     appLockChangePinSubtitle: "Replace your 4-digit PIN",
+    rxtermsAttribution: "Medication name suggestions include RxTerms data, produced by the U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Appearance",
     themeSystem: "Automatic (system)",

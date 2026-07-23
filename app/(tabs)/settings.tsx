@@ -598,6 +598,10 @@ export default function SettingsScreen() {
             onPress={() => Linking.openURL("https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html")}
           />
         </View>
+        {/* RxTerms data attribution (required courtesy — see scripts/build-drug-db.mjs) */}
+        <Text className="mx-6 mt-2 text-[11px] text-muted leading-4">
+          {t("settings.rxtermsAttribution")}
+        </Text>
 
         {/* ─── Danger zone ─── */}
         <SectionHeader title={t("settings.sectionDanger")} danger />

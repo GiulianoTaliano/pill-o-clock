@@ -192,6 +192,7 @@ const es = {
     fieldStockUnit: "unidades",
     fieldRenewal: "Renovación de receta (opcional)",
     fieldRenewalHint: "Te avisamos 7 días antes y el mismo día.",
+    drugDbAttribution: "Sugerencias: RxTerms (U.S. National Library of Medicine)",
     sectionPhoto: "Foto (opcional)",
     addPhoto: "Agregar foto",
     changePhoto: "Cambiar foto",
@@ -560,6 +561,7 @@ const es = {
     appLockBiometricSubtitle: "Usar huella o rostro si están disponibles",
     appLockChangePin: "Cambiar PIN",
     appLockChangePinSubtitle: "Reemplazar tu PIN de 4 dígitos",
+    rxtermsAttribution: "Las sugerencias de nombres de medicamentos incluyen datos de RxTerms, producido por la U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Apariencia",
     themeSystem: "Automático (sistema)",
