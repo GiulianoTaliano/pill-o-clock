@@ -1,4 +1,4 @@
-import { File, Paths } from "expo-file-system";
+import { File } from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system/src/legacy";
 import * as DocumentPicker from "expo-document-picker";
 import { z } from "zod";
@@ -47,6 +47,10 @@ const medicationSchema = z.object({
   photoUri: z.string().optional(),
   isPRN: z.boolean().optional(),
   renewalDate: z.string().optional(),
+  // renewalNotifIds is deliberately absent: OS notification ids only exist on
+  // the device that scheduled them, and renewal reminders are only rebuilt on
+  // med edit — importing stale ids would make a restored install believe
+  // reminders are scheduled. zod strips the key on parse.
   prnMaxPerDay: z.number().optional(),
   prnMinIntervalMinutes: z.number().optional(),
   rxcui: z.string().optional(),
