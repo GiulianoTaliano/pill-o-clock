@@ -28,6 +28,7 @@ import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { medicationFormSchema, type MedicationFormData } from "../src/schemas/medication";
 import { searchDrugs, type DrugSuggestion } from "../src/services/drugDb";
+import { BarcodeScannerModal } from "./BarcodeScannerModal";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 
 // ─── Inline error ──────────────────────────────────────────────────────────
@@ -365,6 +366,8 @@ export function MedicationForm({
 
   // Offline drug-name autocomplete (F1). Cleared on pick or when too short.
   const [drugSuggestions, setDrugSuggestions] = useState<DrugSuggestion[]>([]);
+  // Barcode scan accelerator (F2). Android-first; iOS works too via expo-camera.
+  const [scannerOpen, setScannerOpen] = useState(false);
   const photoUri = watch("photoUri");
   const repeatMode = watch("repeatMode");
   const onceDate = watch("onceDate");
@@ -535,25 +538,38 @@ export function MedicationForm({
               <Text className="text-sm font-semibold text-text mb-1.5">
                 {t('form.fieldName')} <Text className="text-danger">{t('common.required')}</Text>
               </Text>
-              <Controller
-                control={control}
-                name="name"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    value={value}
-                    onChangeText={(v) => {
-                      onChange(v);
-                      // A manual edit invalidates the picked RxCUI identity.
-                      setValue("rxcui", undefined);
-                      setDrugSuggestions(searchDrugs(v));
-                    }}
-                    placeholder={t('form.fieldNamePlaceholder')}
-                    placeholderTextColor={theme.muted}
-                    className="border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
-                    autoCapitalize="words"
-                  />
-                )}
-              />
+              <View className="flex-row items-center gap-2">
+                <Controller
+                  control={control}
+                  name="name"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      value={value}
+                      onChangeText={(v) => {
+                        onChange(v);
+                        // A manual edit invalidates the picked RxCUI identity.
+                        setValue("rxcui", undefined);
+                        setDrugSuggestions(searchDrugs(v));
+                      }}
+                      placeholder={t('form.fieldNamePlaceholder')}
+                      placeholderTextColor={theme.muted}
+                      className="flex-1 border border-border rounded-xl px-3 py-2.5 text-text text-base bg-card-alt"
+                      autoCapitalize="words"
+                    />
+                  )}
+                />
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t('form.scanBarcode')}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setScannerOpen(true);
+                  }}
+                  className="border border-border rounded-xl px-3 py-2.5 bg-card-alt"
+                >
+                  <Ionicons name="barcode-outline" size={22} color={theme.primary} />
+                </TouchableOpacity>
+              </View>
               {drugSuggestions.length > 0 && (
                 <View className="mt-1 rounded-xl border border-border bg-card overflow-hidden">
                   {drugSuggestions.map((s) => (
@@ -1144,6 +1160,23 @@ export function MedicationForm({
           )}
         </View>
       </View>
+
+      {/* Barcode scan → prefill name + RxCUI; graceful fallback to typing. */}
+      <BarcodeScannerModal
+        visible={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onResult={(match) => {
+          setScannerOpen(false);
+          if (match) {
+            setValue("name", match.suggestion.name, { shouldValidate: true });
+            setValue("rxcui", match.suggestion.rxcui || undefined);
+            setDrugSuggestions([]);
+            showToast(t("form.scanMatched", { name: match.suggestion.name }), "success");
+          } else {
+            showToast(t("form.scanNoMatch"), "error");
+          }
+        }}
+      />
     </View>
   );
 }

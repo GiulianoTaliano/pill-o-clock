@@ -69,6 +69,13 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Pill O-Clock uses the camera to scan medication package barcodes and prefill the medication form.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-local-authentication",
         {
           "faceIDPermission": "Pill O-Clock uses Face ID to unlock the app when app lock is enabled."

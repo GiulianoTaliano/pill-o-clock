@@ -61,6 +61,18 @@ export function _setDatasetForTests(raw: RawEntry[] | null): void {
 }
 
 /**
+ * Finds the entry for a given SXDG RxCUI (used by the barcode scanner to turn
+ * an NDC hit into a prefillable suggestion). First match in sorted-name order.
+ */
+export function searchDrugsByRxcui(rxcui: string): DrugSuggestion | null {
+  if (!rxcui) return null;
+  for (const { name, rxcui: r, strengths } of getIndex()) {
+    if (r === rxcui) return { name, rxcui: r, strengths };
+  }
+  return null;
+}
+
+/**
  * Searches the drug database. Ranking:
  *   1. name starts with the query
  *   2. any word in the name starts with the query

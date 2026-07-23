@@ -69,6 +69,15 @@ jest.mock("react-native-health-connect", () => ({
   insertRecords: jest.fn().mockResolvedValue([]),
 }));
 
+// ─── expo-camera (barcode scanner UI) ──────────────────────────────────────
+jest.mock("expo-camera", () => ({
+  CameraView: () => null,
+  useCameraPermissions: jest.fn(() => [
+    { granted: true, canAskAgain: true },
+    jest.fn().mockResolvedValue({ granted: true }),
+  ]),
+}));
+
 // ─── expo-local-authentication ─────────────────────────────────────────────
 jest.mock("expo-local-authentication", () => ({
   hasHardwareAsync: jest.fn().mockResolvedValue(false),
