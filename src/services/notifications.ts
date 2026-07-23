@@ -10,6 +10,7 @@ import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
 import { withEffectiveDose } from "./regimen";
+import { detectTimezoneChange } from "./timezone";
 import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb, getProfiles } from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -873,6 +874,30 @@ export async function cleanupExpiredNotifMapEntries(): Promise<void> {
  */
 export async function rescheduleAllNotifications(): Promise<void> {
   if (Platform.OS === "web") return;
+
+  // Timezone travel (F3): queued alarms/notifications are absolute instants
+  // from the zone where they were scheduled. On a zone change, cancel all of
+  // them so the rebuild below lands on the new local wall-clock times.
+  const tz = detectTimezoneChange();
+  if (tz.changed) {
+    try {
+      const allSchedules = await getAllActiveSchedules();
+      for (const s of allSchedules) {
+        await cancelScheduleNotifications(s.id);
+      }
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: i18n.t("timezone.adjustedTitle"),
+          body: i18n.t("timezone.adjustedBody", { tz: tz.to }),
+          data: { type: "timezone_adjusted" },
+          ...(Platform.OS === "android" ? { channelId: STOCK_ALERT_CHANNEL_ID } : {}),
+        },
+        trigger: null, // immediate, informational
+      });
+    } catch {
+      // Never let the tz handling break rescheduling itself.
+    }
+  }
 
   // Purge stale entries first so the map doesn't grow indefinitely.
   await cleanupExpiredNotifMapEntries();
