@@ -511,6 +511,9 @@ const en: TranslationShape = {
   },
 
   // ─── PDF report ─────────────────────────────────────────────────────────
+  tts: {
+    alarmSpeech: "Time to take {{name}}, {{dose}}.",
+  },
   backupCrypto: {
     setTitle: "Protect with a passphrase?",
     setSubtitle: "The file is encrypted: nobody can read it without the passphrase, not even where you store it (Drive, etc.).",
@@ -755,6 +758,8 @@ const en: TranslationShape = {
     rxtermsAttribution: "Medication name suggestions include RxTerms data, produced by the U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Appearance",
+    tts: "Read alarms aloud",
+    ttsSubtitle: "When the alarm rings, the phone says the medication and dose",
     seniorMode: "Large text & buttons",
     seniorModeSubtitle: "Enhanced-visibility mode for dose cards",
     themeSystem: "Automatic (system)",

@@ -46,6 +46,7 @@ export const STORAGE_KEYS = {
   HEALTH_SYNC:                "@pilloclock/health_sync",
   ACTIVE_PROFILE:             "@pilloclock/active_profile",
   LAST_TIMEZONE:              "@pilloclock/last_timezone",
+  TTS_ENABLED:                "@pilloclock/tts_enabled",
   RECENT_COLORS:            "custom_colors_recent",
   // Legacy keys kept for migration only (notifications.ts)
   NOTIF_MAP:                "@pilloclock/notif_map",

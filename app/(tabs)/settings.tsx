@@ -32,6 +32,7 @@ import {
 } from "../../src/services/appLock";
 import { PinModal } from "../../components/PinModal";
 import { isHealthSyncSupported, isHealthSyncEnabled, enableHealthSync, disableHealthSync } from "../../src/services/healthSync";
+import { isTtsEnabled, setTtsEnabled } from "../../src/services/tts";
 import { ProfileModal } from "../../components/ProfileModal";
 import { MEDICATION_COLORS } from "../../src/utils";
 import type { Profile } from "../../src/types";
@@ -144,6 +145,7 @@ export default function SettingsScreen() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [generatingSnapshot, setGeneratingSnapshot] = useState(false);
   const [exportingFhir, setExportingFhir] = useState(false);
+  const [ttsOn, setTtsOn] = useState(isTtsEnabled);
   // Passphrase prompt (F3 encrypted backup): promise resolved by the modal.
   const [passModal, setPassModal] = useState<{
     mode: "set" | "enter";
@@ -806,6 +808,25 @@ export default function SettingsScreen() {
               onValueChange={(on) => { Haptics.selectionAsync(); setSeniorMode(on); }}
               trackColor={{ false: undefined, true: theme.primary }}
               accessibilityLabel={t("settings.seniorMode")}
+            />
+          </View>
+          {/* Spoken alarms (F4 TTS) — opt-in accessibility */}
+          <Divider />
+          <View className="flex-row items-center px-4 py-3.5 gap-3">
+            <Ionicons name="volume-high-outline" size={20} color={theme.primary} />
+            <View className="flex-1">
+              <Text className="text-[15px] font-semibold text-text">{t("settings.tts")}</Text>
+              <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.ttsSubtitle")}</Text>
+            </View>
+            <Switch
+              value={ttsOn}
+              onValueChange={(on) => {
+                Haptics.selectionAsync();
+                setTtsEnabled(on);
+                setTtsOn(on);
+              }}
+              trackColor={{ false: undefined, true: theme.primary }}
+              accessibilityLabel={t("settings.tts")}
             />
           </View>
         </View>
