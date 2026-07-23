@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, Animated, Alert } from "react
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AdBanner } from "../../components/AdBanner";
+import { InsightsCard } from "../../components/InsightsCard";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
@@ -425,6 +426,8 @@ export default function HistoryScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
+            {/* On-device adherence insights (F2) — hides itself without data */}
+            <InsightsCard />
             {/* Month heatmap */}
             {viewMode === "month" && (
               loading
