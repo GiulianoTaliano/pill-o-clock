@@ -50,6 +50,53 @@ export const DAYS_AHEAD = Platform.OS === "ios" ? 3 : 7;
 
 const NOTIF_MAP_KEY = STORAGE_KEYS.NOTIF_MAP;
 
+// ─── iOS interruption level (Critical Alerts) ──────────────────────────────
+//
+// On iOS a dose reminder must be able to break through the ring/silent switch
+// and Focus modes — otherwise a silenced phone means a missed medication.
+// Two levels matter here:
+//
+//   • timeSensitive — breaks through Focus modes. Needs NO Apple approval,
+//     works today. Does NOT ring when the phone is on silent.
+//   • critical      — also ignores the ring/silent switch and plays at its own
+//     volume. Requires the com.apple.developer.usernotifications.critical-alerts
+//     entitlement (already declared in app.json) AND explicit approval from
+//     Apple, plus the user granting `allowCriticalAlerts` at runtime.
+//
+// We ask for critical (see setupNotifications) and use it only when iOS
+// actually reports it as granted; otherwise we degrade to timeSensitive.
+// Setting `critical` without the granted entitlement would be silently ignored
+// by iOS, so this check is what makes the fallback real rather than cosmetic.
+let criticalAlertsGranted = false;
+
+/** Interruption level to use for dose reminders (iOS only; ignored elsewhere). */
+function doseInterruptionLevel(): "critical" | "timeSensitive" {
+  return criticalAlertsGranted ? "critical" : "timeSensitive";
+}
+
+/** Exposed for Settings/diagnostics: did Apple + the user grant critical alerts? */
+export function hasCriticalAlerts(): boolean {
+  return criticalAlertsGranted;
+}
+
+/**
+ * Refreshes the cached critical-alerts flag from the OS.
+ * Safe to call on any platform — no-ops off iOS.
+ */
+export async function refreshCriticalAlertsStatus(): Promise<boolean> {
+  if (Platform.OS !== "ios") {
+    criticalAlertsGranted = false;
+    return false;
+  }
+  try {
+    const perms = await Notifications.getPermissionsAsync();
+    criticalAlertsGranted = perms.ios?.allowsCriticalAlerts === true;
+  } catch {
+    criticalAlertsGranted = false;
+  }
+  return criticalAlertsGranted;
+}
+
 // ─── Notification Actions ──────────────────────────────────────────────────
 
 export const ACTION_TAKEN = "TAKEN";
@@ -184,7 +231,10 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
     Platform.Version >= 31 &&
     Platform.Version < 33;
 
-  if (existingStatus === "granted") return { granted: true, needsExactAlarmPermission };
+  if (existingStatus === "granted") {
+    await refreshCriticalAlertsStatus();
+    return { granted: true, needsExactAlarmPermission };
+  }
 
   const { status } = await Notifications.requestPermissionsAsync({
     ios: {
@@ -194,6 +244,8 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
       allowCriticalAlerts: true,
     },
   });
+
+  await refreshCriticalAlertsStatus();
 
   return { granted: status === "granted", needsExactAlarmPermission };
 }
@@ -363,6 +415,9 @@ async function scheduleOneNotification(
         + i18n.t("notifications.bodyActions"),
       sound: "alarm.wav",
       categoryIdentifier: "DOSE_REMINDER",
+      // iOS: break through Focus (and the silent switch when Apple approved
+      // critical alerts). Ignored on Android, where the alarm path is native.
+      interruptionLevel: doseInterruptionLevel(),
       data: {
         scheduleId: schedule.id,
         medicationId: medication.id,
@@ -506,6 +561,7 @@ export async function snoozeDose(
         + i18n.t("notifications.bodyActions"),
       sound: "alarm.wav",
       categoryIdentifier: "DOSE_REMINDER",
+      interruptionLevel: doseInterruptionLevel(),
       data: {
         scheduleId: schedule.id,
         medicationId: medication.id,
