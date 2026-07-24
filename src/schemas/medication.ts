@@ -27,10 +27,11 @@ export const medicationFormSchema = z
     prnIntervalHoursStr: z.string().optional(),
     rxcui: z.string().optional(),
     // Complex regimen (F3) — only meaningful in "repeat" mode.
-    regimenType: z.enum(["none", "everyN", "cycle", "taper"]).default("none"),
+    regimenType: z.enum(["none", "everyN", "cycle", "taper", "monthlyDay"]).default("none"),
     regimenNStr: z.string().optional().default(""),
     regimenOnStr: z.string().optional().default(""),
     regimenOffStr: z.string().optional().default(""),
+    regimenMonthDayStr: z.string().optional().default(""),
     taperSteps: z.array(z.object({ daysStr: z.string(), amountStr: z.string() })).default([]),
     // Injectable flag (F3): enables site rotation + weekly countdown.
     isInjectable: z.boolean().default(false),
@@ -87,6 +88,12 @@ export const medicationFormSchema = z
           });
         if (!ok) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: "form.errorRegimenTaperMsg", path: ["taperSteps"] });
+        }
+      }
+      if (data.regimenType === "monthlyDay") {
+        const day = int(data.regimenMonthDayStr);
+        if (!(day >= 1 && day <= 31)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "form.errorRegimenMonthDayMsg", path: ["regimenMonthDayStr"] });
         }
       }
     }

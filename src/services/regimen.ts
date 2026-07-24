@@ -30,7 +30,8 @@ function toDateString(d: Date): string {
 export type Regimen =
   | { type: "everyN"; n: number }
   | { type: "cycle"; on: number; off: number }
-  | { type: "taper"; steps: { days: number; amount: number }[] };
+  | { type: "taper"; steps: { days: number; amount: number }[] }
+  | { type: "monthlyDay"; day: number };
 
 /** Safe parse + shape validation. Malformed JSON = no regimen (fail open). */
 export function parseRegimen(med: Pick<Medication, "regimen">): Regimen | null {
@@ -50,6 +51,8 @@ export function parseRegimen(med: Pick<Medication, "regimen">): Regimen | null {
           r.steps.every((s) => Number.isInteger(s.days) && s.days >= 1 && s.amount > 0)
           ? r
           : null;
+      case "monthlyDay":
+        return Number.isInteger(r.day) && r.day >= 1 && r.day <= 31 ? r : null;
       default:
         return null;
     }
@@ -90,6 +93,13 @@ export function isRegimenActiveOnDate(med: Medication, dateStr: string): boolean
       let total = 0;
       for (const s of regimen.steps) total += s.days;
       return d < total;
+    }
+    case "monthlyDay": {
+      // Active on the chosen day of the month, clamped to the last day so a
+      // "day 31" reminder still fires in shorter months (e.g. Feb 28).
+      const [y, m, day] = dateStr.split("-").map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      return day === Math.min(regimen.day, lastDay);
     }
   }
 }

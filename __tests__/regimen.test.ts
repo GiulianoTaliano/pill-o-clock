@@ -38,6 +38,30 @@ describe("parseRegimen", () => {
   });
 });
 
+describe("monthlyDay", () => {
+  it("parses a valid day and rejects out-of-range", () => {
+    expect(parseRegimen(med({ type: "monthlyDay", day: 20 }))).toEqual({ type: "monthlyDay", day: 20 });
+    expect(parseRegimen(med({ type: "monthlyDay", day: 0 }))).toBeNull();
+    expect(parseRegimen(med({ type: "monthlyDay", day: 32 }))).toBeNull();
+  });
+
+  it("is active only on the chosen day of the month", () => {
+    const m = med({ type: "monthlyDay", day: 20 }, "2026-07-01");
+    expect(isRegimenActiveOnDate(m, "2026-07-20")).toBe(true);
+    expect(isRegimenActiveOnDate(m, "2026-08-20")).toBe(true);
+    expect(isRegimenActiveOnDate(m, "2026-07-19")).toBe(false);
+    expect(isRegimenActiveOnDate(m, "2026-07-21")).toBe(false);
+  });
+
+  it("clamps to the last day in shorter months (day 31 → Feb 28)", () => {
+    const m = med({ type: "monthlyDay", day: 31 }, "2026-01-01");
+    expect(isRegimenActiveOnDate(m, "2026-01-31")).toBe(true);
+    expect(isRegimenActiveOnDate(m, "2026-02-28")).toBe(true); // Feb has no 31st
+    expect(isRegimenActiveOnDate(m, "2026-02-27")).toBe(false);
+    expect(isRegimenActiveOnDate(m, "2026-04-30")).toBe(true); // April has no 31st
+  });
+});
+
 describe("isRegimenActiveOnDate", () => {
   it("everyN: active on anchor, anchor+N, ...", () => {
     const m = med({ type: "everyN", n: 3 });

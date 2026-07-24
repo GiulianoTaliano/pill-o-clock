@@ -327,6 +327,8 @@ function buildRegimenFromForm(data: MedicationFormData): string | undefined {
         amount: parseFloat((st.amountStr ?? "").replace(",", ".")),
       })),
     };
+  } else if (data.regimenType === "monthlyDay") {
+    regimen = { type: "monthlyDay", day: int(data.regimenMonthDayStr) };
   }
   return buildRegimenJson(regimen);
 }
@@ -386,6 +388,7 @@ export function MedicationForm({
       regimenNStr: initialRegimen?.type === "everyN" ? String(initialRegimen.n) : "",
       regimenOnStr: initialRegimen?.type === "cycle" ? String(initialRegimen.on) : "",
       regimenOffStr: initialRegimen?.type === "cycle" ? String(initialRegimen.off) : "",
+      regimenMonthDayStr: initialRegimen?.type === "monthlyDay" ? String(initialRegimen.day) : "",
       taperSteps:
         initialRegimen?.type === "taper"
           ? initialRegimen.steps.map((st) => ({ daysStr: String(st.days), amountStr: String(st.amount) }))
@@ -474,7 +477,13 @@ export function MedicationForm({
       startDate: data.repeatMode === "once" ? data.onceDate : data.repeatMode === "prn" ? undefined : data.startDate,
       endDate:   data.repeatMode === "once" ? data.onceDate : data.repeatMode === "prn" ? undefined : data.endDate,
       schedules: data.repeatMode === "prn" ? [] : data.schedules.map((s) => {
-        const days = data.repeatMode === "once" || s.days.length === 7 ? [] : s.days;
+        // A frequency regimen owns the days, so the alarm is time-only and its
+        // weekday filter is cleared (empty = every day, then gated by the
+        // regimen). Same for "once" and for "all 7 days" (the daily convention).
+        const days =
+          data.repeatMode === "once" || data.regimenType !== "none" || s.days.length === 7
+            ? []
+            : s.days;
         return { ...s, days };
       }),
       stockQuantity: data.stockQtyStr?.trim() ? Math.max(0, parseInt(data.stockQtyStr, 10)) : undefined,
@@ -987,7 +996,7 @@ export function MedicationForm({
               </Text>
               <View className="bg-card rounded-2xl border border-border p-4">
                 <View className="flex-row flex-wrap gap-2">
-                  {(["none", "everyN", "cycle", "taper"] as const).map((rt) => (
+                  {(["none", "everyN", "cycle", "monthlyDay", "taper"] as const).map((rt) => (
                     <TouchableOpacity
                       key={rt}
                       accessibilityRole="button"
@@ -1130,6 +1139,30 @@ export function MedicationForm({
                   </View>
                 )}
 
+                {regimenType === "monthlyDay" && (
+                  <>
+                    <View className="flex-row items-center gap-2 mt-3">
+                      <Text className="text-sm text-text">{t('form.regimenMonthDayPrefix')}</Text>
+                      <Controller
+                        control={control}
+                        name="regimenMonthDayStr"
+                        render={({ field: { onChange, value } }) => (
+                          <TextInput
+                            value={value}
+                            onChangeText={onChange}
+                            keyboardType="number-pad"
+                            placeholder="20"
+                            placeholderTextColor={theme.muted}
+                            className="border border-border rounded-xl px-3 py-2 text-text text-base bg-card-alt w-16 text-center"
+                          />
+                        )}
+                      />
+                      <Text className="text-sm text-text">{t('form.regimenMonthDaySuffix')}</Text>
+                    </View>
+                    <FieldError message={errors.regimenMonthDayStr?.message ? t(errors.regimenMonthDayStr.message as any) : undefined} />
+                  </>
+                )}
+
                 {regimenType !== "none" && (
                   <Text className="text-xs text-muted mt-3 leading-4">{t('form.regimenAnchorNote')}</Text>
                 )}
@@ -1151,7 +1184,9 @@ export function MedicationForm({
           {/* Contextual tip */}
           {repeatMode === "once"
             ? <TipBlock text={t('form.tipAlarmsOnce')} theme={theme} />
-            : <TipBlock text={t('form.tipAlarmsDays')} theme={theme} />
+            : regimenType !== "none"
+              ? <TipBlock text={t('form.tipAlarmsRegimen')} theme={theme} />
+              : <TipBlock text={t('form.tipAlarmsDays')} theme={theme} />
           }
 
           {repeatMode === "once" ? (
@@ -1184,6 +1219,11 @@ export function MedicationForm({
                 <ScheduleRow
                   key={field.id}
                   schedule={watchedSchedules[idx] ?? field}
+                  // With a frequency regimen (everyN / cycle / taper / monthly)
+                  // the days are already determined by the regimen — the alarm
+                  // only needs the time. The weekday picker shows only for a
+                  // plain daily/recurring schedule (regimenType "none").
+                  showDays={regimenType === "none"}
                   onChange={(updated) => updateSchedule(idx, updated)}
                   onRemove={() => removeSchedule(idx)}
                 />
