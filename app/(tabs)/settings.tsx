@@ -20,7 +20,7 @@ import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { AlarmSoundPicker } from "../../components/AlarmSoundPicker";
 import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes, setDefaultSnoozeMinutes } from "../../src/services/snoozeSettings";
 import { getDrugRegionOverride, setDrugRegion } from "../../src/services/deviceCountry";
-import { refreshDoseReminderCategory } from "../../src/services/notifications";
+import { refreshDoseReminderCategory, rebuildDoseNotifications } from "../../src/services/notifications";
 import {
   isAppLockSupported,
   isAppLockEnabled,
@@ -29,6 +29,12 @@ import {
   enableAppLock,
   disableAppLock,
 } from "../../src/services/appLock";
+import {
+  IOS_ALARM_SOUNDS,
+  getIosAlarmSound,
+  setIosAlarmSound,
+  type IosAlarmSound,
+} from "../../src/services/iosAlarmSound";
 import { isHealthSyncSupported, isHealthSyncEnabled, enableHealthSync, disableHealthSync } from "../../src/services/healthSync";
 import { isTtsEnabled, setTtsEnabled } from "../../src/services/tts";
 import { ProfileModal } from "../../components/ProfileModal";
@@ -210,6 +216,24 @@ export default function SettingsScreen() {
     // Fire-and-forget: refresh the notification quick-action label so the
     // ⏰ button shows the new interval on future reminders.
     refreshDoseReminderCategory().catch(() => {});
+  };
+
+  // Alarm sound (iOS). Android uses the native ringtone picker instead.
+  const [iosSound, setIosSound] = useState<IosAlarmSound>(getIosAlarmSound);
+
+  const handleIosSoundChange = async (sound: IosAlarmSound) => {
+    if (sound === iosSound) return;
+    Haptics.selectionAsync();
+    setIosSound(sound);
+    setIosAlarmSound(sound);
+    // Queued notifications carry the old sound baked in, so they must be
+    // rebuilt for the change to take effect on doses already scheduled.
+    try {
+      await rebuildDoseNotifications();
+      showToast(t("settings.iosSoundChanged"), "success");
+    } catch {
+      showToast(t("common.error"), "error");
+    }
   };
 
   // App lock — authentication is delegated to the OS (biometrics + device
@@ -516,6 +540,29 @@ export default function SettingsScreen() {
                 <AlarmSoundPicker maxHeight={300} onSoundChange={handleSoundChange} />
               </View>
             )}
+          </>
+        )}
+
+        {/* ─── Alarm sound (iOS) ───
+            iOS apps cannot enumerate the device's ringtones, so unlike Android
+            the choice is limited to what ships in the bundle. */}
+        {Platform.OS === "ios" && (
+          <>
+            <SectionHeader title={t("settings.sectionAlarmSound")} />
+            <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+              {IOS_ALARM_SOUNDS.map((sound, i) => (
+                <View key={sound}>
+                  {i > 0 && <Divider />}
+                  <SettingRow
+                    icon={iosSound === sound ? "checkmark-circle" : "ellipse-outline"}
+                    iconColor={iosSound === sound ? theme.primary : theme.muted}
+                    title={t(`settings.iosSound_${sound}`)}
+                    subtitle={t(`settings.iosSound_${sound}_sub`)}
+                    onPress={() => handleIosSoundChange(sound)}
+                  />
+                </View>
+              ))}
+            </View>
           </>
         )}
 

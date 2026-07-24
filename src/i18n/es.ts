@@ -764,6 +764,13 @@ const es = {
     sectionSecurity: "Seguridad",
     appLockTitle: "Bloqueo de app",
     appLockSubtitle: "Pedir el desbloqueo del teléfono al abrir la app",
+    // Sonido de alarma en iOS: solo se pueden usar sonidos incluidos en la app,
+    // porque iOS no deja leer los tonos del sistema.
+    iosSound_bundled: "Pill O-Clock",
+    iosSound_bundled_sub: "El sonido de alarma propio de la app",
+    iosSound_system: "Sonido del sistema",
+    iosSound_system_sub: "El tono de notificación estándar de iOS",
+    iosSoundChanged: "Sonido actualizado",
     rxtermsAttribution: "Las sugerencias de nombres de medicamentos incluyen datos de RxTerms, producido por la U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Apariencia",

@@ -768,6 +768,13 @@ const pt: TranslationShape = {
     sectionSecurity: "Segurança",
     appLockTitle: "Bloqueio do app",
     appLockSubtitle: "Pedir o desbloqueio do telefone ao abrir o app",
+    // Som de alarme no iOS: só é possível usar sons incluídos no app, porque o
+    // iOS não permite ler os toques do sistema.
+    iosSound_bundled: "Pill O-Clock",
+    iosSound_bundled_sub: "O som de alarme próprio do app",
+    iosSound_system: "Som do sistema",
+    iosSound_system_sub: "O toque de notificação padrão do iOS",
+    iosSoundChanged: "Som atualizado",
     rxtermsAttribution: "As sugestões de nomes de medicamentos incluem dados do RxTerms, produzido pela U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Aparência",

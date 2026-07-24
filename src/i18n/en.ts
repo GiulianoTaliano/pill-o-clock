@@ -766,6 +766,13 @@ const en: TranslationShape = {
     sectionSecurity: "Security",
     appLockTitle: "App lock",
     appLockSubtitle: "Require your phone's unlock when opening the app",
+    // iOS alarm sound: only sounds bundled with the app can be used, because
+    // iOS does not let apps read the system ringtones.
+    iosSound_bundled: "Pill O-Clock",
+    iosSound_bundled_sub: "The app's own alarm sound",
+    iosSound_system: "System sound",
+    iosSound_system_sub: "The standard iOS notification tone",
+    iosSoundChanged: "Sound updated",
     rxtermsAttribution: "Medication name suggestions include RxTerms data, produced by the U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Appearance",

@@ -9,6 +9,7 @@ import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocal
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
+import { resolveNotificationSound } from "./iosAlarmSound";
 import { withEffectiveDose } from "./regimen";
 import { detectTimezoneChange } from "./timezone";
 import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb, getProfiles } from "../db/database";
@@ -120,6 +121,17 @@ let criticalAlertsGranted = false;
 /** Interruption level to use for dose reminders (iOS only; ignored elsewhere). */
 function doseInterruptionLevel(): "critical" | "timeSensitive" {
   return criticalAlertsGranted ? "critical" : "timeSensitive";
+}
+
+/**
+ * Sound for a dose reminder.
+ *
+ * On iOS the user can choose between the bundled alarm and the system sound.
+ * On Android the sound comes from the notification channel (and, for real
+ * alarms, from the native module), so the bundled name stays fixed here.
+ */
+function doseSound(): string {
+  return Platform.OS === "ios" ? resolveNotificationSound() : "alarm.wav";
 }
 
 /** Exposed for Settings/diagnostics: did Apple + the user grant critical alerts? */
@@ -461,7 +473,7 @@ async function scheduleOneNotification(
           ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
           : i18n.t("notifications.body", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)) }))
         + i18n.t("notifications.bodyActions"),
-      sound: "alarm.wav",
+      sound: doseSound(),
       categoryIdentifier: "DOSE_REMINDER",
       // iOS: break through Focus (and the silent switch when Apple approved
       // critical alerts). Ignored on Android, where the alarm path is native.
@@ -613,7 +625,7 @@ export async function snoozeDose(
           ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
           : i18n.t("notifications.body", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)) }))
         + i18n.t("notifications.bodyActions"),
-      sound: "alarm.wav",
+      sound: doseSound(),
       categoryIdentifier: "DOSE_REMINDER",
       interruptionLevel: doseInterruptionLevel(),
       data: {
@@ -700,6 +712,26 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
   const db = await getDb();
   await db.runAsync("DELETE FROM notification_map");
+}
+
+/**
+ * Cancels and re-creates every DOSE notification.
+ *
+ * Needed when something baked into the notification content changes — e.g. the
+ * iOS alarm sound — because already-queued notifications keep the old value and
+ * iOS offers no way to edit them in place.
+ *
+ * Deliberately not cancelAllNotifications(): that also wipes appointment,
+ * renewal and health reminders, which rescheduleAllNotifications does NOT
+ * rebuild. They would be silently lost.
+ */
+export async function rebuildDoseNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
+  const schedules = await getAllActiveSchedules();
+  for (const s of schedules) {
+    await cancelScheduleNotifications(s.id);
+  }
+  await rescheduleAllNotifications();
 }
 
 // ─── Stock-alert notification (immediate, informational) ────────────────────
