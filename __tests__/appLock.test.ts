@@ -136,6 +136,18 @@ describe("appLock", () => {
       expect(isAppLockEnabled()).toBe(false);
     });
 
+    // Regression guard: a transient OS failure must NOT be read as "no screen
+    // lock". Treating it that way would silently strip the user's protection on
+    // every launch — the lock would look permanently broken.
+    it("keeps the lock enabled when the OS query fails", async () => {
+      await enableAppLock();
+      (mockAuth.getEnrolledLevelAsync as jest.Mock).mockRejectedValue(new Error("boom"));
+
+      await migrateAppLock();
+
+      expect(isAppLockEnabled()).toBe(true);
+    });
+
     it("is safe to run repeatedly with nothing stored", async () => {
       await expect(migrateAppLock()).resolves.toBeUndefined();
       await expect(migrateAppLock()).resolves.toBeUndefined();

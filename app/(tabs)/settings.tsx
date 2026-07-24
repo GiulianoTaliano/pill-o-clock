@@ -234,6 +234,10 @@ export default function SettingsScreen() {
       return;
     }
     try {
+      // Authenticate BEFORE enabling: this proves the device credential
+      // actually works, so the user can't lock their medication data behind an
+      // unlock they are unable to pass.
+      if (!(await authenticateAsync(t("appLock.biometricPrompt")))) return;
       await enableAppLock();
       setAppLockOn(true);
       showToast(t("appLock.enabledToast"), "success");

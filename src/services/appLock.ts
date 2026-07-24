@@ -53,12 +53,27 @@ export function isAppLockEnabled(): boolean {
  * credential for the OS to check.
  */
 export async function isDeviceSecuredAsync(): Promise<boolean> {
-  if (!supported) return false;
+  const level = await enrolledLevel();
+  // Fails CLOSED: if we could not ask the OS (null), assume unsecured rather
+  // than let the user enable a lock we cannot verify. migrateAppLock() takes
+  // the opposite stance — see its comment.
+  return level !== null && level !== LocalAuthentication.SecurityLevel.NONE;
+}
+
+/**
+ * Enrolled security level, or `null` when the OS query failed.
+ *
+ * The distinction matters: "the device reported NONE" and "we could not ask"
+ * must not be treated the same. Callers that disable protection on the answer
+ * (migrateAppLock) may only act on an explicit NONE — otherwise a transient
+ * failure would silently switch the lock off on every launch.
+ */
+async function enrolledLevel(): Promise<LocalAuthentication.SecurityLevel | null> {
+  if (!supported) return LocalAuthentication.SecurityLevel.NONE;
   try {
-    const level = await LocalAuthentication.getEnrolledLevelAsync();
-    return level !== LocalAuthentication.SecurityLevel.NONE;
+    return await LocalAuthentication.getEnrolledLevelAsync();
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -148,7 +163,10 @@ export async function clearLegacyPin(): Promise<void> {
 export async function migrateAppLock(): Promise<void> {
   if (!supported) return;
   await clearLegacyPin();
-  if (isAppLockEnabled() && !(await isDeviceSecuredAsync())) {
+  if (!isAppLockEnabled()) return;
+  // Only act on an explicit NONE. A null here means the OS query failed, and
+  // disabling the lock on that would silently strip the user's protection.
+  if ((await enrolledLevel()) === LocalAuthentication.SecurityLevel.NONE) {
     storage.remove(STORAGE_KEYS.APP_LOCK_ENABLED);
   }
 }
