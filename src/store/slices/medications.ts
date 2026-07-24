@@ -318,7 +318,11 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
     } else {
       const snoozeDate = addMinutes(new Date(), minutes);
       const snoozeHHmm = format(snoozeDate, "HH:mm");
-      await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate);
+      // Pass the explicit fire date so the alarm honours the picked duration.
+      // Without it, snoozeDose falls back to now + the Settings default, so a
+      // ringing dose (schedule time already in the past → this branch) ignored
+      // the minutes chosen on the alarm screen.
+      await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate, snoozeDate);
       set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: snoozeHHmm } }));
     }
   },

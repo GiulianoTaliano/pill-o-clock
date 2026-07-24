@@ -226,6 +226,29 @@ describe("updateDoseNote", () => {
   });
 });
 
+// ─── snoozeDose (honours the picked minutes) ────────────────────────────────
+
+describe("snoozeDose", () => {
+  afterEach(() => jest.useRealTimers());
+
+  it("passes the picked minutes as an explicit fire date for a ringing dose", async () => {
+    jest.useFakeTimers();
+    // 10:00 — past the 08:00 schedule time, so the "already ringing" branch runs.
+    jest.setSystemTime(new Date(2025, 5, 16, 10, 0, 0, 0));
+    const store = makeTestStore();
+    const dose = makeTodayDose({ scheduledDate: "2025-06-16", schedule: makeSchedule({ time: "08:00" }) });
+
+    await store.getState().snoozeDose(dose, 45);
+
+    const call = jest.mocked(notifs.snoozeDose).mock.calls.at(-1)!;
+    const fireDate = call[3] as Date | undefined;
+    expect(fireDate).toBeInstanceOf(Date);
+    // 10:00 + 45 min — NOT the 15-min default (the bug used now + default).
+    expect(fireDate!.getHours()).toBe(10);
+    expect(fireDate!.getMinutes()).toBe(45);
+  });
+});
+
 // ─── revertSnooze ──────────────────────────────────────────────────────────
 
 describe("revertSnooze", () => {

@@ -9,7 +9,7 @@ import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes } from "../src/services/snoozeS
 import { useTranslation } from "../src/i18n";
 import { stopAlarm, setAlarmWindowFlags, clearAlarmWindowFlags } from "expo-alarm";
 import { getMedications } from "../src/db/database";
-import { speakDoseReminder, stopSpeaking } from "../src/services/tts";
+import { speakDoseReminder, stopSpeaking, isTtsEnabled } from "../src/services/tts";
 import type { Medication } from "../src/types";
 import { AppPressable } from "../components/AppPressable";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -84,7 +84,13 @@ export default function AlarmScreen() {
   // so they don't bleed into other app screens.
   useEffect(() => {
     setAlarmWindowFlags().catch(() => {});
-    stopAlarm().catch(() => {}); // stop audio as soon as the screen mounts
+    // Keep the alarm RINGING until the user acts (Take / Snooze / Skip), the
+    // missing-data bail-out fires, or the service's ~3-min shortService timeout
+    // silences it (and re-reminds). Previously stopAlarm() was called here
+    // unconditionally, so the alarm rang for only the ~1s it took this screen to
+    // mount. EXCEPTION: when the spoken reminder (TTS) is on, silence the loop
+    // now so the announcement below is audible — the ring already got attention.
+    if (isTtsEnabled()) stopAlarm().catch(() => {});
     return () => {
       clearAlarmWindowFlags().catch(() => {});
       stopSpeaking(); // cut any ongoing spoken reminder (F4 TTS)
