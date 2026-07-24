@@ -11,7 +11,8 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "validate:android": "node -e \"const s=require('fs').readFileSync('android/sentry.properties','utf8');const ok=/^defaults\\.org=\\S+/m.test(s)&&/^defaults\\.project=\\S+/m.test(s);if(!ok){console.error('ERROR: android/sentry.properties is missing defaults.org or defaults.project');process.exit(1)}console.log('sentry.properties OK');\" && cd android && .\\gradlew :expo-alarm:compileReleaseKotlin && cd ..",
-    "build:android": "node scripts/build-android.mjs"
+    "build:android": "node scripts/build-android.mjs",
+    "ios:free-device": "expo prebuild -p ios --no-install && node scripts/strip-ios-entitlements.mjs && open ios/PillOClock.xcworkspace"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

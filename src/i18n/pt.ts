@@ -699,20 +699,13 @@ const pt: TranslationShape = {
     logAnyway: "Registrar mesmo assim",
   },
   appLock: {
-    enterPin: "Digite seu PIN",
-    wrongPin: "PIN incorreto",
-    tooManyAttempts: "Muitas tentativas. Aguarde {{seconds}} s",
+    lockedSubtitle: "Use o desbloqueio do seu telefone para continuar",
+    unlock: "Desbloquear",
     biometricPrompt: "Desbloqueie o Pill O-Clock",
-    usePin: "Usar PIN",
-    enterCurrentPin: "Digite seu PIN atual",
-    enterNewPin: "Escolha um PIN novo",
-    confirmNewPin: "Repita o PIN",
-    pinMismatch: "Os PINs não coincidem. Tente de novo.",
-    pinHint: "PIN de 4 dígitos",
+    deviceNotSecured:
+      "Para usar o bloqueio, configure primeiro uma senha ou biometria nos ajustes do seu telefone.",
     enabledToast: "Bloqueio do app ativado",
     disabledToast: "Bloqueio do app desativado",
-    pinChangedToast: "PIN atualizado",
-    errorGeneric: "Não foi possível atualizar o bloqueio. Tente de novo.",
   },
   settings: {
     title: "Ajustes",
@@ -774,11 +767,14 @@ const pt: TranslationShape = {
     // Security
     sectionSecurity: "Segurança",
     appLockTitle: "Bloqueio do app",
-    appLockSubtitle: "Pedir PIN ou biometria ao abrir o app",
-    appLockBiometric: "Desbloqueio biométrico",
-    appLockBiometricSubtitle: "Usar digital ou reconhecimento facial quando disponíveis",
-    appLockChangePin: "Alterar PIN",
-    appLockChangePinSubtitle: "Substituir seu PIN de 4 dígitos",
+    appLockSubtitle: "Pedir o desbloqueio do telefone ao abrir o app",
+    // Som de alarme no iOS: só é possível usar sons incluídos no app, porque o
+    // iOS não permite ler os toques do sistema.
+    iosSound_bundled: "Pill O-Clock",
+    iosSound_bundled_sub: "O som de alarme próprio do app",
+    iosSound_system: "Som do sistema",
+    iosSound_system_sub: "O toque de notificação padrão do iOS",
+    iosSoundChanged: "Som atualizado",
     rxtermsAttribution: "As sugestões de nomes de medicamentos incluem dados do RxTerms, produzido pela U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Aparência",

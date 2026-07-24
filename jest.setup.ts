@@ -89,6 +89,10 @@ jest.mock("expo-local-authentication", () => ({
   hasHardwareAsync: jest.fn().mockResolvedValue(false),
   isEnrolledAsync: jest.fn().mockResolvedValue(false),
   authenticateAsync: jest.fn().mockResolvedValue({ success: false }),
+  // Default: device HAS a screen lock (SECRET), so the app lock can be enabled.
+  // Tests that need an unsecured device override this with NONE.
+  getEnrolledLevelAsync: jest.fn().mockResolvedValue(1),
+  SecurityLevel: { NONE: 0, SECRET: 1, BIOMETRIC: 2 },
 }));
 
 // ─── expo-store-review ─────────────────────────────────────────────────────
@@ -110,6 +114,14 @@ jest.mock("expo-notifications", () => ({
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   setNotificationHandler: jest.fn(),
   AndroidNotificationPriority: { HIGH: "high", MAX: "max", DEFAULT: "default" },
+  AndroidImportance: { MAX: 5, HIGH: 4, DEFAULT: 3 },
+  SchedulableTriggerInputTypes: {
+    DATE: "date",
+    DAILY: "daily",
+    WEEKLY: "weekly",
+    TIME_INTERVAL: "timeInterval",
+  },
+  setNotificationCategoryAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 // ─── expo-alarm (local native module) ─────────────────────────────────────

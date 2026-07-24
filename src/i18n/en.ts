@@ -697,20 +697,13 @@ const en: TranslationShape = {
     logAnyway: "Log anyway",
   },
   appLock: {
-    enterPin: "Enter your PIN",
-    wrongPin: "Wrong PIN",
-    tooManyAttempts: "Too many attempts. Wait {{seconds}} s",
+    lockedSubtitle: "Use your phone's unlock to continue",
+    unlock: "Unlock",
     biometricPrompt: "Unlock Pill O-Clock",
-    usePin: "Use PIN",
-    enterCurrentPin: "Enter your current PIN",
-    enterNewPin: "Choose a new PIN",
-    confirmNewPin: "Repeat the PIN",
-    pinMismatch: "PINs don't match. Try again.",
-    pinHint: "4-digit PIN",
+    deviceNotSecured:
+      "To use app lock, first set up a passcode or biometrics in your phone's settings.",
     enabledToast: "App lock enabled",
     disabledToast: "App lock disabled",
-    pinChangedToast: "PIN updated",
-    errorGeneric: "Could not update app lock. Try again.",
   },
   settings: {
     title: "Settings",
@@ -772,11 +765,14 @@ const en: TranslationShape = {
     // Security
     sectionSecurity: "Security",
     appLockTitle: "App lock",
-    appLockSubtitle: "Require PIN or biometrics when opening the app",
-    appLockBiometric: "Biometric unlock",
-    appLockBiometricSubtitle: "Use fingerprint or face when available",
-    appLockChangePin: "Change PIN",
-    appLockChangePinSubtitle: "Replace your 4-digit PIN",
+    appLockSubtitle: "Require your phone's unlock when opening the app",
+    // iOS alarm sound: only sounds bundled with the app can be used, because
+    // iOS does not let apps read the system ringtones.
+    iosSound_bundled: "Pill O-Clock",
+    iosSound_bundled_sub: "The app's own alarm sound",
+    iosSound_system: "System sound",
+    iosSound_system_sub: "The standard iOS notification tone",
+    iosSoundChanged: "Sound updated",
     rxtermsAttribution: "Medication name suggestions include RxTerms data, produced by the U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Appearance",

@@ -13,13 +13,12 @@ import {
   ScrollView,
   Keyboard,
 } from "react-native";
-// PROVIDER_GOOGLE forces Google Maps tiles on both platforms.
-// On Android this is already the default; on iOS it replaces Apple Maps,
-// which is necessary for:
-//   • customMapStyle (dark-mode tile styling) — Apple Maps ignores this prop.
-//   • Visual consistency between platforms.
-// The iOS API key is injected by app.config.ts via `ios.config.googleMapsApiKey`
-// (there is no react-native-maps config plugin in app.json).
+// Map provider is chosen per platform (see the <MapView> below):
+//   • Android → PROVIDER_GOOGLE (native default; supports customMapStyle dark mode).
+//   • iOS     → default provider (Apple Maps / MapKit). PROVIDER_GOOGLE on iOS needs
+//     the Google Maps SDK (AirGoogleMaps) linked natively — not configured here —
+//     so forcing it renders a blank map. Apple Maps needs no API key or extra SDK,
+//     at the cost of ignoring customMapStyle (see docs/ios-port.md §9).
 import MapView, { Region, PROVIDER_GOOGLE } from "react-native-maps";
 
 // ─── Map error boundary ────────────────────────────────────────────────────
@@ -49,9 +48,8 @@ import { useAppTheme } from "../src/hooks/useAppTheme";
 import { LocationCoords } from "../src/types";
 import { GOOGLE_MAPS_API_KEY } from "../src/config";
 
-// Dark-mode tile style for Google Maps (Android + iOS via PROVIDER_GOOGLE).
-// Apple Maps ignores customMapStyle entirely, which is why we force PROVIDER_GOOGLE
-// on iOS so that dark mode renders consistently on both platforms.
+// Dark-mode tile style for Google Maps (Android only). Apple Maps (used on iOS)
+// ignores customMapStyle and follows the system light/dark appearance instead.
 const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#1d2c3f" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#1d2c3f" }] },
@@ -190,6 +188,14 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
       setSuggestions([]);
       return;
     }
+    // Google Places/Geocoding autocomplete needs an API key. Without one
+    // (e.g. EXPO_PUBLIC_GOOGLE_MAPS_API_KEY unset in dev) skip the doomed
+    // requests — the user can still type a full address and press "search",
+    // which resolves via the OS geocoder (see handleSubmitSearch).
+    if (!GOOGLE_MAPS_API_KEY) {
+      setSuggestions([]);
+      return;
+    }
     setSearchLoading(true);
     const lang = i18n.language ?? "en";
     let results: Prediction[] = [];
@@ -249,6 +255,28 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
     }
   };
 
+  // Animate the map to coords and drop the pin there. Reused by every path that
+  // resolves an address to a point, so the map and the saved address never diverge.
+  const moveMapTo = useCallback((coords: LocationCoords) => {
+    setPin(coords);
+    mapRef.current?.animateToRegion(
+      { ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 400,
+    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  // OS-level forward geocoding (Apple Maps on iOS / Android geocoder). Needs no
+  // API key, so it works even when EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is unset.
+  const geocodeWithOS = useCallback(async (address: string): Promise<LocationCoords | null> => {
+    try {
+      const results = await Location.geocodeAsync(address);
+      if (results[0]) {
+        return { latitude: results[0].latitude, longitude: results[0].longitude };
+      }
+    } catch { /* ignore */ }
+    return null;
+  }, []);
+
   const handleSelectSuggestion = async (pred: Prediction) => {
     userTyping.current = false;
     setSuggestions([]);
@@ -257,36 +285,50 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
     setPinAddress(pred.description);
     Keyboard.dismiss();
 
-    // If the prediction already carries coords (Geocoding fallback), use them directly.
-    if (pred.coords) {
-      setPin(pred.coords);
-      mapRef.current?.animateToRegion(
-        { ...pred.coords, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 400,
-      );
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      return;
+    // Resolve coords for the chosen prediction, in order of preference:
+    //   1) coords already attached (Geocoding fallback path)
+    //   2) Google Place Details (only when a Places API key is configured)
+    //   3) OS geocoder on the description (no key required)
+    // Step 3 guarantees the pin follows the selection even when Google fails or
+    // no key is set, so the map and the saved address never diverge.
+    let coords: LocationCoords | null = pred.coords ?? null;
+
+    if (!coords && pred.place_id && GOOGLE_MAPS_API_KEY) {
+      try {
+        const url =
+          `https://maps.googleapis.com/maps/api/place/details/json` +
+          `?place_id=${pred.place_id}&fields=geometry&key=${GOOGLE_MAPS_API_KEY}`;
+        const res = await fetch(url);
+        const json = await res.json() as {
+          status: string;
+          result?: { geometry?: { location?: { lat: number; lng: number } } };
+        };
+        if (json.status === "OK" && json.result?.geometry?.location) {
+          const loc = json.result.geometry.location;
+          coords = { latitude: loc.lat, longitude: loc.lng };
+        }
+      } catch { /* fall through to OS geocoder */ }
     }
 
-    // Otherwise resolve coords via Place Details.
-    try {
-      const url =
-        `https://maps.googleapis.com/maps/api/place/details/json` +
-        `?place_id=${pred.place_id}&fields=geometry&key=${GOOGLE_MAPS_API_KEY}`;
-      const res = await fetch(url);
-      const json = await res.json() as {
-        status: string;
-        result?: { geometry?: { location?: { lat: number; lng: number } } };
-      };
-      if (json.status === "OK" && json.result?.geometry?.location) {
-        const loc = json.result.geometry.location;
-        const coords: LocationCoords = { latitude: loc.lat, longitude: loc.lng };
-        setPin(coords);
-        mapRef.current?.animateToRegion(
-          { ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 400,
-        );
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    } catch { /* leave text unchanged */ }
+    if (!coords) coords = await geocodeWithOS(pred.description);
+
+    if (coords && mounted.current) moveMapTo(coords);
+  };
+
+  // Keyboard "search" / Enter: geocode the typed address with the OS geocoder and
+  // move the pin there. Works without a Google Places key, and keeps the pin in
+  // sync with the typed text so the saved address never diverges from the marker.
+  const handleSubmitSearch = async () => {
+    const query = searchText.trim();
+    if (query.length < 3) return;
+    userTyping.current = false;
+    setSuggestions([]);
+    Keyboard.dismiss();
+    const coords = await geocodeWithOS(query);
+    if (coords && mounted.current) {
+      setPinAddress(query);
+      moveMapTo(coords);
+    }
   };
 
   // ── Select a recent location ─────────────────────────────────────────────
@@ -435,7 +477,7 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
               placeholderTextColor={colors.muted}
               style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 11 }}
               returnKeyType="search"
-              onSubmitEditing={() => fetchAutocomplete(searchText)}
+              onSubmitEditing={handleSubmitSearch}
               autoCorrect={false}
             />
             {searchLoading && <ActivityIndicator size="small" color="#4f9cff" />}
@@ -476,11 +518,17 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
             <MapView
               ref={mapRef}
               style={{ flex: 1 }}
-              provider={PROVIDER_GOOGLE}
+              // Android: Google Maps (native default). iOS: Apple Maps (MapKit) via
+              // the default provider — PROVIDER_GOOGLE on iOS requires the Google Maps
+              // SDK (AirGoogleMaps) linked natively, which is not set up here, so it
+              // would render a blank map. Apple Maps needs no API key or extra SDK.
+              provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
               initialRegion={initialRegion}
               onRegionChangeComplete={handleRegionChangeComplete}
               showsUserLocation
               showsMyLocationButton={false}
+              // Apple Maps ignores customMapStyle, so on iOS this is a no-op (the map
+              // simply follows the system light/dark appearance).
               customMapStyle={theme.isDark ? DARK_MAP_STYLE : []}
             />
           </MapErrorBoundary>

@@ -10,7 +10,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { TodayDose, SkipReason } from "../src/types";
 import { useAppStore } from "../src/store";
 import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
@@ -131,6 +131,24 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
   });
   const snoozeListRef = useRef<any>(null);
   const [selectedSnoozeIdx, setSelectedSnoozeIdx] = useState(getSnoozeDefaultIdx);
+
+  /**
+   * Commits the wheel position to state.
+   *
+   * Must run on BOTH onMomentumScrollEnd and onScrollEndDrag: a slow drag
+   * released without a fling produces no momentum, so onMomentumScrollEnd never
+   * fires. The wheel still snaps visually (snapToInterval), which used to leave
+   * the selection stale — the confirm button then snoozed by the previously
+   * selected amount instead of the one on screen.
+   */
+  const commitSnoozeScroll = useCallback((offsetY: number) => {
+    const idx = Math.round(offsetY / SNOOZE_ITEM_H);
+    const clamped = Math.max(0, Math.min(idx, SNOOZE_OPTIONS.length - 1));
+    setSelectedSnoozeIdx((prev) => {
+      if (clamped !== prev) Haptics.selectionAsync();
+      return clamped;
+    });
+  }, []);
 
   useEffect(() => {
     if (snoozePickerVisible) {
@@ -643,12 +661,9 @@ export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedul
                     overScrollMode="never"
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingVertical: SNOOZE_PAD }}
-                    onMomentumScrollEnd={(e: any) => {
-                      const idx = Math.round(e.nativeEvent.contentOffset.y / SNOOZE_ITEM_H);
-                      const clamped = Math.max(0, Math.min(idx, SNOOZE_OPTIONS.length - 1));
-                      if (clamped !== selectedSnoozeIdx) Haptics.selectionAsync();
-                      setSelectedSnoozeIdx(clamped);
-                    }}
+                    onMomentumScrollEnd={(e: any) => commitSnoozeScroll(e.nativeEvent.contentOffset.y)}
+                    // Covers the slow-drag case, where no momentum phase runs.
+                    onScrollEndDrag={(e: any) => commitSnoozeScroll(e.nativeEvent.contentOffset.y)}
                   >
                     {SNOOZE_OPTIONS.map((min, i) => (
                       <SnoozeWheelItem

@@ -9,6 +9,7 @@ import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocal
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
+import { resolveNotificationSound } from "./iosAlarmSound";
 import { withEffectiveDose } from "./regimen";
 import { detectTimezoneChange } from "./timezone";
 import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb, getProfiles } from "../db/database";
@@ -49,6 +50,112 @@ export const MAX_REPEATS = Platform.OS === "ios" ? 2 : 4;
 export const DAYS_AHEAD = Platform.OS === "ios" ? 3 : 7;
 
 const NOTIF_MAP_KEY = STORAGE_KEYS.NOTIF_MAP;
+
+// ─── iOS notification budget ───────────────────────────────────────────────
+//
+// iOS caps an app at 64 PENDING local notifications. Past that it keeps the 64
+// soonest-firing ones and silently drops the rest — for a medication app that
+// means reminders that never ring, with no error anywhere.
+//
+// The constants above are the MAXIMUM we ever want. They only fit while the
+// user has few treatments: at DAYS_AHEAD=3 and MAX_REPEATS=2 each schedule
+// costs 9 slots, so 8 schedules already need 72. Polypharmacy in elderly patients
+// routinely means 8+ concurrent medications, i.e. exactly the users who can
+// least afford a dropped dose.
+//
+// planNotificationBudget() therefore scales the plan down to fit. Repeats are
+// sacrificed BEFORE days, because the initial notification is what actually
+// tells the user to take the dose; the repeats are only nagging. The initial
+// notification of every dose is never dropped.
+
+/** Slots we allow dose reminders to use, leaving headroom for the rest. */
+export const IOS_DOSE_BUDGET = 56;
+
+export interface NotificationPlan {
+  daysAhead: number;
+  maxRepeats: number;
+}
+
+/**
+ * Largest (daysAhead, maxRepeats) plan that keeps
+ * `scheduleCount × daysAhead × (1 + maxRepeats)` within the budget.
+ *
+ * Android has no cap, so it always gets the full window.
+ */
+export function planNotificationBudget(scheduleCount: number): NotificationPlan {
+  const full = { daysAhead: DAYS_AHEAD, maxRepeats: MAX_REPEATS };
+  if (Platform.OS !== "ios" || scheduleCount <= 0) return full;
+
+  for (let days = DAYS_AHEAD; days >= 1; days--) {
+    // Repeats first: cheaper to lose than a day of coverage.
+    for (let repeats = MAX_REPEATS; repeats >= 0; repeats--) {
+      if (scheduleCount * days * (1 + repeats) <= IOS_DOSE_BUDGET) {
+        return { daysAhead: days, maxRepeats: repeats };
+      }
+    }
+  }
+  // Pathological case (very many schedules): one day, no repeats. Some doses
+  // will still be dropped by iOS, but the soonest ones survive.
+  return { daysAhead: 1, maxRepeats: 0 };
+}
+
+// ─── iOS interruption level (Critical Alerts) ──────────────────────────────
+//
+// On iOS a dose reminder must be able to break through the ring/silent switch
+// and Focus modes — otherwise a silenced phone means a missed medication.
+// Two levels matter here:
+//
+//   • timeSensitive — breaks through Focus modes. Needs NO Apple approval,
+//     works today. Does NOT ring when the phone is on silent.
+//   • critical      — also ignores the ring/silent switch and plays at its own
+//     volume. Requires the com.apple.developer.usernotifications.critical-alerts
+//     entitlement (already declared in app.json) AND explicit approval from
+//     Apple, plus the user granting `allowCriticalAlerts` at runtime.
+//
+// We ask for critical (see setupNotifications) and use it only when iOS
+// actually reports it as granted; otherwise we degrade to timeSensitive.
+// Setting `critical` without the granted entitlement would be silently ignored
+// by iOS, so this check is what makes the fallback real rather than cosmetic.
+let criticalAlertsGranted = false;
+
+/** Interruption level to use for dose reminders (iOS only; ignored elsewhere). */
+function doseInterruptionLevel(): "critical" | "timeSensitive" {
+  return criticalAlertsGranted ? "critical" : "timeSensitive";
+}
+
+/**
+ * Sound for a dose reminder.
+ *
+ * On iOS the user can choose between the bundled alarm and the system sound.
+ * On Android the sound comes from the notification channel (and, for real
+ * alarms, from the native module), so the bundled name stays fixed here.
+ */
+function doseSound(): string {
+  return Platform.OS === "ios" ? resolveNotificationSound() : "alarm.wav";
+}
+
+/** Exposed for Settings/diagnostics: did Apple + the user grant critical alerts? */
+export function hasCriticalAlerts(): boolean {
+  return criticalAlertsGranted;
+}
+
+/**
+ * Refreshes the cached critical-alerts flag from the OS.
+ * Safe to call on any platform — no-ops off iOS.
+ */
+export async function refreshCriticalAlertsStatus(): Promise<boolean> {
+  if (Platform.OS !== "ios") {
+    criticalAlertsGranted = false;
+    return false;
+  }
+  try {
+    const perms = await Notifications.getPermissionsAsync();
+    criticalAlertsGranted = perms.ios?.allowsCriticalAlerts === true;
+  } catch {
+    criticalAlertsGranted = false;
+  }
+  return criticalAlertsGranted;
+}
 
 // ─── Notification Actions ──────────────────────────────────────────────────
 
@@ -184,7 +291,10 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
     Platform.Version >= 31 &&
     Platform.Version < 33;
 
-  if (existingStatus === "granted") return { granted: true, needsExactAlarmPermission };
+  if (existingStatus === "granted") {
+    await refreshCriticalAlertsStatus();
+    return { granted: true, needsExactAlarmPermission };
+  }
 
   const { status } = await Notifications.requestPermissionsAsync({
     ios: {
@@ -194,6 +304,8 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
       allowCriticalAlerts: true,
     },
   });
+
+  await refreshCriticalAlertsStatus();
 
   return { granted: status === "granted", needsExactAlarmPermission };
 }
@@ -361,8 +473,11 @@ async function scheduleOneNotification(
           ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
           : i18n.t("notifications.body", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)) }))
         + i18n.t("notifications.bodyActions"),
-      sound: "alarm.wav",
+      sound: doseSound(),
       categoryIdentifier: "DOSE_REMINDER",
+      // iOS: break through Focus (and the silent switch when Apple approved
+      // critical alerts). Ignored on Android, where the alarm path is native.
+      interruptionLevel: doseInterruptionLevel(),
       data: {
         scheduleId: schedule.id,
         medicationId: medication.id,
@@ -386,7 +501,13 @@ async function scheduleOneNotification(
 export async function scheduleDoseChain(
   medication: Medication,
   schedule: Schedule,
-  scheduledDate: string
+  scheduledDate: string,
+  /**
+   * Repeats for THIS dose. Callers that schedule in bulk pass the value from
+   * planNotificationBudget() so a user with many treatments doesn't blow the
+   * iOS 64-notification cap. Defaults to the maximum for single-dose callers.
+   */
+  maxRepeats: number = MAX_REPEATS
 ): Promise<void> {
   const { hours, minutes } = parseTime(schedule.time);
   const [year, month, day] = scheduledDate.split("-").map(Number);
@@ -436,7 +557,7 @@ export async function scheduleDoseChain(
   entries.push({ notifId: id0, data: baseData });
 
   // Repeat notifications every REPEAT_INTERVAL_MINUTES
-  for (let i = 1; i <= MAX_REPEATS; i++) {
+  for (let i = 1; i <= maxRepeats; i++) {
     const fireDate = addMinutes(baseDate, i * REPEAT_INTERVAL_MINUTES);
     // Only schedule if in future
     if (fireDate > new Date()) {
@@ -504,8 +625,9 @@ export async function snoozeDose(
           ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
           : i18n.t("notifications.body", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)) }))
         + i18n.t("notifications.bodyActions"),
-      sound: "alarm.wav",
+      sound: doseSound(),
       categoryIdentifier: "DOSE_REMINDER",
+      interruptionLevel: doseInterruptionLevel(),
       data: {
         scheduleId: schedule.id,
         medicationId: medication.id,
@@ -553,7 +675,10 @@ export async function scheduleAllUpcoming(
   medications: Medication[],
   schedules: Schedule[]
 ): Promise<void> {
-  const dates = getNextDates(DAYS_AHEAD);
+  // Scale the window to the number of treatments so many medications can't
+  // silently overflow the iOS 64-notification cap.
+  const plan = planNotificationBudget(schedules.length);
+  const dates = getNextDates(plan.daysAhead);
   const medMap = new Map(medications.map((m) => [m.id, m]));
 
   for (const schedule of schedules) {
@@ -576,7 +701,7 @@ export async function scheduleAllUpcoming(
       // Only schedule future notifications
       if (fireDate <= new Date()) continue;
 
-      await scheduleDoseChain(med, schedule, scheduledDate);
+      await scheduleDoseChain(med, schedule, scheduledDate, plan.maxRepeats);
     }
   }
 }
@@ -587,6 +712,26 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
   const db = await getDb();
   await db.runAsync("DELETE FROM notification_map");
+}
+
+/**
+ * Cancels and re-creates every DOSE notification.
+ *
+ * Needed when something baked into the notification content changes — e.g. the
+ * iOS alarm sound — because already-queued notifications keep the old value and
+ * iOS offers no way to edit them in place.
+ *
+ * Deliberately not cancelAllNotifications(): that also wipes appointment,
+ * renewal and health reminders, which rescheduleAllNotifications does NOT
+ * rebuild. They would be silently lost.
+ */
+export async function rebuildDoseNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
+  const schedules = await getAllActiveSchedules();
+  for (const s of schedules) {
+    await cancelScheduleNotifications(s.id);
+  }
+  await rescheduleAllNotifications();
 }
 
 // ─── Stock-alert notification (immediate, informational) ────────────────────
@@ -917,6 +1062,13 @@ export async function rescheduleAllNotifications(): Promise<void> {
     mappedRows.map((r) => `${r.schedule_id}:${r.scheduled_date}`)
   );
 
+  // Same budget scaling as scheduleAllUpcoming: only the schedules whose
+  // medication is still active count toward the iOS cap.
+  const activeSchedules = schedules.filter((s) =>
+    medications.some((m) => m.id === s.medicationId && m.isActive)
+  );
+  const plan = planNotificationBudget(activeSchedules.length);
+
   // Doses that are already resolved (taken / skipped / missed) must not be
   // re-scheduled.  This is particularly important on Android where alarms are
   // NOT stored in the notification map, so a rescheduled-then-resolved dose
@@ -931,7 +1083,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
     const med = medications.find((m) => m.id === sched.medicationId);
     if (!med || !med.isActive) continue;
 
-    for (let i = 0; i < DAYS_AHEAD; i++) {
+    for (let i = 0; i < plan.daysAhead; i++) {
       const date = addDays(startOfDay(now), i);
       if (!isScheduleActiveOnDate(sched, date, med)) continue;
 
@@ -947,7 +1099,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
       const fireDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);
       if (fireDate <= now) continue;
 
-      await scheduleDoseChain(med, sched, scheduledDate);
+      await scheduleDoseChain(med, sched, scheduledDate, plan.maxRepeats);
     }
   }
 }

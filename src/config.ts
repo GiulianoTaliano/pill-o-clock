@@ -39,6 +39,10 @@ export const STORAGE_KEYS = {
   EXACT_ALARM_PROMPTED:     "@pilloclock/exact_alarm_prompted",
   FULLSCREEN_INTENT_PROMPTED: "@pilloclock/fullscreen_intent_prompted",
   ALARM_SOUND_URI:            "@pilloclock/alarm_sound_uri",
+  // iOS-only sound choice. Android picks from the device's ringtones via the
+  // native module (ALARM_SOUND_URI); iOS apps cannot enumerate system tones, so
+  // the choice is limited to the sounds bundled with the app.
+  IOS_ALARM_SOUND:            "@pilloclock/ios_alarm_sound",
   SNOOZE_MINUTES:             "@pilloclock/snooze_minutes",
   APP_LOCK_ENABLED:           "@pilloclock/app_lock_enabled",
   APP_LOCK_BIOMETRIC:         "@pilloclock/app_lock_biometric",
