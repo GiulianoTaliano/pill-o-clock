@@ -79,6 +79,8 @@
 - Widget pequeño (2×1) que muestre la próxima dosis pendiente del día con botón "Tomé"
 - Usar Glance API a través de un módulo nativo Kotlin (similar al enfoque de `expo-alarm`)
 - Es la feature más solicitada en apps de este tipo y mejora drásticamente la retención
+- ⚠️ **Solo Android.** `modules/expo-widget` declara `"platforms": ["android"]`; en iOS es un
+  no-op seguro. El equivalente iOS es WidgetKit → ver **#26**
 
 #### 7. Acciones rápidas desde la notificación (iOS) ⏳ _(pospuesto — requiere iOS)_
 - En Android ya funciona vía `expo-alarm`. En iOS, implementar categorías de notificación con acciones (`expo-notifications`) para Tomé / Posponer / Omitir directamente desde el banner
@@ -130,6 +132,9 @@
 - Exportar dosis tomadas como `HKCategoryTypeIdentifierMindfulSession` (o custom) a HealthKit
 - Exportar mediciones de salud (glucosa, peso, frec. cardíaca, SpO2, PA) a HealthKit/Health Connect
 - Esto hace la app mucho más atractiva para el ecosistema Apple y usuarios fitness
+- **Estado:** la mitad Android está **hecha** (Health Connect, `src/services/healthSync.ts`,
+  guardada con `isHealthSyncSupported() === Platform.OS === "android"`). **HealthKit sigue
+  pendiente** → en iOS la sync de salud está deshabilitada de forma elegante. Ver **#26**
 
 #### 15. Recordatorio de receta / reposición
 - Campo opcional en el medicamento: "Cantidad de días de stock" o "Fecha de próxima receta"
@@ -190,6 +195,26 @@
 - Complication en Apple Watch que muestra próxima dosis
 - Acción "Tomé" desde la muñeca
 - Requiere módulo nativo watchOS/WearOS
+- 🔗 **Depende de #26.** En iOS moderno las complications del Watch se construyen **con
+  WidgetKit** — es el mismo framework que el widget de pantalla de inicio. Hacer #26 primero
+  deja el 80% del camino hecho para la complication
+
+#### 26. Paridad nativa iOS — WidgetKit + HealthKit
+> Las dos piezas nativas que hoy existen solo en Android. Ninguna bloquea el uso de la app en
+> iOS (ambas son no-op seguros), pero son la diferencia de experiencia más visible entre
+> plataformas — y la puerta de entrada al Apple Watch (#23).
+
+**26a. Widget de iOS (WidgetKit)**
+- Equivalente iOS del widget Android (#6): próxima dosis pendiente + acción "Tomé"
+- Requiere una **Widget Extension** en Swift (target aparte en el proyecto Xcode) y compartir
+  datos con la app vía **App Group** — no alcanza con el módulo Expo actual
+- Habilita, casi gratis, la **complication del Apple Watch** (#23)
+
+**26b. HealthKit**
+- Equivalente iOS de Health Connect (#14): escribir mediciones (glucosa, peso, FC, SpO2, PA)
+- La abstracción ya existe (`healthSync.ts` con `isHealthSyncSupported()`); falta la
+  implementación iOS detrás de esa misma interfaz
+- Requiere entitlement de HealthKit + descripciones de uso en `Info.plist`
 
 #### 24. Siri Shortcuts / Google Assistant
 - "Hey Siri, tomé el ibuprofeno" → registra la dosis en Pill O-Clock
@@ -243,6 +268,7 @@ Q4 2026 (v2.0)
 ├── Cloud Sync (Supabase)
 ├── Modo cuidador remoto
 ├── Freemium (IAP)
+├── Paridad nativa iOS (WidgetKit + HealthKit)  ← prerrequisito del Watch
 ├── Apple Watch / WearOS
 └── Siri / Google Assistant
 ```
