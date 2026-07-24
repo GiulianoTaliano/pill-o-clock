@@ -383,10 +383,14 @@ export async function initDatabase(): Promise<void> {
       created_at  TEXT NOT NULL,
       profile_id  TEXT NOT NULL DEFAULT 'default'
     );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_checkin_profile_date
-      ON daily_checkins(profile_id, date);
   `);
+  // NOTE: idx_checkin_profile_date (on daily_checkins.profile_id) is created by
+  // the v14 migration below, NOT here. On an upgrade from a pre-multi-profile
+  // DB (user_version < 14) the daily_checkins table already exists WITHOUT
+  // profile_id, so `CREATE TABLE IF NOT EXISTS` is a no-op and a profile_id
+  // index in this upfront block would throw "no such column: profile_id" and
+  // brick startup. v14 adds the column (rebuilding the table) and then creates
+  // the index — and v14 always runs on fresh installs too (user_version 0 < 14).
 
   const [{ user_version }] = expoDb.getAllSync<{ user_version: number }>(
     "PRAGMA user_version"
