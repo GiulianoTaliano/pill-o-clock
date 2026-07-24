@@ -203,6 +203,7 @@ const es = {
     fieldRenewal: "Renovación de receta (opcional)",
     fieldRenewalHint: "Te avisamos 7 días antes y el mismo día.",
     drugDbAttribution: "Sugerencias: RxTerms (U.S. National Library of Medicine)",
+    drugDbAttributionAr: "Sugerencias: Vademécum Nacional de Medicamentos (ANMAT)",
     fieldInjectable: "Es inyectable",
     fieldInjectableHint: "Activa la rotación de sitio y el conteo hasta la próxima aplicación.",
     sectionRegimen: "Régimen avanzado (opcional)",

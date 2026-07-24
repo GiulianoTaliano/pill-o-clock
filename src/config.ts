@@ -47,6 +47,9 @@ export const STORAGE_KEYS = {
   ACTIVE_PROFILE:             "@pilloclock/active_profile",
   LAST_TIMEZONE:              "@pilloclock/last_timezone",
   TTS_ENABLED:                "@pilloclock/tts_enabled",
+  // Country used to pick the drug catalog + barcode scanner (ISO-3166-1
+  // alpha-2). Defaults to the device region; user-overridable in Settings.
+  DRUG_REGION:                "@pilloclock/drug_region",
   RECENT_COLORS:            "custom_colors_recent",
   // Legacy keys kept for migration only (notifications.ts)
   NOTIF_MAP:                "@pilloclock/notif_map",

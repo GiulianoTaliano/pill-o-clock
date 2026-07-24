@@ -2,10 +2,10 @@
  * BarcodeScannerModal (F2 — barcode accelerator over the autocomplete).
  *
  * Full-screen camera modal that scans drug-package barcodes (UPC-A, EAN-13,
- * GS1 DataMatrix / Code 128 / QR), resolves them through the bundled NDC
- * database and hands the result back to the caller. Codes that don't carry a
- * resolvable NDC report null — the form falls back to manual entry with the
- * autocomplete, never blocking the user.
+ * GS1 DataMatrix / Code 128 / QR) and resolves them through the region's
+ * bundled mapping (US → NDC, AR → GTIN; see barcode.ts) before handing the
+ * result back. Codes that don't resolve report null — the form falls back to
+ * manual entry with the autocomplete, never blocking the user.
  */
 import { View, Text, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
 import { useEffect, useRef, useState } from "react";

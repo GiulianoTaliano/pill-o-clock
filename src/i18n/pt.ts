@@ -205,6 +205,7 @@ const pt: TranslationShape = {
     fieldRenewal: "Renovação da receita (opcional)",
     fieldRenewalHint: "Avisamos você 7 dias antes e no próprio dia.",
     drugDbAttribution: "Sugestões: RxTerms (U.S. National Library of Medicine)",
+    drugDbAttributionAr: "Sugestões: Vademécum Nacional de Medicamentos (ANMAT)",
     fieldInjectable: "É injetável",
     fieldInjectableHint: "Ativa o rodízio de local de aplicação e a contagem até a próxima aplicação.",
     sectionRegimen: "Esquema avançado (opcional)",
