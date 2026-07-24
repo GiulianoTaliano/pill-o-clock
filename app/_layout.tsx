@@ -30,6 +30,7 @@ import { initI18n, useTranslation } from "../src/i18n";
 import { ToastProvider } from "../src/context/ToastContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { AppLockGate } from "../components/AppLockGate";
+import { migrateAppLock } from "../src/services/appLock";
 import { CopilotProvider } from "react-native-copilot";
 import { CopilotTooltip } from "../components/CopilotTooltip";
 
@@ -102,6 +103,9 @@ export default function RootLayout() {
 
         if (onboardingDone || isAlarmColdStart) {
           // Normal launch: setup notifications and reschedule if needed.
+          // Wipe the legacy in-app PIN (superseded by OS authentication) and
+          // drop the lock if the device has no screen lock to authenticate with.
+          migrateAppLock().catch(() => {});
           const { needsExactAlarmPermission } = await setupNotifications();
           await loadAll();
           await registerBackgroundFetch();

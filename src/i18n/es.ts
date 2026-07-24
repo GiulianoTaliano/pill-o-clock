@@ -695,20 +695,13 @@ const es = {
     logAnyway: "Registrar igual",
   },
   appLock: {
-    enterPin: "Ingresá tu PIN",
-    wrongPin: "PIN incorrecto",
-    tooManyAttempts: "Demasiados intentos. Esperá {{seconds}} s",
+    lockedSubtitle: "Usá el desbloqueo de tu teléfono para continuar",
+    unlock: "Desbloquear",
     biometricPrompt: "Desbloqueá Pill O-Clock",
-    usePin: "Usar PIN",
-    enterCurrentPin: "Ingresá tu PIN actual",
-    enterNewPin: "Elegí un PIN nuevo",
-    confirmNewPin: "Repetí el PIN",
-    pinMismatch: "Los PIN no coinciden. Probá de nuevo.",
-    pinHint: "PIN de 4 dígitos",
+    deviceNotSecured:
+      "Para usar el bloqueo, configurá primero un código de desbloqueo o biometría en los ajustes de tu teléfono.",
     enabledToast: "Bloqueo de app activado",
     disabledToast: "Bloqueo de app desactivado",
-    pinChangedToast: "PIN actualizado",
-    errorGeneric: "No se pudo actualizar el bloqueo. Intentá de nuevo.",
   },
   settings: {
     title: "Ajustes",
@@ -770,11 +763,7 @@ const es = {
     // Security
     sectionSecurity: "Seguridad",
     appLockTitle: "Bloqueo de app",
-    appLockSubtitle: "Pedir PIN o biometría al abrir la app",
-    appLockBiometric: "Desbloqueo biométrico",
-    appLockBiometricSubtitle: "Usar huella o rostro si están disponibles",
-    appLockChangePin: "Cambiar PIN",
-    appLockChangePinSubtitle: "Reemplazar tu PIN de 4 dígitos",
+    appLockSubtitle: "Pedir el desbloqueo del teléfono al abrir la app",
     rxtermsAttribution: "Las sugerencias de nombres de medicamentos incluyen datos de RxTerms, producido por la U.S. National Library of Medicine.",
     // Appearance
     sectionAppearance: "Apariencia",

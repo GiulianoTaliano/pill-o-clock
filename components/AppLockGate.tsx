@@ -1,31 +1,30 @@
 /**
- * AppLockGate (F1: app lock) — renders its children always, plus an opaque
+ * AppLockGate (app lock) — renders its children always, plus an opaque
  * unlock overlay when the lock is engaged.
  *
  * Lock engages on cold start (if enabled) and when the app returns to the
  * foreground after more than LOCK_GRACE_MS in background.
+ *
+ * Unlocking is delegated to the OS (biometrics with device-passcode fallback);
+ * the app has no PIN pad of its own. The overlay therefore only needs a single
+ * retry affordance for when the user dismisses the system prompt.
  *
  * SAFETY RULE: the fullscreen alarm route (/alarm) is NEVER covered by the
  * overlay — a medication alarm must be answerable without unlocking. The lock
  * stays engaged underneath and re-covers the app as soon as the user leaves
  * the alarm screen.
  */
-import { View, Text, AppState } from "react-native";
+import { View, Text, AppState, TouchableOpacity } from "react-native";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname } from "expo-router";
-import * as LocalAuthentication from "expo-local-authentication";
-import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
-import { PinPad, PinDots } from "./PinPad";
 import {
   isAppLockEnabled,
-  isBiometricPreferred,
-  verifyPin,
-  PIN_LENGTH,
+  authenticateAsync,
+  hasBiometricsAsync,
   LOCK_GRACE_MS,
-  MAX_ATTEMPTS,
-  ATTEMPT_COOLDOWN_MS,
 } from "../src/services/appLock";
 
 export function AppLockGate({ children }: { children: React.ReactNode }) {
@@ -34,16 +33,13 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const [locked, setLocked] = useState(() => isAppLockEnabled());
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
-  const [attempts, setAttempts] = useState(0);
-  const [cooldownLeft, setCooldownLeft] = useState(0);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [prompting, setPrompting] = useState(false);
   const backgroundedAt = useRef<number | null>(null);
-  const biometricInFlight = useRef(false);
+  const authInFlight = useRef(false);
 
   const onAlarmRoute = pathname?.startsWith("/alarm") ?? false;
-  // /emergency is exempt like /alarm: a first-aid card behind a PIN is
+  // /emergency is exempt like /alarm: a first-aid card behind a lock is
   // useless to a bystander (F3, deliberate privacy tradeoff — see emergency.tsx).
   const onEmergencyRoute = pathname?.startsWith("/emergency") ?? false;
   const overlayVisible = locked && !onAlarmRoute && !onEmergencyRoute;
@@ -62,8 +58,6 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
           since !== null &&
           Date.now() - since >= LOCK_GRACE_MS
         ) {
-          setPin("");
-          setError(false);
           setLocked(true);
         }
       }
@@ -71,90 +65,36 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, []);
 
-  // ── Biometric availability + auto-prompt when the overlay appears ────────
-  const tryBiometrics = useCallback(async () => {
-    if (biometricInFlight.current) return;
-    biometricInFlight.current = true;
+  // ── OS authentication ────────────────────────────────────────────────────
+  const unlock = useCallback(async () => {
+    if (authInFlight.current) return;
+    authInFlight.current = true;
+    setPrompting(true);
     try {
-      const ok = await LocalAuthentication.authenticateAsync({
-        promptMessage: t("appLock.biometricPrompt"),
-        cancelLabel: t("appLock.usePin"),
-        disableDeviceFallback: true, // our own PIN is the fallback
-      });
-      if (ok.success) {
+      if (await authenticateAsync(t("appLock.biometricPrompt"))) {
         setLocked(false);
-        setPin("");
-        setError(false);
-        setAttempts(0);
       }
-    } catch {
-      // fall through to PIN
     } finally {
-      biometricInFlight.current = false;
+      authInFlight.current = false;
+      setPrompting(false);
     }
   }, [t]);
 
+  // Auto-prompt as soon as the overlay appears. If the user dismisses the
+  // system sheet they stay locked and can retry with the button below.
   useEffect(() => {
     if (!overlayVisible) return;
     let cancelled = false;
     (async () => {
-      try {
-        const [hw, enrolled] = await Promise.all([
-          LocalAuthentication.hasHardwareAsync(),
-          LocalAuthentication.isEnrolledAsync(),
-        ]);
-        const available = hw && enrolled;
-        if (cancelled) return;
-        setBiometricAvailable(available);
-        if (available && isBiometricPreferred()) tryBiometrics();
-      } catch {
-        if (!cancelled) setBiometricAvailable(false);
-      }
+      const available = await hasBiometricsAsync();
+      if (cancelled) return;
+      setBiometricAvailable(available);
+      unlock();
     })();
     return () => {
       cancelled = true;
     };
-  }, [overlayVisible, tryBiometrics]);
-
-  // ── Wrong-attempt cooldown ticker ────────────────────────────────────────
-  const cooldownActive = cooldownLeft > 0;
-  useEffect(() => {
-    if (!cooldownActive) return;
-    const id = setInterval(() => {
-      setCooldownLeft((s) => {
-        if (s <= 1) {
-          setAttempts(0);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [cooldownActive]);
-
-  const onDigit = (d: string) => {
-    if (cooldownLeft > 0 || pin.length >= PIN_LENGTH) return;
-    const next = pin + d;
-    setPin(next);
-    if (next.length === PIN_LENGTH) {
-      setTimeout(async () => {
-        const ok = await verifyPin(next);
-        if (ok) {
-          setLocked(false);
-          setPin("");
-          setError(false);
-          setAttempts(0);
-        } else {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          const n = attempts + 1;
-          setAttempts(n);
-          setError(true);
-          setPin("");
-          if (n >= MAX_ATTEMPTS) setCooldownLeft(Math.round(ATTEMPT_COOLDOWN_MS / 1000));
-        }
-      }, 60);
-    }
-  };
+  }, [overlayVisible, unlock]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -169,23 +109,27 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
         >
           <Text style={{ fontSize: 44 }}>💊</Text>
           <Text className="text-2xl font-bold text-text mt-2">Pill O-Clock</Text>
-          <Text className="text-sm text-muted mt-1 mb-2">
-            {cooldownLeft > 0
-              ? t("appLock.tooManyAttempts", { seconds: cooldownLeft })
-              : t("appLock.enterPin")}
+          <Text className="text-sm text-muted mt-1 mb-6 text-center">
+            {t("appLock.lockedSubtitle")}
           </Text>
-          <PinDots filled={pin.length} error={error} />
-          {error && cooldownLeft === 0 ? (
-            <Text className="text-sm font-semibold mb-2" style={{ color: "#dc2626" }}>
-              {t("appLock.wrongPin")}
+
+          <TouchableOpacity
+            onPress={unlock}
+            disabled={prompting}
+            accessibilityRole="button"
+            accessibilityLabel={t("appLock.unlock")}
+            className="flex-row items-center rounded-2xl px-6 py-4"
+            style={{ backgroundColor: theme.primary, opacity: prompting ? 0.6 : 1, gap: 10 }}
+          >
+            <Ionicons
+              name={biometricAvailable ? "finger-print" : "lock-open-outline"}
+              size={22}
+              color="#ffffff"
+            />
+            <Text className="text-base font-bold" style={{ color: "#ffffff" }}>
+              {t("appLock.unlock")}
             </Text>
-          ) : null}
-          <PinPad
-            onDigit={onDigit}
-            onBackspace={() => setPin(pin.slice(0, -1))}
-            onBiometric={biometricAvailable ? tryBiometrics : undefined}
-            disabled={cooldownLeft > 0}
-          />
+          </TouchableOpacity>
         </View>
       )}
     </View>

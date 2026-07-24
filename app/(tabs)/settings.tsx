@@ -21,17 +21,14 @@ import { AlarmSoundPicker } from "../../components/AlarmSoundPicker";
 import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes, setDefaultSnoozeMinutes } from "../../src/services/snoozeSettings";
 import { getDrugRegionOverride, setDrugRegion } from "../../src/services/deviceCountry";
 import { refreshDoseReminderCategory } from "../../src/services/notifications";
-import * as LocalAuthentication from "expo-local-authentication";
 import {
   isAppLockSupported,
   isAppLockEnabled,
-  isBiometricPreferred,
-  setBiometricPreferred,
+  isDeviceSecuredAsync,
+  authenticateAsync,
   enableAppLock,
   disableAppLock,
-  changePin,
 } from "../../src/services/appLock";
-import { PinModal } from "../../components/PinModal";
 import { isHealthSyncSupported, isHealthSyncEnabled, enableHealthSync, disableHealthSync } from "../../src/services/healthSync";
 import { isTtsEnabled, setTtsEnabled } from "../../src/services/tts";
 import { ProfileModal } from "../../components/ProfileModal";
@@ -215,33 +212,36 @@ export default function SettingsScreen() {
     refreshDoseReminderCategory().catch(() => {});
   };
 
-  // App lock (F1)
+  // App lock — authentication is delegated to the OS (biometrics + device
+  // passcode); the app has no PIN of its own.
   const [appLockOn, setAppLockOn] = useState(isAppLockEnabled);
-  const [biometricOn, setBiometricOn] = useState(isBiometricPreferred);
-  const [biometricAvail, setBiometricAvail] = useState(false);
-  const [pinModal, setPinModal] = useState<null | { mode: "setup" | "verify" | "change"; intent: "enable" | "disable" | "change" }>(null);
+  const [deviceSecured, setDeviceSecured] = useState(true);
 
   useEffect(() => {
     if (!isAppLockSupported()) return;
-    Promise.all([
-      LocalAuthentication.hasHardwareAsync(),
-      LocalAuthentication.isEnrolledAsync(),
-    ])
-      .then(([hw, enrolled]) => setBiometricAvail(hw && enrolled))
-      .catch(() => setBiometricAvail(false));
+    isDeviceSecuredAsync().then(setDeviceSecured).catch(() => setDeviceSecured(false));
   }, []);
 
-  const handleAppLockToggle = () => {
+  const handleAppLockToggle = async (on: boolean) => {
     Haptics.selectionAsync();
-    // Enabling asks for a new PIN; disabling requires the current PIN so a
-    // passerby can't just switch the protection off.
-    setPinModal(appLockOn ? { mode: "verify", intent: "disable" } : { mode: "setup", intent: "enable" });
-  };
-
-  const handleBiometricToggle = (on: boolean) => {
-    Haptics.selectionAsync();
-    setBiometricOn(on);
-    setBiometricPreferred(on);
+    if (!on) {
+      // Turning the lock OFF requires authenticating, so a passerby holding an
+      // already-unlocked phone can't quietly remove the protection.
+      if (!(await authenticateAsync(t("appLock.biometricPrompt")))) return;
+      await disableAppLock();
+      setAppLockOn(false);
+      showToast(t("appLock.disabledToast"), "success");
+      return;
+    }
+    try {
+      await enableAppLock();
+      setAppLockOn(true);
+      showToast(t("appLock.enabledToast"), "success");
+    } catch {
+      // The only expected failure is a device with no screen lock enrolled.
+      setDeviceSecured(false);
+      showToast(t("appLock.deviceNotSecured"), "error");
+    }
   };
 
   // Health Connect sync (F2)
@@ -262,27 +262,6 @@ export default function SettingsScreen() {
       showToast(t("settings.healthSyncDenied"), "error");
     } else {
       showToast(t("settings.healthSyncEnabled"), "success");
-    }
-  };
-
-  const handlePinSuccess = async (pin: string) => {
-    const intent = pinModal?.intent;
-    setPinModal(null);
-    try {
-      if (intent === "enable") {
-        await enableAppLock(pin);
-        setAppLockOn(true);
-        showToast(t("appLock.enabledToast"), "success");
-      } else if (intent === "disable") {
-        await disableAppLock();
-        setAppLockOn(false);
-        showToast(t("appLock.disabledToast"), "success");
-      } else if (intent === "change") {
-        await changePin(pin);
-        showToast(t("appLock.pinChangedToast"), "success");
-      }
-    } catch {
-      showToast(t("appLock.errorGeneric"), "error");
     }
   };
 
@@ -585,46 +564,23 @@ export default function SettingsScreen() {
                 <Switch
                   value={appLockOn}
                   onValueChange={handleAppLockToggle}
+                  disabled={!deviceSecured && !appLockOn}
                   trackColor={{ false: undefined, true: theme.primary }}
                   accessibilityLabel={t("settings.appLockTitle")}
                 />
               </View>
-              {appLockOn && (
+              {!deviceSecured && (
                 <>
-                  {biometricAvail && (
-                    <>
-                      <Divider />
-                      <View className="flex-row items-center px-4 py-3.5 gap-3">
-                        <Ionicons name="finger-print" size={20} color={theme.accent} />
-                        <View className="flex-1">
-                          <Text className="text-[15px] font-semibold text-text">{t("settings.appLockBiometric")}</Text>
-                          <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.appLockBiometricSubtitle")}</Text>
-                        </View>
-                        <Switch
-                          value={biometricOn}
-                          onValueChange={handleBiometricToggle}
-                          trackColor={{ false: undefined, true: theme.primary }}
-                          accessibilityLabel={t("settings.appLockBiometric")}
-                        />
-                      </View>
-                    </>
-                  )}
                   <Divider />
-                  <SettingRow
-                    icon="key-outline"
-                    title={t("settings.appLockChangePin")}
-                    subtitle={t("settings.appLockChangePinSubtitle")}
-                    onPress={() => setPinModal({ mode: "change", intent: "change" })}
-                  />
+                  <View className="flex-row items-start px-4 py-3 gap-2">
+                    <Ionicons name="warning-outline" size={16} color={theme.warning} style={{ marginTop: 1 }} />
+                    <Text className="text-xs text-muted flex-1 leading-5">
+                      {t("appLock.deviceNotSecured")}
+                    </Text>
+                  </View>
                 </>
               )}
             </View>
-            <PinModal
-              visible={pinModal !== null}
-              mode={pinModal?.mode ?? "setup"}
-              onClose={() => setPinModal(null)}
-              onSuccess={handlePinSuccess}
-            />
           </>
         )}
 
