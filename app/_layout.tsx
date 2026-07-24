@@ -18,6 +18,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { storage } from "../src/storage";
 import { STORAGE_KEYS } from "../src/config";
 import { initDatabase } from "../src/db/database";
+import { refreshSimCountry } from "../src/services/deviceCountry";
 import { setupNotifications, openExactAlarmSettings, rescheduleAllNotifications } from "../src/services/notifications";
 import { checkFullScreenIntentPermission, requestFullScreenIntentPermission } from "expo-alarm";
 // Side-effect import (registers TaskManager.defineTask) + named imports from same module.
@@ -82,6 +83,9 @@ export default function RootLayout() {
         await initI18n();
         await initDatabase();
         loadThemeMode();
+        // Refresh the SIM-country cache used to auto-pick the drug region
+        // (fire-and-forget: the value is only read later, when adding a med).
+        refreshSimCountry().catch(() => {});
 
         const onboardingDone = storage.getString(ONBOARDING_DONE_KEY);
 

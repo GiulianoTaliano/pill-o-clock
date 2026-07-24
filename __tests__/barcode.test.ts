@@ -66,6 +66,9 @@ describe("ndc9Candidates", () => {
 
 describe("lookupNdc9 + resolveBarcode", () => {
   beforeEach(() => {
+    // Force the US region so routing is deterministic regardless of the CI
+    // machine's timezone (auto-detection now falls back to the device timezone).
+    setDrugRegion("US");
     _setNdcDatasetForTests([[123456789, "500"]]);
     _setDatasetForTests([
       ["Ibuprofen (Oral Pill)", "500", ["200 mg", "400 mg"], "Advil"],
