@@ -1303,9 +1303,17 @@ export function MedicationForm({
     ? [SlideIdentity, SlideFrequency, SlideExtras, SlideAppearance]
     : [SlideIdentity, SlideFrequency, SlideAlarms, SlideExtras, SlideAppearance];
 
-  const renderSlide = useCallback(({ item: SlideComponent, index }: { item: () => React.JSX.Element; index: number }) => (
+  // Render the slide by CALLING the function, not as `<SlideComponent />`.
+  // These slide functions are re-declared on every parent render, so mounting
+  // them as JSX elements gives each a new component *type* every render — React
+  // then unmounts and remounts the whole subtree on any state change (e.g. the
+  // per-keystroke drug-suggestion update), which yanked focus out of the name
+  // TextInput on every character. Calling the function returns a stable-typed
+  // element tree that reconciles by position, so focus is preserved. Safe
+  // because no Slide* function calls hooks.
+  const renderSlide = useCallback(({ item: renderSlideContent }: { item: () => React.JSX.Element; index: number }) => (
     <View style={{ width: screenWidth }}>
-      <SlideComponent />
+      {renderSlideContent()}
     </View>
   ), [screenWidth]);
 
