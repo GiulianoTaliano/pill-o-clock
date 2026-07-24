@@ -732,6 +732,11 @@ const en: TranslationShape = {
     exportErrorGeneric: "Could not export. Please try again.",
     // Language
     sectionLanguage: "Language",
+    sectionDrugRegion: "Medication region",
+    drugRegionSubtitle: "Sets which medication catalog and barcode scanner are used. Pick your country if the autocomplete shows up in English.",
+    drugRegionAuto: "Automatic (from device)",
+    drugRegionAr: "Argentina (ANMAT)",
+    drugRegionUs: "United States",
     languageEs: "Español",
     languageEn: "English",
     languagePt: "Português (Brasil)",

@@ -46,3 +46,17 @@ export function setDrugRegion(country: CountryCode | null): void {
   if (country) storage.set(STORAGE_KEYS.DRUG_REGION, country.toUpperCase());
   else storage.remove(STORAGE_KEYS.DRUG_REGION);
 }
+
+/**
+ * The manual override if the user set one, else `null` meaning "Automatic"
+ * (use the device region). Distinct from getDrugRegion(), which resolves the
+ * effective region — used by the Settings picker to show the current choice.
+ */
+export function getDrugRegionOverride(): CountryCode | null {
+  try {
+    const override = storage.getString(STORAGE_KEYS.DRUG_REGION);
+    return override ? override.toUpperCase() : null;
+  } catch {
+    return null;
+  }
+}

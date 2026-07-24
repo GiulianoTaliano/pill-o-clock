@@ -734,6 +734,11 @@ const pt: TranslationShape = {
     exportErrorGeneric: "Não foi possível exportar. Tente de novo.",
     // Language
     sectionLanguage: "Idioma",
+    sectionDrugRegion: "Região de medicamentos",
+    drugRegionSubtitle: "Define qual catálogo de medicamentos e qual leitor de código de barras são usados. Escolha seu país se o preenchimento automático aparecer em inglês.",
+    drugRegionAuto: "Automático (do dispositivo)",
+    drugRegionAr: "Argentina (ANMAT)",
+    drugRegionUs: "Estados Unidos",
     languageEs: "Español",
     languageEn: "English",
     languagePt: "Português (Brasil)",

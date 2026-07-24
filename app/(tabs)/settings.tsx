@@ -19,6 +19,7 @@ import type { AlarmSound } from "expo-alarm";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { AlarmSoundPicker } from "../../components/AlarmSoundPicker";
 import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes, setDefaultSnoozeMinutes } from "../../src/services/snoozeSettings";
+import { getDrugRegionOverride, setDrugRegion } from "../../src/services/deviceCountry";
 import { refreshDoseReminderCategory } from "../../src/services/notifications";
 import * as LocalAuthentication from "expo-local-authentication";
 import {
@@ -458,6 +459,17 @@ export default function SettingsScreen() {
     changeLanguage(lang);
   }
 
+  // Drug-data region: null = "Automatic" (use the device region). An explicit
+  // choice fixes the catalog + barcode scanner for people whose device region
+  // isn't set to where they actually get their medication (e.g. es-419, which
+  // carries no region).
+  const [drugRegion, setDrugRegionState] = useState<string | null>(getDrugRegionOverride());
+  function handleDrugRegion(region: string | null) {
+    Haptics.selectionAsync();
+    setDrugRegion(region);
+    setDrugRegionState(region);
+  }
+
   function handleTheme(mode: ThemeMode) {
     Haptics.selectionAsync();
     setThemeMode(mode);
@@ -769,6 +781,24 @@ export default function SettingsScreen() {
                 iconColor={currentLang === lang ? theme.primary : theme.muted}
                 title={lang === "es" ? t("settings.languageEs") : lang === "en" ? t("settings.languageEn") : t("settings.languagePt")}
                 onPress={() => handleLanguage(lang)}
+                chevron={false}
+              />
+            </View>
+          ))}
+        </View>
+
+        {/* ─── Drug-data region ─── */}
+        <SectionHeader title={t("settings.sectionDrugRegion")} />
+        <Text className="mx-5 mb-2 text-xs text-muted leading-4">{t("settings.drugRegionSubtitle")}</Text>
+        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+          {([null, "AR", "US"] as const).map((region, idx) => (
+            <View key={region ?? "auto"}>
+              {idx > 0 && <Divider />}
+              <SettingRow
+                icon={drugRegion === region ? "radio-button-on" : "radio-button-off-outline"}
+                iconColor={drugRegion === region ? theme.primary : theme.muted}
+                title={region === null ? t("settings.drugRegionAuto") : region === "AR" ? t("settings.drugRegionAr") : t("settings.drugRegionUs")}
+                onPress={() => handleDrugRegion(region)}
                 chevron={false}
               />
             </View>

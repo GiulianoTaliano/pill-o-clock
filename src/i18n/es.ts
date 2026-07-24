@@ -730,6 +730,11 @@ const es = {
     exportErrorGeneric: "No se pudo exportar. Intentá de nuevo.",
     // Language
     sectionLanguage: "Idioma",
+    sectionDrugRegion: "Región de medicamentos",
+    drugRegionSubtitle: "Define qué catálogo de medicamentos y qué escáner de código de barras se usan. Elegí tu país si el autocompletado aparece en inglés.",
+    drugRegionAuto: "Automático (según el dispositivo)",
+    drugRegionAr: "Argentina (ANMAT)",
+    drugRegionUs: "Estados Unidos",
     languageEs: "Español",
     languageEn: "English",
     languagePt: "Português (Brasil)",
