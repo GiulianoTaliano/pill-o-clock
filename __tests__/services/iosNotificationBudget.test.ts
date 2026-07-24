@@ -75,7 +75,9 @@ jest.mock("../../src/utils", () => ({
     return { hours, minutes };
   },
   isScheduleActiveOnDate: jest.fn().mockReturnValue(true),
-  getNextDates: jest.fn().mockImplementation(() => mockFutureDates),
+  // Must honour the requested count: the budget plan shrinks the window, and a
+  // mock that always returned 3 days would hide that.
+  getNextDates: jest.fn().mockImplementation((n: number) => mockFutureDates.slice(0, n)),
   toDateString: (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
   getLocalizedDosage: () => "1 tab.",
@@ -90,8 +92,10 @@ jest.mock("../../src/services/regimen", () => ({
 
 import {
   scheduleAllUpcoming,
+  planNotificationBudget,
   DAYS_AHEAD,
   MAX_REPEATS,
+  IOS_DOSE_BUDGET,
 } from "../../src/services/notifications";
 import type { Medication, Schedule } from "../../src/types";
 
@@ -144,17 +148,24 @@ describe("iOS notification budget", () => {
   });
 
   /**
-   * Documents the ceiling. With the current constants each schedule costs 9
-   * slots, so the 8th schedule (72 slots) already exceeds the cap — BEFORE
-   * appointment, renewal and health reminders take their share.
+   * The regression this whole file exists for.
    *
-   * This is not a hypothetical load for this app: polypharmacy in elderly
-   * patients routinely means 8+ concurrent medications. When this fails,
-   * doses are being dropped silently on real devices.
+   * At full settings each schedule costs 9 slots, so 8 treatments would need 72
+   * and iOS would silently drop the overflow. Polypharmacy in elderly patients
+   * routinely means 8+ concurrent medications — exactly the users who can least
+   * afford a dose that never rings.
    */
-  it("EXCEEDS the cap at 8 schedules — known limitation", async () => {
+  it("stays within the cap at 8 schedules (the old overflow case)", async () => {
     const used = await countScheduledFor(8);
-    expect(used).toBeGreaterThan(IOS_NOTIFICATION_CAP);
+    expect(used).toBeLessThanOrEqual(IOS_NOTIFICATION_CAP);
+  });
+
+  it("stays within the cap across a wide range of treatment counts", async () => {
+    for (const count of [1, 5, 8, 12, 20, 40]) {
+      const used = await countScheduledFor(count);
+      expect({ count, used }).toEqual({ count, used: expect.any(Number) });
+      expect(used).toBeLessThanOrEqual(IOS_NOTIFICATION_CAP);
+    }
   });
 
   it("does not consume notification slots on Android", async () => {
@@ -162,5 +173,60 @@ describe("iOS notification budget", () => {
     const used = await countScheduledFor(8);
     // Android uses the native AlarmManager path instead.
     expect(used).toBe(0);
+  });
+});
+
+describe("planNotificationBudget", () => {
+  beforeEach(() => {
+    (Platform as any).OS = "ios";
+  });
+
+  it("gives the full plan when there is room", () => {
+    expect(planNotificationBudget(1)).toEqual({ daysAhead: 3, maxRepeats: 2 });
+    expect(planNotificationBudget(6)).toEqual({ daysAhead: 3, maxRepeats: 2 });
+  });
+
+  // Repeats are only nagging; a day of coverage is real protection. So the
+  // repeats must be spent first.
+  it("sacrifices repeats before days", () => {
+    const plan = planNotificationBudget(8);
+    expect(plan.daysAhead).toBe(3);
+    expect(plan.maxRepeats).toBeLessThan(2);
+  });
+
+  it("only shortens the window once repeats are exhausted", () => {
+    const plan = planNotificationBudget(40);
+    expect(plan.maxRepeats).toBe(0);
+    expect(plan.daysAhead).toBeLessThan(3);
+  });
+
+  it("never returns a plan that overflows the budget", () => {
+    for (let count = 1; count <= 60; count++) {
+      const { daysAhead, maxRepeats } = planNotificationBudget(count);
+      const used = count * daysAhead * (1 + maxRepeats);
+      // Beyond ~18 treatments even the minimum plan cannot fit; the floor is
+      // 1 day / no repeats and iOS keeps the soonest ones.
+      if (count <= 18) expect(used).toBeLessThanOrEqual(IOS_DOSE_BUDGET);
+      expect(daysAhead).toBeGreaterThanOrEqual(1);
+      expect(maxRepeats).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("always keeps the initial notification of every dose", () => {
+    // maxRepeats may drop to 0, but never below — the dose reminder itself is
+    // never sacrificed.
+    expect(planNotificationBudget(500).maxRepeats).toBe(0);
+    expect(planNotificationBudget(500).daysAhead).toBe(1);
+  });
+
+  // Android has no cap (native AlarmManager), so the plan is never scaled down.
+  // Asserted against the constants rather than 7/4 because they are frozen at
+  // import time from the platform this suite runs as.
+  it("leaves Android untouched", () => {
+    (Platform as any).OS = "android";
+    expect(planNotificationBudget(50)).toEqual({
+      daysAhead: DAYS_AHEAD,
+      maxRepeats: MAX_REPEATS,
+    });
   });
 });

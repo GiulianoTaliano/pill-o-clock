@@ -50,6 +50,54 @@ export const DAYS_AHEAD = Platform.OS === "ios" ? 3 : 7;
 
 const NOTIF_MAP_KEY = STORAGE_KEYS.NOTIF_MAP;
 
+// ─── iOS notification budget ───────────────────────────────────────────────
+//
+// iOS caps an app at 64 PENDING local notifications. Past that it keeps the 64
+// soonest-firing ones and silently drops the rest — for a medication app that
+// means reminders that never ring, with no error anywhere.
+//
+// The constants above are the MAXIMUM we ever want. They only fit while the
+// user has few treatments: at DAYS_AHEAD=3 and MAX_REPEATS=2 each schedule
+// costs 9 slots, so 8 schedules already need 72. Polypharmacy in elderly patients
+// routinely means 8+ concurrent medications, i.e. exactly the users who can
+// least afford a dropped dose.
+//
+// planNotificationBudget() therefore scales the plan down to fit. Repeats are
+// sacrificed BEFORE days, because the initial notification is what actually
+// tells the user to take the dose; the repeats are only nagging. The initial
+// notification of every dose is never dropped.
+
+/** Slots we allow dose reminders to use, leaving headroom for the rest. */
+export const IOS_DOSE_BUDGET = 56;
+
+export interface NotificationPlan {
+  daysAhead: number;
+  maxRepeats: number;
+}
+
+/**
+ * Largest (daysAhead, maxRepeats) plan that keeps
+ * `scheduleCount × daysAhead × (1 + maxRepeats)` within the budget.
+ *
+ * Android has no cap, so it always gets the full window.
+ */
+export function planNotificationBudget(scheduleCount: number): NotificationPlan {
+  const full = { daysAhead: DAYS_AHEAD, maxRepeats: MAX_REPEATS };
+  if (Platform.OS !== "ios" || scheduleCount <= 0) return full;
+
+  for (let days = DAYS_AHEAD; days >= 1; days--) {
+    // Repeats first: cheaper to lose than a day of coverage.
+    for (let repeats = MAX_REPEATS; repeats >= 0; repeats--) {
+      if (scheduleCount * days * (1 + repeats) <= IOS_DOSE_BUDGET) {
+        return { daysAhead: days, maxRepeats: repeats };
+      }
+    }
+  }
+  // Pathological case (very many schedules): one day, no repeats. Some doses
+  // will still be dropped by iOS, but the soonest ones survive.
+  return { daysAhead: 1, maxRepeats: 0 };
+}
+
 // ─── iOS interruption level (Critical Alerts) ──────────────────────────────
 //
 // On iOS a dose reminder must be able to break through the ring/silent switch
@@ -441,7 +489,13 @@ async function scheduleOneNotification(
 export async function scheduleDoseChain(
   medication: Medication,
   schedule: Schedule,
-  scheduledDate: string
+  scheduledDate: string,
+  /**
+   * Repeats for THIS dose. Callers that schedule in bulk pass the value from
+   * planNotificationBudget() so a user with many treatments doesn't blow the
+   * iOS 64-notification cap. Defaults to the maximum for single-dose callers.
+   */
+  maxRepeats: number = MAX_REPEATS
 ): Promise<void> {
   const { hours, minutes } = parseTime(schedule.time);
   const [year, month, day] = scheduledDate.split("-").map(Number);
@@ -491,7 +545,7 @@ export async function scheduleDoseChain(
   entries.push({ notifId: id0, data: baseData });
 
   // Repeat notifications every REPEAT_INTERVAL_MINUTES
-  for (let i = 1; i <= MAX_REPEATS; i++) {
+  for (let i = 1; i <= maxRepeats; i++) {
     const fireDate = addMinutes(baseDate, i * REPEAT_INTERVAL_MINUTES);
     // Only schedule if in future
     if (fireDate > new Date()) {
@@ -609,7 +663,10 @@ export async function scheduleAllUpcoming(
   medications: Medication[],
   schedules: Schedule[]
 ): Promise<void> {
-  const dates = getNextDates(DAYS_AHEAD);
+  // Scale the window to the number of treatments so many medications can't
+  // silently overflow the iOS 64-notification cap.
+  const plan = planNotificationBudget(schedules.length);
+  const dates = getNextDates(plan.daysAhead);
   const medMap = new Map(medications.map((m) => [m.id, m]));
 
   for (const schedule of schedules) {
@@ -632,7 +689,7 @@ export async function scheduleAllUpcoming(
       // Only schedule future notifications
       if (fireDate <= new Date()) continue;
 
-      await scheduleDoseChain(med, schedule, scheduledDate);
+      await scheduleDoseChain(med, schedule, scheduledDate, plan.maxRepeats);
     }
   }
 }
@@ -973,6 +1030,13 @@ export async function rescheduleAllNotifications(): Promise<void> {
     mappedRows.map((r) => `${r.schedule_id}:${r.scheduled_date}`)
   );
 
+  // Same budget scaling as scheduleAllUpcoming: only the schedules whose
+  // medication is still active count toward the iOS cap.
+  const activeSchedules = schedules.filter((s) =>
+    medications.some((m) => m.id === s.medicationId && m.isActive)
+  );
+  const plan = planNotificationBudget(activeSchedules.length);
+
   // Doses that are already resolved (taken / skipped / missed) must not be
   // re-scheduled.  This is particularly important on Android where alarms are
   // NOT stored in the notification map, so a rescheduled-then-resolved dose
@@ -987,7 +1051,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
     const med = medications.find((m) => m.id === sched.medicationId);
     if (!med || !med.isActive) continue;
 
-    for (let i = 0; i < DAYS_AHEAD; i++) {
+    for (let i = 0; i < plan.daysAhead; i++) {
       const date = addDays(startOfDay(now), i);
       if (!isScheduleActiveOnDate(sched, date, med)) continue;
 
@@ -1003,7 +1067,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
       const fireDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);
       if (fireDate <= now) continue;
 
-      await scheduleDoseChain(med, sched, scheduledDate);
+      await scheduleDoseChain(med, sched, scheduledDate, plan.maxRepeats);
     }
   }
 }
