@@ -15,6 +15,25 @@
  */
 import { lookupNdc9 } from "./ndcDb";
 import { searchDrugsByRxcui, DrugSuggestion } from "./drugDb";
+import { getDrugRegion } from "./deviceCountry";
+
+/**
+ * Regions whose drug packaging this scanner can actually resolve offline.
+ * Today only the US (NDC-in-barcode) has a bundled mapping. Argentina's GTIN
+ * is not published in any free/offline dataset (VNM GTIN field is empty, the
+ * traceability system is closed, GS1/commercial catalogs are paid), so AR is
+ * deliberately absent — the UI hides the scan button there instead of offering
+ * a control that can never match a local box. Brazil (ANVISA CMED publishes
+ * EAN/GTIN) is the natural next region to add.
+ */
+const SCAN_SUPPORTED_REGIONS = new Set<string>(["US"]);
+
+/** Whether to surface the barcode-scan button for the given/active region. */
+export function isBarcodeScanSupported(
+  region: string | null = getDrugRegion()
+): boolean {
+  return !!region && SCAN_SUPPORTED_REGIONS.has(region);
+}
 
 /** GS1 element string: AI 01 = GTIN-14; bare, GS-separated or "(01)" form. */
 const GS1_GTIN = /(?:^|\x1d)01(\d{14})/;

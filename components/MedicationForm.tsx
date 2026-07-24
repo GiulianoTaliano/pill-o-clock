@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { useState, useRef, useCallback, Fragment } from "react";
+import { useState, useRef, useCallback, useMemo, Fragment } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -28,7 +28,8 @@ import { useToast } from "../src/context/ToastContext";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { medicationFormSchema, type MedicationFormData, type MedicationFormInput } from "../src/schemas/medication";
-import { searchDrugs, type DrugSuggestion } from "../src/services/drugDb";
+import { searchDrugs, getActiveDrugCatalog, type DrugSuggestion } from "../src/services/drugDb";
+import { isBarcodeScanSupported } from "../src/services/barcode";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
 import { parseRegimen, buildRegimenJson, type Regimen } from "../src/services/regimen";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -413,6 +414,10 @@ export function MedicationForm({
 
   // Offline drug-name autocomplete (F1). Cleared on pick or when too short.
   const [drugSuggestions, setDrugSuggestions] = useState<DrugSuggestion[]>([]);
+  // Country-aware: which catalog's attribution to show, and whether the region
+  // has a resolvable barcode mapping at all (hide the scanner otherwise).
+  const drugAttributionKey = useMemo(() => getActiveDrugCatalog().attributionKey, []);
+  const scanSupported = useMemo(() => isBarcodeScanSupported(), []);
   // Barcode scan accelerator (F2). Android-first; iOS works too via expo-camera.
   const [scannerOpen, setScannerOpen] = useState(false);
   const photoUri = watch("photoUri");
@@ -607,17 +612,19 @@ export function MedicationForm({
                     />
                   )}
                 />
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={t('form.scanBarcode')}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setScannerOpen(true);
-                  }}
-                  className="border border-border rounded-xl px-3 py-2.5 bg-card-alt"
-                >
-                  <Ionicons name="barcode-outline" size={22} color={theme.primary} />
-                </TouchableOpacity>
+                {scanSupported && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={t('form.scanBarcode')}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setScannerOpen(true);
+                    }}
+                    className="border border-border rounded-xl px-3 py-2.5 bg-card-alt"
+                  >
+                    <Ionicons name="barcode-outline" size={22} color={theme.primary} />
+                  </TouchableOpacity>
+                )}
               </View>
               {drugSuggestions.length > 0 && (
                 <View className="mt-1 rounded-xl border border-border bg-card overflow-hidden">
@@ -641,7 +648,7 @@ export function MedicationForm({
                       )}
                     </TouchableOpacity>
                   ))}
-                  <Text className="px-3 py-1.5 text-[10px] text-muted">{t('form.drugDbAttribution')}</Text>
+                  <Text className="px-3 py-1.5 text-[10px] text-muted">{t(drugAttributionKey as any)}</Text>
                 </View>
               )}
               <FieldError message={errors.name?.message ? t(errors.name.message as any) : undefined} />
