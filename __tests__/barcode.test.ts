@@ -1,13 +1,17 @@
 /**
  * Unit tests for the barcode → NDC → drug resolution pipeline (F2).
  */
-import { ndc10FromBarcode, ndc9Candidates, resolveBarcode } from "../src/services/barcode";
+import { ndc10FromBarcode, ndc9Candidates, resolveBarcode, gtin14FromBarcode } from "../src/services/barcode";
 import { _setNdcDatasetForTests, lookupNdc9 } from "../src/services/ndcDb";
 import { _setDatasetForTests } from "../src/services/drugDb";
+import { _setGtinDatasetForTests } from "../src/services/gtinDb";
+import { setDrugRegion } from "../src/services/deviceCountry";
 
 afterEach(() => {
   _setNdcDatasetForTests(null);
   _setDatasetForTests(null);
+  _setGtinDatasetForTests(null);
+  setDrugRegion(null);
 });
 
 describe("ndc10FromBarcode", () => {
@@ -87,6 +91,30 @@ describe("lookupNdc9 + resolveBarcode", () => {
   });
 
   it("returns null for a code with no NDC payload", () => {
+    expect(resolveBarcode("ean13", "7791234567890")).toBeNull();
+  });
+});
+
+describe("Argentina GTIN path", () => {
+  it("extracts a zero-padded 14-digit GTIN from an EAN-13", () => {
+    expect(gtin14FromBarcode("ean13", "7791234567890")).toBe("07791234567890");
+    expect(gtin14FromBarcode("upc_a", "779123456789")).toBe("00779123456789");
+    expect(gtin14FromBarcode("datamatrix", "0107791234567895(10)LOT1")).toBe("07791234567895");
+    expect(gtin14FromBarcode("ean13", "abc")).toBeNull();
+  });
+
+  it("resolves an Argentine EAN-13 to its ANMAT drug when region is AR", () => {
+    setDrugRegion("AR");
+    _setGtinDatasetForTests([["07791234567890", "FABOGESIC (Cápsula Blanda)", ["400 mg"]]]);
+    const match = resolveBarcode("ean13", "7791234567890");
+    expect(match).not.toBeNull();
+    expect(match!.suggestion.name).toBe("FABOGESIC (Cápsula Blanda)");
+    expect(match!.gtin).toBe("07791234567890");
+  });
+
+  it("returns null for an AR GTIN not in the database", () => {
+    setDrugRegion("AR");
+    _setGtinDatasetForTests([["07790000000000", "Other", []]]);
     expect(resolveBarcode("ean13", "7791234567890")).toBeNull();
   });
 });

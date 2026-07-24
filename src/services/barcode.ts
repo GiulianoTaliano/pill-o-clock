@@ -15,18 +15,20 @@
  */
 import { lookupNdc9 } from "./ndcDb";
 import { searchDrugsByRxcui, DrugSuggestion } from "./drugDb";
+import { lookupGtin } from "./gtinDb";
 import { getDrugRegion } from "./deviceCountry";
 
 /**
- * Regions whose drug packaging this scanner can actually resolve offline.
- * Today only the US (NDC-in-barcode) has a bundled mapping. Argentina's GTIN
- * is not published in any free/offline dataset (VNM GTIN field is empty, the
- * traceability system is closed, GS1/commercial catalogs are paid), so AR is
- * deliberately absent — the UI hides the scan button there instead of offering
- * a control that can never match a local box. Brazil (ANVISA CMED publishes
- * EAN/GTIN) is the natural next region to add.
+ * Regions whose drug packaging this scanner can resolve offline:
+ *   - US: NDC-in-barcode → RxNorm (assets/ndc-db.json).
+ *   - AR: GS1 GTIN → ANMAT drug (assets/drug-gtin-ar.json). The VNM does carry
+ *     a GTIN per presentation — the field is hidden in the UI, which is why
+ *     earlier scrapes reported it empty; reading it via textContent recovers it.
+ * Regions without a bundled mapping are absent, and the UI hides the scan
+ * button there rather than offering a control that can never match a local box.
+ * Brazil (ANVISA CMED publishes EAN/GTIN) is the natural next region to add.
  */
-const SCAN_SUPPORTED_REGIONS = new Set<string>(["US"]);
+const SCAN_SUPPORTED_REGIONS = new Set<string>(["US", "AR"]);
 
 /** Whether to surface the barcode-scan button for the given/active region. */
 export function isBarcodeScanSupported(
@@ -76,14 +78,14 @@ export function ndc9Candidates(ndc10: string): string[] {
 
 export interface BarcodeMatch {
   suggestion: DrugSuggestion;
-  ndc9: string;
+  /** US path: the NDC9 that matched. */
+  ndc9?: string;
+  /** AR path: the 14-digit GTIN that matched. */
+  gtin?: string;
 }
 
-/**
- * Full pipeline: scanned (type, data) → drug-db suggestion, or null when the
- * code carries no NDC or the NDC is not in the bundled database.
- */
-export function resolveBarcode(type: string, data: string): BarcodeMatch | null {
+/** US: scanned code → NDC10 → NDC9 candidates → RxNorm → drug. */
+function resolveBarcodeUs(type: string, data: string): BarcodeMatch | null {
   const ndc10 = ndc10FromBarcode(type, data);
   if (!ndc10) return null;
   for (const ndc9 of ndc9Candidates(ndc10)) {
@@ -93,4 +95,42 @@ export function resolveBarcode(type: string, data: string): BarcodeMatch | null 
     if (suggestion) return { suggestion, ndc9 };
   }
   return null;
+}
+
+/** Extracts a zero-padded 14-digit GTIN from a scanned code, if any. */
+export function gtin14FromBarcode(type: string, data: string): string | null {
+  const d = data.trim();
+  switch (type) {
+    case "ean13":
+      return /^\d{13}$/.test(d) ? d.padStart(14, "0") : null;
+    case "upc_a":
+      return /^\d{12}$/.test(d) ? d.padStart(14, "0") : null;
+    case "datamatrix":
+    case "code128":
+    case "qr": {
+      const m = GS1_GTIN.exec(d) ?? GS1_GTIN_HRI.exec(d);
+      return m ? m[1] : null;
+    }
+    default:
+      return null;
+  }
+}
+
+/** AR: scanned code → GS1 GTIN → ANMAT drug. */
+function resolveBarcodeAr(type: string, data: string): BarcodeMatch | null {
+  const gtin = gtin14FromBarcode(type, data);
+  if (!gtin) return null;
+  const suggestion = lookupGtin(gtin);
+  return suggestion ? { suggestion, gtin } : null;
+}
+
+/**
+ * Full pipeline: scanned (type, data) → drug suggestion, routed by the active
+ * region. Returns null when the code carries no resolvable id or the id isn't
+ * in the bundled database — the form then falls back to manual entry.
+ */
+export function resolveBarcode(type: string, data: string): BarcodeMatch | null {
+  return getDrugRegion() === "AR"
+    ? resolveBarcodeAr(type, data)
+    : resolveBarcodeUs(type, data);
 }

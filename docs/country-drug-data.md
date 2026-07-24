@@ -50,56 +50,47 @@ mapping (e.g. ANMAT), which simply means no interaction data for those entries.
 
 | Country | Name dataset | Barcode → drug | Notes |
 |---|---|---|---|
-| **US** | RxTerms (NLM), bundled ✅ | NDC-in-barcode, bundled ✅ | current baseline |
-| **AR** | ANMAT VNM — **scrape required** ⚠️ | **not available (free/offline)** ❌ | see below |
-| **BR** | ANVISA open data ✅ | **ANVISA CMED publishes EAN/GTIN** ✅ | best next candidate for scanning |
+| **US** | RxTerms (NLM), bundled ✅ | NDC-in-barcode, bundled ✅ | baseline |
+| **AR** | ANMAT VNM — scraped ✅ | **VNM GTIN, bundled ✅** | GTIN recovered via scrape (see below) |
+| **BR** | ANVISA open data ✅ | ANVISA CMED publishes EAN/GTIN ✅ | clean next candidate |
 | **ES** | AEMPS CIMA (download + REST) ✅ | Código Nacional, not GTIN | scanner would need CN, not GS1 |
 | **CL** | ISP registry (query UI only) ⚠️ | none found ❌ | weak public data |
 
-## Argentina — the two open decisions
+## Argentina — data acquisition (both autocomplete AND scanner)
 
-### 1. Autocomplete dataset content (needs a sourcing decision)
+There is **no official bulk export** of the VNM (the datos.gob.ar open-data CSVs
+are monthly deltas frozen at 2018). Both AR assets are therefore built by
+**scraping the public VNM consultation** (`servicios.pami.org.ar/vademecum/views/
+consultaPublica/listado.zul`), per-laboratorio (~430 labs from the GS1 registry),
+via `scripts/vnm_scrape.py` → `vnm_out.csv` → `scripts/build-drug-db-ar.mjs` →
+`assets/drug-db-ar.json` (names) + `assets/drug-gtin-ar.json` (GTIN → drug).
+Attribution: ANMAT VNM. Refresh cadence: re-run the scrape every few months.
 
-There is **no current official bulk export** of the VNM. The datos.gob.ar open-data
-CSVs are monthly deltas frozen at 2018 (the bundled seed
-`assets/drug-db-ar.json`, ~37 drugs, is built from one of them via
-`build-drug-db-ar.mjs` — enough to prove the pipeline, **not** to ship).
+Two things that made this work (both fixes over the community scraper
+`afborga/ANMAT-Medicamentos-Scraper`, MIT, Oct 2024):
 
-Options to get the full, current dataset:
+- **GTIN recovery.** The VNM *does* carry a GS1 GTIN per presentation, but the
+  column is **hidden in the results grid**, so Selenium's `.text` returns `""` —
+  which is why earlier scrapes (and initial research) reported the GTIN "empty".
+  Reading the cell via **`textContent`** recovers it; observed coverage ≈ 90%+ of
+  products. This is what makes the **AR barcode scanner viable** — it resolves the
+  large subset of products with a registered GTIN and degrades to typing for the
+  rest, exactly like the US NDC path.
+- **Robust pagination** (advance-and-verify) + checkpoint/resume + a polite delay,
+  so a full run survives interruptions without hammering the server.
 
-- **A — Scrape the public VNM consultation** (`servicios.pami.org.ar/vademecum/
-  views/consultaPublica/listado.zul`). A community MIT scraper exists
-  (`afborga/ANMAT-Medicamentos-Scraper`, Oct 2024) whose columns already match
-  the builder. One respectful, rate-limited run (hours) → a real ~10-20k-drug
-  asset, refreshed periodically. **Recommended** — free, official data, our
-  attribution. Requires sign-off (load on a government server + ToS review).
-- **B — Licensed catalog** (Alfabeta / Kairós, the industry vademécum vendors) —
-  current and clean but **paid/licensed**, and conflicts with the "no pharma
-  money" stance unless purely a data license.
-- **C — Ship the tiny seed** — not recommended; worse UX than the intl fallback.
+Scraping load/ToS: the run is rate-limited and resumable; it reads only the
+public consultation. Re-runs should stay polite (single session, delay between
+labs). If a licensed catalog (Alfabeta/Kairós) is ever acquired it would be a
+drop-in higher-freshness replacement for both assets.
 
-Until A or B lands, consider keeping AR on the `intl` fallback (or gating the AR
-catalog behind a minimum-size check) so users don't get a near-empty list.
+### Barcode scanning in Argentina — enabled
 
-### 2. Barcode scanning in Argentina (blocked on data)
+`resolveBarcode()` routes by region: **AR → `gtin14FromBarcode()` → `lookupGtin()`**
+against `assets/drug-gtin-ar.json`; US → the NDC path. A scanned EAN-13 (or GS1
+DataMatrix/QR GTIN) is normalised to a 14-digit GTIN and looked up. AR is in
+`SCAN_SUPPORTED_REGIONS`, so the scan button shows there. Products without a
+registered GTIN simply fall back to manual entry.
 
-**Not solvable with free, public, offline data today.** The VNM's GTIN field is
-effectively empty; ANMAT's traceability system (which holds GTIN↔product) is
-closed/authenticated; GS1 Argentina lookup is membership-gated with no bulk
-export; and the only complete GTIN catalogs (Alfabeta/Kairós) are paid. The
-scanner is therefore **hidden in AR** (via `SCAN_SUPPORTED_REGIONS`) rather than
-offered as a control that can never match a local box.
-
-Paths to enable it later, in order of realism:
-
-1. **Add Brazil first** — ANVISA's CMED price list publishes EAN/GTIN, so BR is a
-   clean, free win that exercises the same country-aware scanner plumbing.
-2. **AR via a licensed catalog** — if a data license is acquired (see 1B), it
-   would also supply GTIN↔product for scanning.
-3. **AR via an online lookup service** — stand up a small backend seeded from
-   scraped/licensed data; the scanner would require connectivity (breaks the
-   fully-offline model — a product tradeoff).
-
-Recommendation: keep AR scanning hidden, ship AR autocomplete once the dataset
-lands (decision 1), and treat BR as the reference implementation for the next
-scannable country.
+Next scannable country: **Brazil** (ANVISA CMED publishes EAN/GTIN) — same
+plumbing, just a `BR` catalog + GTIN asset + registry entries.
