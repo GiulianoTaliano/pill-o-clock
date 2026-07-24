@@ -114,6 +114,14 @@ jest.mock("expo-notifications", () => ({
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   setNotificationHandler: jest.fn(),
   AndroidNotificationPriority: { HIGH: "high", MAX: "max", DEFAULT: "default" },
+  AndroidImportance: { MAX: 5, HIGH: 4, DEFAULT: 3 },
+  SchedulableTriggerInputTypes: {
+    DATE: "date",
+    DAILY: "daily",
+    WEEKLY: "weekly",
+    TIME_INTERVAL: "timeInterval",
+  },
+  setNotificationCategoryAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 // ─── expo-alarm (local native module) ─────────────────────────────────────
