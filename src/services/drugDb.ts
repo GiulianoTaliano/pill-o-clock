@@ -29,6 +29,12 @@ export interface DrugSuggestion {
 interface IndexedEntry extends DrugSuggestion {
   /** Normalized haystack: name + synonym, lowercased, accents stripped. */
   norm: string;
+  /**
+   * Raw actives string as shipped ("Dipirona 300 Mg + Propinoxato…"). Kept
+   * because it is the ONLY ingredient signal for catalogs without an RxCUI —
+   * see ingredients.ts and the allergy/duplicate checks in interactions.ts.
+   */
+  actives: string;
 }
 
 // ─── Catalog registry (country-aware) ──────────────────────────────────────
@@ -69,6 +75,15 @@ export function getActiveDrugCatalog(): { attributionKey: string } {
   return { attributionKey: CATALOGS[activeCatalogId()].attributionKey };
 }
 
+/**
+ * Identity of the catalog currently in force. Consumers that cache anything
+ * derived from the catalog must key it on this, since the region — and so the
+ * catalog — can change at runtime from Settings.
+ */
+export function getActiveCatalogKey(): string {
+  return testIndex ? "test" : activeCatalogId();
+}
+
 // ─── Index build + cache (per catalog) ─────────────────────────────────────
 
 const indexes: Partial<Record<CatalogId, IndexedEntry[]>> = {};
@@ -87,6 +102,7 @@ function buildIndex(raw: RawEntry[]): IndexedEntry[] {
     rxcui,
     strengths,
     norm: normalize(synonym ? `${name} ${synonym}` : name),
+    actives: synonym ?? "",
   }));
 }
 
@@ -100,6 +116,33 @@ function getIndex(): IndexedEntry[] {
 /** Test seam: inject a small dataset (bypasses region + asset loading). */
 export function _setDatasetForTests(raw: RawEntry[] | null): void {
   testIndex = raw ? buildIndex(raw) : null;
+}
+
+// ─── Ingredient access (for the allergy / duplicate-therapy checks) ────────
+
+/**
+ * Raw actives string for a product, matched on display name. This is how
+ * medications from a catalog with no RxCUI (ANMAT) recover their ingredients:
+ * the name is what we persisted, so existing records resolve retroactively.
+ */
+export function getDrugActives(name: string): string {
+  const q = normalize(name.trim());
+  if (!q) return "";
+  for (const e of getIndex()) {
+    if (normalize(e.name) === q) return e.actives;
+  }
+  return "";
+}
+
+/**
+ * Every distinct actives string in the active catalog — the raw material for
+ * the region's ingredient list (see interactions.ts). Returned unparsed so the
+ * ingredient layer owns all splitting/normalization rules.
+ */
+export function listCatalogActives(): string[] {
+  const seen = new Set<string>();
+  for (const e of getIndex()) if (e.actives) seen.add(e.actives);
+  return Array.from(seen);
 }
 
 // ─── Search ────────────────────────────────────────────────────────────────

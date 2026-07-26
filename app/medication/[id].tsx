@@ -146,7 +146,7 @@ export default function EditMedicationScreen() {
         values.schedules.map((s) => ({ id: s.id, time: s.time, days: s.days }))
       );
       // Allergy-conflict check (F3): informational.
-      const conflicts = findAllergyConflicts(values.rxcui, await getActiveAllergies());
+      const conflicts = findAllergyConflicts({ rxcui: values.rxcui, name: values.name }, await getActiveAllergies());
       if (conflicts.length > 0) {
         Alert.alert(
           t('interactions.allergyTitle'),
@@ -156,7 +156,7 @@ export default function EditMedicationScreen() {
         return;
       }
       // Duplicate-therapy check (F2): informational, excludes this med itself.
-      const dupes = findDuplicateTherapy(values.rxcui, medications, medication.id);
+      const dupes = findDuplicateTherapy({ rxcui: values.rxcui, name: values.name }, medications, medication.id);
       if (dupes.length > 0) {
         Alert.alert(
           t('interactions.dupTitle'),

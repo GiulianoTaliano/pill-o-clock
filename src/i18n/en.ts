@@ -567,12 +567,12 @@ const en: TranslationShape = {
   allergies: {
     title: "Allergies",
     settingsSubtitle: "For the active profile; we warn if a new medication contains an ingredient you're allergic to",
-    subtitle: "Pick from the list so we can check conflicts, or type freely.",
+    subtitle: "Pick from the list or type the active ingredient; we check conflicts on every new medication.",
     placeholder: "E.g. penicillin",
     addFreeText: "Add",
     checkable: "Checked against new medications",
-    freeText: "Free text (not checked automatically)",
-    checkableHint: "Picking from the list enables automatic checking (NLM RxNorm)",
+    freeText: "Free text (not recognized, not checked)",
+    checkableHint: "Picking from the list guarantees automatic checking",
     empty: "No allergies recorded.",
   },
   emergency: {

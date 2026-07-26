@@ -565,12 +565,12 @@ const es = {
   allergies: {
     title: "Alergias",
     settingsSubtitle: "Del perfil activo; avisamos si un medicamento nuevo contiene un ingrediente al que sos alérgico",
-    subtitle: "Elegí de la lista para que podamos chequear conflictos, o escribí libre.",
+    subtitle: "Elegí de la lista o escribí el principio activo; chequeamos conflictos con cada medicamento nuevo.",
     placeholder: "Ej.: penicilina",
     addFreeText: "Agregar",
     checkable: "Se chequea contra medicamentos nuevos",
-    freeText: "Texto libre (no se chequea automáticamente)",
-    checkableHint: "Elegir de la lista permite el chequeo automático (NLM RxNorm)",
+    freeText: "Texto libre (no lo reconocimos, no se chequea)",
+    checkableHint: "Elegir de la lista asegura el chequeo automático",
     empty: "Sin alergias registradas.",
   },
   emergency: {
