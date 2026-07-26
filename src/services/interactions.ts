@@ -40,8 +40,7 @@ function getDb(): IngredientDb {
 export function _setIngredientDbForTests(data: IngredientDb | null): void {
   db = data;
   knownCache = null;
-  catalogIngredientsCache = null;
-  vocabularyKeysCache = null;
+  vocabularyCache = null;
 }
 
 // ─── Canonical ingredient identity ─────────────────────────────────────────
@@ -173,51 +172,65 @@ export interface IngredientSuggestion {
   rxcui?: string;
 }
 
-let catalogIngredientsCache: { name: string; key: string }[] | null = null;
-let catalogIngredientsCacheKey = "";
-let vocabularyKeysCache: { forCatalog: string; keys: Set<string> } | null = null;
-
-/** Key set of the active vocabulary, cached per catalog for O(1) membership. */
-function vocabularyKeys(): Set<string> {
-  const catalogKey = getActiveCatalogKey();
-  if (!vocabularyKeysCache || vocabularyKeysCache.forCatalog !== catalogKey) {
-    vocabularyKeysCache = {
-      forCatalog: catalogKey,
-      keys: new Set(ingredientVocabulary().map((e) => e.key)),
-    };
-  }
-  return vocabularyKeysCache.keys;
+interface VocabularyEntry {
+  key: string;
+  name: string;
+  rxcui?: string;
+  /** Pre-normalized haystack, so a keystroke does no per-entry normalization. */
+  norm: string;
 }
 
+let vocabularyCache: {
+  forCatalog: string;
+  entries: VocabularyEntry[];
+  keys: Set<string>;
+} | null = null;
+
 /**
- * The region's ingredient vocabulary. Regions whose drug catalog ships an
- * actives string (ANMAT) get their own, in their own language — which is why
- * "dipirona" is offered in Argentina even though the NLM tables have no
- * dipyrone at all (withdrawn from the US market in 1977). Everyone else gets
- * the NLM ingredient names.
+ * The region's ingredient vocabulary, built once per catalog. Regions whose
+ * drug catalog ships an actives string (ANMAT) get their own, in their own
+ * language — which is why "dipirona" is offered in Argentina even though the
+ * NLM tables have no dipyrone at all (withdrawn from the US market in 1977).
+ * Everyone else gets the NLM ingredient names.
+ *
+ * Caching matters: this feeds a per-keystroke autocomplete over ~1-2k entries,
+ * and both the keys and the normalized names are far too costly to rebuild on
+ * every character.
  */
-function ingredientVocabulary(): { name: string; key: string; rxcui?: string }[] {
+function vocabulary(): { entries: VocabularyEntry[]; keys: Set<string> } {
   const catalogKey = getActiveCatalogKey();
-  if (!catalogIngredientsCache || catalogIngredientsCacheKey !== catalogKey) {
-    catalogIngredientsCacheKey = catalogKey;
-    const known = knownIngredientNames();
-    const byKey = new Map<string, string>();
-    for (const actives of listCatalogActives()) {
-      for (const name of parseActives(actives)) {
-        const key = canonicalKey(name, known);
-        if (key && !byKey.has(key)) byKey.set(key, name.trim());
-      }
-    }
-    catalogIngredientsCache = Array.from(byKey, ([key, name]) => ({ name, key }));
-  }
-  if (catalogIngredientsCache.length > 0) return catalogIngredientsCache;
+  if (vocabularyCache?.forCatalog === catalogKey) return vocabularyCache;
 
   const known = knownIngredientNames();
-  return Object.entries(getDb().names).map(([rxcui, name]) => ({
-    rxcui,
-    name,
+  const build = (name: string, rxcui?: string): VocabularyEntry => ({
     key: canonicalKey(name, known),
-  }));
+    name: name.trim(),
+    rxcui,
+    norm: normalizeIngredient(name),
+  });
+
+  // Catalog-derived first (regions with their own actives strings)…
+  const byKey = new Map<string, VocabularyEntry>();
+  for (const actives of listCatalogActives()) {
+    for (const name of parseActives(actives)) {
+      const entry = build(name);
+      if (entry.key && !byKey.has(entry.key)) byKey.set(entry.key, entry);
+    }
+  }
+  // …otherwise fall back to the NLM ingredient names.
+  if (byKey.size === 0) {
+    for (const [rxcui, name] of Object.entries(getDb().names)) {
+      const entry = build(name, rxcui);
+      if (entry.key && !byKey.has(entry.key)) byKey.set(entry.key, entry);
+    }
+  }
+
+  vocabularyCache = {
+    forCatalog: catalogKey,
+    entries: Array.from(byKey.values()),
+    keys: new Set(byKey.keys()),
+  };
+  return vocabularyCache;
 }
 
 /**
@@ -230,10 +243,10 @@ export function searchIngredients(query: string, limit = 6): IngredientSuggestio
   if (q.length < 2) return [];
   const starts: IngredientSuggestion[] = [];
   const contains: IngredientSuggestion[] = [];
-  for (const entry of ingredientVocabulary()) {
-    const i = normalizeIngredient(entry.name).indexOf(q);
+  for (const { key, name, rxcui, norm } of vocabulary().entries) {
+    const i = norm.indexOf(q);
     if (i === -1) continue;
-    (i === 0 ? starts : contains).push(entry);
+    (i === 0 ? starts : contains).push({ key, name, rxcui });
     if (starts.length >= limit) break;
   }
   return [...starts, ...contains].slice(0, limit);
@@ -250,7 +263,7 @@ export function searchIngredients(query: string, limit = 6): IngredientSuggestio
 export function isAllergyCheckable(allergy: { name: string; ingRxcui?: string }): boolean {
   if (allergy.ingRxcui) return true;
   const key = allergyKey(allergy);
-  return !!key && vocabularyKeys().has(key);
+  return !!key && vocabulary().keys.has(key);
 }
 
 export interface AllergyConflict {
