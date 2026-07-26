@@ -688,7 +688,7 @@ const en: TranslationShape = {
     allergyLine: "{{ingredient}} is in this medication and you recorded an allergy to {{allergy}}.",
     dupTitle: "Repeated ingredient",
     dupLine: "{{name}} also contains: {{ingredients}}",
-    disclaimer: "Informational notice based on RxTerms (NLM) data. Not a substitute for your doctor's or pharmacist's advice.",
+    disclaimer: "Informational notice based on your region's medication catalog. Not a substitute for your doctor's or pharmacist's advice.",
   },
   prn: {
     limitTitle: "Dose limit reached",

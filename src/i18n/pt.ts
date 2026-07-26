@@ -690,7 +690,7 @@ const pt: TranslationShape = {
     allergyLine: "{{ingredient}} está neste medicamento e você registrou alergia a {{allergy}}.",
     dupTitle: "Ingrediente repetido",
     dupLine: "{{name}} também contém: {{ingredients}}",
-    disclaimer: "Aviso informativo baseado em dados do RxTerms (NLM). Não substitui a orientação do seu médico ou farmacêutico.",
+    disclaimer: "Aviso informativo baseado no catálogo de medicamentos da sua região. Não substitui a orientação do seu médico ou farmacêutico.",
   },
   prn: {
     limitTitle: "Limite de doses atingido",

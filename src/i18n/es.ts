@@ -686,7 +686,7 @@ const es = {
     allergyLine: "{{ingredient}} está en este medicamento y figura tu alergia a {{allergy}}.",
     dupTitle: "Ingrediente repetido",
     dupLine: "{{name}} también contiene: {{ingredients}}",
-    disclaimer: "Aviso informativo basado en datos de RxTerms (NLM). No reemplaza el consejo de tu médico o farmacéutico.",
+    disclaimer: "Aviso informativo basado en el catálogo de medicamentos de tu región. No reemplaza el consejo de tu médico o farmacéutico.",
   },
   prn: {
     limitTitle: "Límite de dosis alcanzado",
