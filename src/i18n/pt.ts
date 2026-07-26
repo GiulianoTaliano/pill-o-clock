@@ -569,12 +569,12 @@ const pt: TranslationShape = {
   allergies: {
     title: "Alergias",
     settingsSubtitle: "Do perfil ativo; avisamos se um medicamento novo contém um ingrediente ao qual você é alérgico",
-    subtitle: "Escolha da lista para podermos checar conflitos, ou escreva livremente.",
+    subtitle: "Escolha da lista ou escreva o princípio ativo; checamos conflitos a cada novo medicamento.",
     placeholder: "Ex.: penicilina",
     addFreeText: "Adicionar",
     checkable: "Verificada em medicamentos novos",
-    freeText: "Texto livre (não é verificado automaticamente)",
-    checkableHint: "Escolher da lista permite a verificação automática (NLM RxNorm)",
+    freeText: "Texto livre (não reconhecido, não verificado)",
+    checkableHint: "Escolher da lista garante a verificação automática",
     empty: "Nenhuma alergia registrada.",
   },
   emergency: {
@@ -690,7 +690,7 @@ const pt: TranslationShape = {
     allergyLine: "{{ingredient}} está neste medicamento e você registrou alergia a {{allergy}}.",
     dupTitle: "Ingrediente repetido",
     dupLine: "{{name}} também contém: {{ingredients}}",
-    disclaimer: "Aviso informativo baseado em dados do RxTerms (NLM). Não substitui a orientação do seu médico ou farmacêutico.",
+    disclaimer: "Aviso informativo baseado no catálogo de medicamentos da sua região. Não substitui a orientação do seu médico ou farmacêutico.",
   },
   prn: {
     limitTitle: "Limite de doses atingido",

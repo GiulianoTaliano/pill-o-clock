@@ -42,7 +42,7 @@ export default function NewMedicationScreen() {
         values.schedules.map((s) => ({ time: s.time, days: s.days }))
       );
       // Allergy-conflict check (F3): informational, after a successful save.
-      const conflicts = findAllergyConflicts(values.rxcui, await getActiveAllergies());
+      const conflicts = findAllergyConflicts({ rxcui: values.rxcui, name: values.name }, await getActiveAllergies());
       if (conflicts.length > 0) {
         Alert.alert(
           t('interactions.allergyTitle'),
@@ -52,7 +52,7 @@ export default function NewMedicationScreen() {
         return;
       }
       // Duplicate-therapy check (F2): informational, after a successful save.
-      const dupes = findDuplicateTherapy(values.rxcui, medications);
+      const dupes = findDuplicateTherapy({ rxcui: values.rxcui, name: values.name }, medications);
       if (dupes.length > 0) {
         Alert.alert(
           t('interactions.dupTitle'),

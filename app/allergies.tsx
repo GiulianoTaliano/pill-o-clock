@@ -13,7 +13,7 @@ import * as Haptics from "expo-haptics";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { getActiveAllergies, insertAllergy, deleteAllergy } from "../src/db/database";
-import { searchIngredients, type IngredientSuggestion } from "../src/services/interactions";
+import { searchIngredients, isAllergyCheckable, type IngredientSuggestion } from "../src/services/interactions";
 import { generateId, toISOString } from "../src/utils";
 import type { Allergy } from "../src/types";
 
@@ -90,7 +90,7 @@ export default function AllergiesScreen() {
           <View className="mt-1 rounded-xl border border-border bg-card overflow-hidden">
             {suggestions.map((sug) => (
               <TouchableOpacity
-                key={sug.rxcui}
+                key={sug.key}
                 accessibilityRole="button"
                 accessibilityLabel={sug.name}
                 onPress={() => add(sug.name, sug.rxcui)}
@@ -113,17 +113,21 @@ export default function AllergiesScreen() {
         ListEmptyComponent={
           <Text className="text-sm text-muted text-center mt-8">{t("allergies.empty")}</Text>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          // Not `item.ingRxcui`: catalogs without an RxCUI (ANMAT) yield fully
+          // checkable allergies that carry none.
+          const checkable = isAllergyCheckable(item);
+          return (
           <View className="flex-row items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3 mb-2">
             <Ionicons
-              name={item.ingRxcui ? "shield-checkmark" : "shield-outline"}
+              name={checkable ? "shield-checkmark" : "shield-outline"}
               size={18}
-              color={item.ingRxcui ? theme.primary : theme.muted}
+              color={checkable ? theme.primary : theme.muted}
             />
             <View className="flex-1">
               <Text className="text-[15px] font-semibold text-text">{item.name}</Text>
               <Text className="text-[11px] text-muted mt-0.5">
-                {item.ingRxcui ? t("allergies.checkable") : t("allergies.freeText")}
+                {checkable ? t("allergies.checkable") : t("allergies.freeText")}
               </Text>
             </View>
             <TouchableOpacity
@@ -135,7 +139,8 @@ export default function AllergiesScreen() {
               <Ionicons name="trash-outline" size={18} color={theme.danger} />
             </TouchableOpacity>
           </View>
-        )}
+          );
+        }}
       />
     </SafeAreaView>
   );

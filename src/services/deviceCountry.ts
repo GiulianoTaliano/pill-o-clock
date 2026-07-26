@@ -72,11 +72,36 @@ function timezoneRegion(): CountryCode | null {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (!tz) return null;
     const map = require("../../assets/tz-country.json") as Record<string, string>;
-    return map[tz]?.toUpperCase() ?? null;
+    const zone = TZ_ALIASES[tz] ?? tz;
+    return map[zone]?.toUpperCase() ?? null;
   } catch {
     return null;
   }
 }
+
+/**
+ * Pre-2017 IANA zone names that devices still report but that the current
+ * table only lists under their canonical name. Without these an Argentine
+ * device reporting the legacy "America/Buenos_Aires" fell through to the
+ * default catalog — the exact users this fallback exists for.
+ */
+const TZ_ALIASES: Record<string, string> = {
+  "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
+  "America/Cordoba": "America/Argentina/Cordoba",
+  "America/Rosario": "America/Argentina/Cordoba",
+  "America/Mendoza": "America/Argentina/Mendoza",
+  "America/Catamarca": "America/Argentina/Catamarca",
+  "America/Jujuy": "America/Argentina/Jujuy",
+  "America/Godthab": "America/Nuuk",
+  "Asia/Calcutta": "Asia/Kolkata",
+  "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "Asia/Rangoon": "Asia/Yangon",
+  "Asia/Katmandu": "Asia/Kathmandu",
+  "Europe/Kiev": "Europe/Kyiv",
+  "Atlantic/Faeroe": "Atlantic/Faroe",
+  "Pacific/Ponape": "Pacific/Pohnpei",
+  "Pacific/Truk": "Pacific/Chuuk",
+};
 
 /**
  * Best-effort auto-detected region, strongest signal first:
