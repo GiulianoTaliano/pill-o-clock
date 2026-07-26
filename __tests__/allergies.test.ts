@@ -178,6 +178,16 @@ describe("against the real bundled Argentine catalog", () => {
     expect(conflicts).toHaveLength(1);
   });
 
+  it("switches vocabulary when the catalog changes, without a stale cache", () => {
+    expect(searchIngredients("dipirona").length).toBeGreaterThan(0);
+    // Same "injected dataset" identity, different contents: the caches must
+    // still invalidate, or a region switch would keep serving the old country.
+    _setDatasetForTests([["Only (Pill)", "", ["1 mg"], "Loratadina 10 Mg"]]);
+    expect(searchIngredients("dipirona")).toEqual([]);
+    expect(searchIngredients("loratadina").length).toBeGreaterThan(0);
+    _setDatasetForTests(null);
+  });
+
   it("finds ingredients for Spanish queries that returned nothing before", () => {
     for (const q of ["paracetamol", "ibuprofeno", "amoxicilina"]) {
       expect(searchIngredients(q).length).toBeGreaterThan(0);

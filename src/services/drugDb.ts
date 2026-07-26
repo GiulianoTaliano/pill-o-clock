@@ -81,13 +81,16 @@ export function getActiveDrugCatalog(): { attributionKey: string } {
  * catalog — can change at runtime from Settings.
  */
 export function getActiveCatalogKey(): string {
-  return testIndex ? "test" : activeCatalogId();
+  // The epoch makes two successive injected datasets distinct, so consumers'
+  // caches invalidate between tests instead of silently serving the first.
+  return testIndex ? `test:${testEpoch}` : activeCatalogId();
 }
 
 // ─── Index build + cache (per catalog) ─────────────────────────────────────
 
 const indexes: Partial<Record<CatalogId, IndexedEntry[]>> = {};
 let testIndex: IndexedEntry[] | null = null;
+let testEpoch = 0;
 
 function normalize(s: string): string {
   return s
@@ -116,6 +119,7 @@ function getIndex(): IndexedEntry[] {
 /** Test seam: inject a small dataset (bypasses region + asset loading). */
 export function _setDatasetForTests(raw: RawEntry[] | null): void {
   testIndex = raw ? buildIndex(raw) : null;
+  testEpoch++;
 }
 
 // ─── Ingredient access (for the allergy / duplicate-therapy checks) ────────
@@ -125,13 +129,24 @@ export function _setDatasetForTests(raw: RawEntry[] | null): void {
  * medications from a catalog with no RxCUI (ANMAT) recover their ingredients:
  * the name is what we persisted, so existing records resolve retroactively.
  */
+let activesByName: { forCatalog: string; map: Map<string, string> } | null = null;
+
 export function getDrugActives(name: string): string {
   const q = normalize(name.trim());
   if (!q) return "";
-  for (const e of getIndex()) {
-    if (normalize(e.name) === q) return e.actives;
+  // Indexed, not scanned: the duplicate-therapy check calls this once per
+  // medication, and a linear pass over a 9k-entry catalog per call showed up
+  // as a hitch on save.
+  const catalogKey = getActiveCatalogKey();
+  if (activesByName?.forCatalog !== catalogKey) {
+    const map = new Map<string, string>();
+    for (const e of getIndex()) {
+      const k = normalize(e.name);
+      if (!map.has(k)) map.set(k, e.actives);
+    }
+    activesByName = { forCatalog: catalogKey, map };
   }
-  return "";
+  return activesByName.map.get(q) ?? "";
 }
 
 /**
