@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Pill O-Clock — La alarma de medicamentos que sí te despierta</title>
 <meta name="description" content="Recordatorio de medicamentos con alarma real: suena en silencio y se muestra sobre la pantalla bloqueada. Sin cuenta, sin nube, sin farmacéuticas. Catálogo argentino (ANMAT)." />
-<meta name="theme-color" content="#faf7f2" />
+<meta name="theme-color" content="#f1f6fd" />
 <meta name="color-scheme" content="light" />
 
 <!-- Inline SVG favicon: docs/ is the Pages root, so ../assets would resolve
      outside this site. Inlining also keeps third-party requests at zero,
      which is what makes the privacy claim below checkable rather than stated. -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg transform='rotate(-45 16 16)'%3E%3Crect x='4' y='11' width='24' height='10' rx='5' fill='%232f6fd0'/%3E%3Cpath d='M4 16a5 5 0 0 1 5-5h7v10H9a5 5 0 0 1-5-5z' fill='%23c2571f'/%3E%3C/g%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg transform='rotate(-45 16 16)'%3E%3Crect x='4' y='11' width='24' height='10' rx='5' fill='%232f6fd0'/%3E%3Cpath d='M4 16a5 5 0 0 1 5-5h7v10H9a5 5 0 0 1-5-5z' fill='%23a8541a'/%3E%3C/g%3E%3C/svg%3E" />
 
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Pill O-Clock — La alarma de medicamentos que sí te despierta" />
@@ -32,29 +32,35 @@
 
    Two decisions drive everything visual here.
 
-   1. Warm paper, not cool grey. Health software defaults to a sterile
-      blue-white that reads as institutional. The paper tone plus a serif
-      display face is meant to read closer to a letter than to a dashboard —
-      this is a product about someone's daily routine, not an admin panel.
+   1. The colour comes from the product, not from a mood board. Paper, accent
+      and the one warm tone are sampled from the app's own screens, so the
+      screenshots sit on the page instead of fighting it. The serif display
+      against that clinical blue is the deliberate tension: a product about
+      somebody's daily routine, not an admin panel.
 
    2. The type is large on purpose. Base is 18px and body copy sits at
       1.05rem. The people this is built for manage several medications and
       are often over 65. A page that advertises a "modo simple" in 14px grey
       argues against itself. Every colour pair below clears WCAG AA.
    ══════════════════════════════════════════════════════════════════════ */
+/* Palette lifted from the product itself, not chosen in the abstract: the
+   page paper is the pale blue of the app's Today screen, the accent is the
+   exact blue of its buttons, and the amber appears only where the app already
+   uses it — a dose that is still pending. Site and app should read as one
+   thing, and the screenshots below sit on the page without clashing. */
 :root{
-  --paper:#faf7f2;         /* warm off-white */
-  --paper-2:#f3ede4;       /* recessed bands */
-  --card:#fffdfa;
-  --ink:#1a1714;           /* warm near-black */
-  --body:#4a4239;
-  --muted:#6d6357;
-  --rule:#e0d6c8;
-  --blue:#2f6fd0;          /* the app's brand blue, deepened for AA on paper */
-  --blue-deep:#1f4f9c;
-  --blue-wash:#e8f0fb;
-  --clay:#b4501c;          /* terracotta accent: numerals, marks, rules */
-  --clay-wash:#f7ece4;
+  --paper:#f1f6fd;         /* the app's screen background */
+  --paper-2:#e4edfa;       /* recessed bands */
+  --card:#ffffff;
+  --ink:#0e1a2d;           /* blue-black, matches the app's headings */
+  --body:#3a4761;
+  --muted:#5a6880;
+  --rule:#d3e0f2;
+  --blue:#2f7de1;          /* the app's button blue, unchanged */
+  --blue-deep:#1a5cb0;
+  --blue-wash:#dce9fb;
+  --amber:#a8541a;         /* the app's "pending dose" warm tone */
+  --amber-wash:#fdf1e0;
   --green:#186b4e;
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
   --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -73,25 +79,29 @@ body{
 h1,h2,h3,h4{font-family:var(--serif);color:var(--ink);line-height:1.12;font-weight:600;letter-spacing:-.01em}
 p{margin:0 0 1rem}
 a{color:var(--blue-deep)}
-:focus-visible{outline:2.5px solid var(--clay);outline-offset:3px;border-radius:4px}
-img{max-width:100%;display:block}
+:focus-visible{outline:2.5px solid var(--blue);outline-offset:3px;border-radius:4px}
+/* height:auto is load-bearing: the <img> carry width/height attributes (so the
+   browser reserves space and the layout doesn't jump), and without this the
+   height attribute is taken literally — the screenshots rendered ~80% taller
+   than their real aspect ratio. */
+img{max-width:100%;height:auto;display:block}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
 .skip{position:absolute;left:-999px;background:var(--ink);color:var(--paper);padding:.7rem 1rem;z-index:100}
 .skip:focus{left:0}
 
 /* ── Header ───────────────────────────────────────────────────────── */
-header{position:sticky;top:0;z-index:50;background:rgba(250,247,242,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--rule)}
+header{position:sticky;top:0;z-index:50;background:rgba(241,246,253,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--rule)}
 .nav{display:flex;align-items:center;gap:1rem;padding:.85rem 0}
 .brand{display:flex;align-items:center;gap:.6rem;text-decoration:none;color:var(--ink);
        font-family:var(--serif);font-size:1.22rem;font-weight:600;letter-spacing:-.02em}
 .brand svg{flex:none}
 .nav-links{margin-left:auto;display:flex;gap:1.6rem;align-items:center}
 .nav-links a{color:var(--body);text-decoration:none;font-size:.92rem;font-weight:600;letter-spacing:.01em}
-.nav-links a:hover{color:var(--clay)}
+.nav-links a:hover{color:var(--blue-deep)}
 @media (max-width:820px){.nav-links a[data-opt]{display:none}}
 .lang{border:1.5px solid var(--rule);background:transparent;color:var(--body);font:inherit;font-size:.8rem;
       font-weight:700;letter-spacing:.06em;padding:.28rem .65rem;border-radius:2px;cursor:pointer}
-.lang:hover{border-color:var(--clay);color:var(--clay)}
+.lang:hover{border-color:var(--blue);color:var(--blue-deep)}
 
 /* ── Hero ─────────────────────────────────────────────────────────── */
 .hero{padding:clamp(2.5rem,6vw,5rem) 0 clamp(2rem,4vw,3rem);position:relative}
@@ -100,29 +110,28 @@ header{position:sticky;top:0;z-index:50;background:rgba(250,247,242,.9);backdrop
 .hero-grid{position:relative;display:grid;gap:clamp(2.5rem,5vw,4rem);align-items:center;grid-template-columns:1fr}
 @media (min-width:940px){.hero-grid{grid-template-columns:1.12fr .88fr}}
 .eyebrow{display:inline-flex;align-items:center;gap:.55rem;font-size:.79rem;font-weight:700;
-  letter-spacing:.11em;text-transform:uppercase;color:var(--clay);margin-bottom:1.3rem}
-.eyebrow::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--clay)}
+  letter-spacing:.11em;text-transform:uppercase;color:var(--amber);margin-bottom:1.3rem}
+.eyebrow::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber)}
 h1{font-size:clamp(2.4rem,1.3rem + 4.2vw,4rem);margin-bottom:1.1rem;letter-spacing:-.025em}
-h1 em{font-style:italic;color:var(--clay)}
+h1 em{font-style:italic;color:var(--blue-deep)}
 .lede{font-size:clamp(1.06rem,1rem + .4vw,1.2rem);max-width:33em;color:var(--body)}
 .cta-row{display:flex;flex-wrap:wrap;gap:.9rem;margin-top:1.9rem;align-items:center}
 .btn{display:inline-flex;align-items:center;gap:.55rem;font:inherit;font-weight:650;font-size:1rem;
   padding:.85rem 1.5rem;border-radius:3px;text-decoration:none;border:1.5px solid transparent;cursor:pointer}
 .btn-solid{background:var(--ink);color:var(--paper)}
-.btn-solid:hover{background:var(--clay)}
+.btn-solid:hover{background:var(--blue-deep)}
 .btn-line{border-color:var(--ink);color:var(--ink)}
-.btn-line:hover{border-color:var(--clay);color:var(--clay)}
+.btn-line:hover{border-color:var(--blue);color:var(--blue-deep)}
 .cta-note{font-size:.88rem;color:var(--muted);margin-top:1.1rem;max-width:36em;
   border-left:2px solid var(--rule);padding-left:.9rem}
 
 /* ── Device frame ─────────────────────────────────────────────────── */
 .stage{display:flex;justify-content:center;position:relative}
-.phone{position:relative;width:min(272px,74vw);flex:none;background:#16130f;border-radius:36px;padding:8px;
-  box-shadow:0 2px 4px rgba(26,23,20,.14),0 26px 50px -12px rgba(26,23,20,.34)}
+.phone{position:relative;width:min(272px,74vw);flex:none;background:#0e1a2d;border-radius:36px;padding:8px;
+  box-shadow:0 2px 4px rgba(14,26,45,.12),0 22px 44px -14px rgba(14,26,45,.30)}
 .phone img{border-radius:29px;width:100%}
 .phone::after{content:"";position:absolute;top:16px;left:50%;transform:translateX(-50%);
   width:52px;height:5px;border-radius:99px;background:rgba(255,255,255,.24)}
-.tilt{transform:rotate(-2.2deg)}
 .stage figcaption{position:absolute;bottom:-2.6rem;left:0;right:0;text-align:center;
   font-size:.83rem;color:var(--muted);font-style:italic}
 
@@ -136,47 +145,55 @@ h1 em{font-style:italic;color:var(--clay)}
 .stat:nth-child(-n+2){border-bottom:1px solid var(--rule)}
 @media (min-width:800px){.stat{border-bottom:0!important}}
 .stat b{display:block;font-family:var(--serif);font-size:clamp(1.9rem,1.4rem + 1.4vw,2.6rem);
-  color:var(--clay);font-weight:600;line-height:1;margin-bottom:.35rem}
+  color:var(--blue-deep);font-weight:600;line-height:1;margin-bottom:.35rem}
 .stat span{font-size:.87rem;color:var(--muted);display:block;max-width:22ch}
 
 /* ── Section scaffolding ──────────────────────────────────────────── */
 section{padding:clamp(3.5rem,7vw,6rem) 0}
+/* Sticky header would otherwise sit on top of the heading you just jumped to. */
+section[id],div[id]{scroll-margin-top:5rem}
 .head{max-width:34em;margin-bottom:clamp(2.5rem,5vw,3.5rem)}
 .head h2{font-size:clamp(1.9rem,1.3rem + 2.2vw,2.9rem);margin-bottom:.9rem}
 .head p{font-size:1.06rem;color:var(--muted)}
 .tag{display:block;font-family:var(--sans);font-size:.76rem;font-weight:700;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--clay);margin-bottom:1rem}
+  text-transform:uppercase;color:var(--blue-deep);margin-bottom:1rem}
 
 /* Numbered feature rows — the numeral is the visual anchor, not an icon. */
-.feat{display:grid;gap:2rem;padding:clamp(2rem,4vw,3rem) 0;border-top:1px solid var(--rule);
-  grid-template-columns:1fr;align-items:start}
+.feat{display:grid;gap:2rem;padding:clamp(2.2rem,4vw,3.2rem) 0;border-top:1px solid var(--rule);
+  grid-template-columns:1fr;align-items:center}
 @media (min-width:900px){
-  .feat{grid-template-columns:4.5rem 1fr;column-gap:2rem}
-  .feat.with-art{grid-template-columns:4.5rem 1.15fr .85fr;column-gap:3rem;align-items:center}
+  /* Text is given the wider half; the screenshot supports it, it does not lead. */
+  .feat.with-art{grid-template-columns:1.08fr .92fr;column-gap:clamp(2.5rem,5vw,4.5rem)}
+  /* Rows without a screenshot split heading from body so they use the full
+     measure instead of leaving the right half of the page empty. */
+  .feat:not(.with-art)>div{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+    column-gap:clamp(2.5rem,5vw,4.5rem);align-items:start}
+  .feat:not(.with-art)>div>h3{grid-column:1;grid-row:1/span 3;margin:0}
+  .feat:not(.with-art)>div>p{grid-column:2;grid-row:1}
+  .feat:not(.with-art)>div>.pts{grid-column:2;grid-row:2;margin-top:0}
 }
-.num{font-family:var(--serif);font-size:2.6rem;color:var(--clay);opacity:.42;line-height:1;font-weight:600}
 .feat h3{font-size:clamp(1.35rem,1.15rem + .8vw,1.75rem);margin-bottom:.7rem}
 .feat p{color:var(--body)}
 .pts{list-style:none;margin-top:1.1rem;display:grid;gap:.55rem}
 .pts li{display:flex;gap:.7rem;align-items:baseline;font-size:.97rem}
-.pts li::before{content:"";width:6px;height:6px;flex:none;background:var(--clay);
+.pts li::before{content:"";width:6px;height:6px;flex:none;background:var(--blue);
   border-radius:50%;transform:translateY(-2px)}
 
 /* ── Privacy: inverted block for contrast against all the paper ───── */
-.dark{background:var(--ink);color:#ddd5c9}
+.dark{background:var(--ink);color:#c3cede}
 .dark h2,.dark h3{color:var(--paper)}
-.dark .tag{color:#e79a63}
-.dark .head p{color:#b9ae9f}
+.dark .tag{color:#e0a06a}
+.dark .head p{color:#9aa8bd}
 .dark a{color:#9dc2f2}
-.pgrid{display:grid;gap:1px;background:#332d26;border:1px solid #332d26;margin-top:.5rem}
+.pgrid{display:grid;gap:1px;background:#22344d;border:1px solid #22344d;margin-top:.5rem}
 @media (min-width:840px){.pgrid{grid-template-columns:repeat(3,1fr)}}
 .pcell{background:var(--ink);padding:1.7rem 1.5rem}
-.pcell svg{color:#e79a63;margin-bottom:.9rem}
+.pcell svg{color:#e0a06a;margin-bottom:.9rem}
 .pcell h3{font-size:1.18rem;margin-bottom:.5rem}
-.pcell p{font-size:.95rem;color:#b9ae9f;margin:0}
-.note{margin-top:2.5rem;border-left:3px solid #e79a63;padding:.3rem 0 .3rem 1.4rem;max-width:46em}
+.pcell p{font-size:.95rem;color:#9aa8bd;margin:0}
+.note{margin-top:2.5rem;border-left:3px solid #e0a06a;padding:.3rem 0 .3rem 1.4rem;max-width:46em}
 .note h3{font-size:1.05rem;margin-bottom:.6rem;font-family:var(--sans);font-weight:700}
-.note p,.note li{font-size:.95rem;color:#b9ae9f}
+.note p,.note li{font-size:.95rem;color:#9aa8bd}
 .note ul{margin:.6rem 0 0 1.1rem}
 .note li{margin-bottom:.4rem}
 
@@ -184,14 +201,14 @@ section{padding:clamp(3.5rem,7vw,6rem) 0}
 .mani{display:grid;gap:0;border-top:1px solid var(--rule)}
 @media (min-width:860px){.mani{grid-template-columns:1fr 1fr;column-gap:3.5rem}}
 .mrow{display:grid;grid-template-columns:1.6rem 1fr;gap:1rem;padding:1.4rem 0;border-bottom:1px solid var(--rule);align-items:start}
-.mrow svg{color:var(--clay);margin-top:.25rem}
+.mrow svg{color:var(--amber);margin-top:.25rem}
 .mrow b{display:block;font-family:var(--serif);font-size:1.16rem;color:var(--ink);font-weight:600;margin-bottom:.3rem;line-height:1.3}
 .mrow span{font-size:.94rem;color:var(--muted);display:block}
 
 /* ── Access cards ─────────────────────────────────────────────────── */
 .acards{display:grid;gap:1.5rem;grid-template-columns:1fr}
 @media (min-width:820px){.acards{grid-template-columns:repeat(3,1fr)}}
-.acard{border-top:2px solid var(--clay);padding-top:1.2rem}
+.acard{border-top:2px solid var(--blue);padding-top:1.2rem}
 .acard h3{font-size:1.2rem;margin-bottom:.5rem}
 .acard p{font-size:.96rem;color:var(--muted);margin:0}
 
@@ -201,7 +218,7 @@ summary{cursor:pointer;list-style:none;display:flex;justify-content:space-betwee
   padding:1.15rem 0;font-family:var(--serif);font-size:1.16rem;color:var(--ink);font-weight:600}
 summary::-webkit-details-marker{display:none}
 summary::after{content:"";flex:none;width:11px;height:11px;margin-top:.45rem;
-  border-right:1.5px solid var(--clay);border-bottom:1.5px solid var(--clay);transform:rotate(45deg)}
+  border-right:1.5px solid var(--blue-deep);border-bottom:1.5px solid var(--blue-deep);transform:rotate(45deg)}
 details[open] summary::after{transform:rotate(-135deg)}
 details div{padding:0 0 1.3rem;max-width:44em;font-size:.99rem}
 
@@ -216,7 +233,7 @@ footer h4{font-family:var(--sans);font-size:.78rem;letter-spacing:.13em;text-tra
   color:var(--ink);margin-bottom:.9rem;font-weight:700}
 footer ul{list-style:none;display:grid;gap:.5rem}
 footer a{color:var(--body);text-decoration:none}
-footer a:hover{color:var(--clay);text-decoration:underline}
+footer a:hover{color:var(--blue-deep);text-decoration:underline}
 .nocookie{display:inline-flex;align-items:center;gap:.5rem;margin-top:1rem;font-size:.85rem;
   color:var(--green);font-weight:650}
 .legal{margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--rule);font-size:.83rem;max-width:60em}
@@ -262,7 +279,7 @@ footer a:hover{color:var(--clay);text-decoration:underline}
         mientras completamos la verificación que Google exige a las apps de salud. Escribinos y te sumamos.</p>
     </div>
     <figure class="stage">
-      <div class="phone tilt">
+      <div class="phone">
         <img src="img/hoy.webp" width="540" height="1212" alt="Pantalla principal de Pill O-Clock: 2 dosis pendientes y 2 tomadas, con Metformina 850 mg a las 13:00 y Rosuvastatina 10 mg a las 21:00 por tomar." />
       </div>
       <figcaption data-i="cap1">Un martes cualquiera, a media mañana.</figcaption>
@@ -291,7 +308,6 @@ footer a:hover{color:var(--clay);text-decoration:underline}
     </div>
 
     <div class="feat with-art">
-      <div class="num" aria-hidden="true">01</div>
       <div>
         <h3 data-i="f1h">Una alarma de verdad, no una notificación</h3>
         <p data-i="f1p">Usa el canal de alarma del sistema, el mismo que tu despertador: suena aunque el
@@ -312,7 +328,6 @@ footer a:hover{color:var(--clay);text-decoration:underline}
     </div>
 
     <div class="feat">
-      <div class="num" aria-hidden="true">02</div>
       <div>
         <h3 data-i="f2h">Los esquemas que otras apps no saben escribir</h3>
         <p data-i="f2p">Cada dos días, ciclos con descanso, descensos graduales de corticoides, o una sola
@@ -327,7 +342,6 @@ footer a:hover{color:var(--clay);text-decoration:underline}
     </div>
 
     <div class="feat with-art">
-      <div class="num" aria-hidden="true">03</div>
       <div>
         <h3 data-i="f3h">Conoce los remedios que se venden acá</h3>
         <p data-i="f3p">El buscador usa el vademécum de ANMAT, así que encontrás el nombre comercial que
@@ -348,7 +362,6 @@ footer a:hover{color:var(--clay);text-decoration:underline}
     </div>
 
     <div class="feat">
-      <div class="num" aria-hidden="true">04</div>
       <div>
         <h3 data-i="f4h">Para cuidar a otra persona, no sólo a vos</h3>
         <p data-i="f4p">Podés llevar varios perfiles en el mismo teléfono — tu mamá, tu hijo — y las alarmas
@@ -363,7 +376,6 @@ footer a:hover{color:var(--clay);text-decoration:underline}
     </div>
 
     <div class="feat">
-      <div class="num" aria-hidden="true">05</div>
       <div>
         <h3 data-i="f5h">Tu historia te pertenece, y te la podés llevar</h3>
         <p data-i="f5p">Registrás presión, glucemia, peso y cómo te sentís, y llevás un informe en PDF a la
@@ -423,7 +435,7 @@ footer a:hover{color:var(--clay);text-decoration:underline}
       </ul>
       <p style="margin-top:.9rem" data-i="d5"><strong>Cómo se sostiene:</strong> la app es gratuita y muestra
         un aviso publicitario en dos pantallas secundarias, Historial y Salud. Nunca en la alarma, nunca en
-        tu lista del día, y sin publicidad personalizada. Prefer&iacute;mos decírtelo acá antes de que lo
+        tu lista del día, y sin publicidad personalizada. Preferimos decírtelo acá antes de que lo
         descubras solo.</p>
     </div>
   </div>
