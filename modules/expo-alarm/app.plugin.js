@@ -35,6 +35,25 @@ function ensureOptionalFeature(androidManifest, featureName) {
   }
 }
 
+/**
+ * Makes MainActivity show over the lock screen and turn the display on when it
+ * is launched. REQUIRED for the alarm's fullScreenIntent to actually appear
+ * above the keyguard: without these manifest attributes the activity launches
+ * BEHIND the lock screen, so only the audio plays and the alarm screen shows up
+ * only after the user unlocks and opens the app. setShowWhenLocked() from JS
+ * runs on mount, which is too late for the initial over-lock launch decision.
+ */
+function ensureMainActivityShowsWhenLocked(androidManifest) {
+  const app = androidManifest.manifest.application?.[0];
+  const activity = (app?.activity ?? []).find(
+    (a) => a.$?.["android:name"] === ".MainActivity"
+  );
+  if (activity) {
+    activity.$["android:showWhenLocked"] = "true";
+    activity.$["android:turnScreenOn"] = "true";
+  }
+}
+
 const withExpoAlarm = (config) => {
   // Merge required permissions that some build environments may not pick up
   // from the module's own AndroidManifest.xml.
@@ -47,6 +66,8 @@ const withExpoAlarm = (config) => {
     // and there is no "alarm" foreground-service type. The alarm audio runs as
     // a shortService FGS, which needs only FOREGROUND_SERVICE (above).
     ensurePermission(androidManifest, "android.permission.USE_FULL_SCREEN_INTENT");
+
+    ensureMainActivityShowsWhenLocked(androidManifest);
 
     // Location permissions imply GPS/network hardware as required by default.
     // Marking them optional ensures tablets and devices without GPS are not excluded.
