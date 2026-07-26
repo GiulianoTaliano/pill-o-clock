@@ -3,10 +3,14 @@
  *
  * Detects when two of the user's medications share an ACTIVE INGREDIENT
  * (e.g. two products both containing acetaminophen) — the most common
- * real-world double-dosing hazard. Fully offline and authoritative: the data
- * is NLM RxTerms + RxTermsIngredients (assets/drug-ingredients.json, built by
- * scripts/build-ingredients-db.mjs), keyed by the SXDG RxCUI captured when
- * the user picks an autocomplete suggestion.
+ * real-world double-dosing hazard. Fully offline.
+ *
+ * Ingredient identity is country-agnostic (see ingredients.ts): the NLM
+ * RxTerms tables (assets/drug-ingredients.json) resolve products that carry an
+ * SXDG RxCUI, and the catalog's own actives string resolves those that do not.
+ * Both project onto canonical keys, which is what every check below compares.
+ * Keying on the RxCUI alone silently disabled BOTH checks for every Argentine
+ * product, since the ANMAT catalog has no RxCUI at all.
  *
  * SCOPE NOTE (do not silently expand): pairwise drug-drug INTERACTION data is
  * deliberately NOT included. We will not hand-author medical pairs; adding
