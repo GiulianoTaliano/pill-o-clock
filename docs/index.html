@@ -17,6 +17,11 @@
 <meta property="og:title" content="Pill O-Clock — La alarma de medicamentos que sí te despierta" />
 <meta property="og:description" content="Alarma real sobre la pantalla bloqueada. Tus datos no salen del teléfono. Sin cuenta, sin farmacéuticas, sin límite de medicamentos." />
 <meta property="og:locale" content="es_AR" />
+<meta property="og:image" content="https://giulianotaliano.github.io/pill-o-clock/img/og.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Pill O-Clock — La alarma de medicamentos que sí te despierta. Sin cuenta, sin nube, sin farmacéuticas." />
+<meta name="twitter:card" content="summary_large_image" />
 
 <script type="application/ld+json">
 { "@context":"https://schema.org","@type":"SoftwareApplication","name":"Pill O-Clock",
@@ -105,8 +110,11 @@ header{position:sticky;top:0;z-index:50;background:rgba(241,246,253,.92);backdro
 
 /* ── Hero ─────────────────────────────────────────────────────────── */
 .hero{padding:clamp(2.5rem,6vw,5rem) 0 clamp(2rem,4vw,3rem);position:relative}
-.hero::before{content:"";position:absolute;inset:0 0 auto;height:100%;
-  background:radial-gradient(70% 55% at 78% 22%,rgba(47,111,208,.09),transparent 70%);pointer-events:none}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:url("img/pattern.svg") 0 0/128px 128px,
+             radial-gradient(70% 55% at 78% 22%,rgba(47,111,208,.09),transparent 70%);
+  /* Se desvanece hacia abajo para que el texto nunca compita con la textura. */
+  -webkit-mask-image:linear-gradient(#000 45%,transparent);mask-image:linear-gradient(#000 45%,transparent)}
 .hero-grid{position:relative;display:grid;gap:clamp(2.5rem,5vw,4rem);align-items:center;grid-template-columns:1fr}
 @media (min-width:940px){.hero-grid{grid-template-columns:1.12fr .88fr}}
 .eyebrow{display:inline-flex;align-items:center;gap:.55rem;font-size:.79rem;font-weight:700;
@@ -223,7 +231,10 @@ details[open] summary::after{transform:rotate(-135deg)}
 details div{padding:0 0 1.3rem;max-width:44em;font-size:.99rem}
 
 /* ── Closing + footer ─────────────────────────────────────────────── */
-.close{background:var(--paper-2);border-top:1px solid var(--rule);text-align:center}
+.close{background:var(--paper-2);border-top:1px solid var(--rule);text-align:center;position:relative}
+.close::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:url("img/pattern.svg") 0 0/128px 128px;opacity:.65}
+.close .wrap{position:relative}
 .close .wrap{max-width:40em}
 .close h2{font-size:clamp(1.8rem,1.3rem + 2vw,2.6rem);margin-bottom:1rem}
 footer{border-top:1px solid var(--rule);padding:3rem 0 2.5rem;font-size:.92rem;color:var(--muted)}
