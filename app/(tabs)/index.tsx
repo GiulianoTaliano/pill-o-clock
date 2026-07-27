@@ -27,6 +27,7 @@ import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { useToast } from "../../src/context/ToastContext";
 import { updateWidget } from "expo-widget";
+import BrandMark from "../../components/BrandMark";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -255,7 +256,10 @@ export default function HomeScreen() {
       {/* Header */}
       <View className="px-5 pt-4 pb-2 flex-row items-start justify-between">
         <View>
-          <Text className="text-2xl font-black text-text">{t('home.title')}</Text>
+          <View className="flex-row items-center gap-2">
+            <BrandMark size={26} />
+            <Text className="text-2xl font-black text-text">{t('home.title')}</Text>
+          </View>
           <Text className="text-sm text-muted mt-0.5">{todayCap}</Text>
           {/* Multi-profile switcher (F2) — renders only with >1 profile. */}
           <View className="mt-2 self-start">

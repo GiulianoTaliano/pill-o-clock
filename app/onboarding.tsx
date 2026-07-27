@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import BrandMark from "../components/BrandMark";
 import { useRouter } from "expo-router";
 import { storage } from "../src/storage";
 import { STORAGE_KEYS } from "../src/config";
@@ -212,7 +213,14 @@ export default function OnboardingScreen() {
               className="w-28 h-28 rounded-3xl items-center justify-center mb-8"
               style={{ backgroundColor: slide.iconBg }}
             >
-              <Ionicons name={slide.icon} size={60} color={slide.iconColor} />
+              {/* The opening slide is the brand's first impression, so it shows
+                  the mark rather than a stock glyph. The rest illustrate
+                  features, where a generic icon is the right register. */}
+              {i === 0 ? (
+                <BrandMark size={64} />
+              ) : (
+                <Ionicons name={slide.icon} size={60} color={slide.iconColor} />
+              )}
             </View>
 
             {/* Title */}

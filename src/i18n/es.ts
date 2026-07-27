@@ -62,7 +62,7 @@ const es = {
 
   // ─── Home screen ──────────────────────────────────────────────────────────
   home: {
-    title: "💊 Pill O-Clock",
+    title: "Pill O-Clock",
     noMeds: "Sin medicamentos hoy",
     noMedsSubtitle: "Agregá tu primer medicamento tocando el + arriba",
     sectionPending: "Pendientes",

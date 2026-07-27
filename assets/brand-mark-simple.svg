@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Pill O-Clock">
+  <!-- Variante sin reloj, para 16-20px (favicon, badges): a ese tamano las
+       agujas se cierran y la capsula bicolor sola sigue siendo distinguible. -->
+  <defs><clipPath id="c">
+    <rect x="7" y="16" width="34" height="16" rx="8" transform="rotate(45 24 24)"/>
+  </clipPath></defs>
+  <g clip-path="url(#c)">
+    <rect x="5" y="13" width="18.6" height="22" fill="#2f7de1" transform="rotate(45 24 24)"/>
+    <rect x="24.4" y="13" width="18.6" height="22" fill="#0e1a2d" transform="rotate(45 24 24)"/>
+  </g>
+</svg>

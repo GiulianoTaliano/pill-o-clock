@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Pill O-Clock">
+  <defs>
+    <clipPath id="cap">
+      <rect x="7" y="16" width="34" height="16" rx="8" transform="rotate(45 24 24)"/>
+    </clipPath>
+  </defs>
+  <!-- Dos mitades con un hueco real entre ellas: el simbolo funciona sobre
+       cualquier fondo, sin depender de una linea blanca pintada. -->
+  <g clip-path="url(#cap)">
+    <rect x="5" y="13" width="18.6" height="22" fill="#2f7de1" transform="rotate(45 24 24)"/>
+    <rect x="24.4" y="13" width="18.6" height="22" fill="#0e1a2d" transform="rotate(45 24 24)"/>
+  </g>
+  <!-- Reloj centrado en la mitad azul, no sobre el corte: ahi las agujas
+       tienen fondo azul propio y sobreviven a 24px. -->
+  <g stroke="#0e1a2d" stroke-linecap="round" fill="none">
+    <path d="M18.3 18.3 L18.3 12.6" stroke-width="2.9"/>
+    <path d="M18.3 18.3 L23.4 18.3" stroke-width="2.9"/>
+  </g>
+</svg>
