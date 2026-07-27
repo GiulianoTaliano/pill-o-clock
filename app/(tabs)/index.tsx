@@ -431,7 +431,7 @@ export default function HomeScreen() {
 
         {doses.length === 0 ? (
           <EmptyState
-            icon="medical-outline"
+            illustration="noMeds"
             title={t('home.noMeds')}
             subtitle={t('home.noMedsSubtitle')}
           />

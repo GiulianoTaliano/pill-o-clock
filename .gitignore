@@ -56,3 +56,6 @@ screenshots/
 
 # Objective a11y measurement output (scripts/measure-a11y.ps1)
 a11y-report/
+
+# Generado por scripts/build-illustrations.py
+scripts/preview.html
