@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://giulianotaliano.github.io/pill-o-clock/sitemap.xml

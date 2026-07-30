@@ -78,7 +78,8 @@ pill-o-clock/
 │   ├── types/                  # TypeScript interfaces
 │   └── utils/                  # Shared helpers
 ├── assets/                     # Icons, images, fonts
-└── docs/                       # Privacy policy & testing guide
+├── docs/                       # Sitio publico (GitHub Pages): landing + privacidad
+└── docs-internal/              # Documentacion interna — NO se publica
 ```
 
 ---
