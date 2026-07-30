@@ -64,7 +64,7 @@ const pt: TranslationShape = {
 
   // ─── Home screen ──────────────────────────────────────────────────────────
   home: {
-    title: "💊 Pill O-Clock",
+    title: "Pill O-Clock",
     noMeds: "Nenhum remédio hoje",
     noMedsSubtitle: "Adicione seu primeiro remédio tocando no + acima",
     sectionPending: "Pendentes",

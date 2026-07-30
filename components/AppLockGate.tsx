@@ -20,6 +20,7 @@ import { usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
+import BrandMark from "./BrandMark";
 import {
   isAppLockEnabled,
   authenticateAsync,
@@ -107,7 +108,7 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
           style={{ backgroundColor: theme.isDark ? "#0b1220" : "#f1f5f9", zIndex: 999, elevation: 999 }}
           accessibilityViewIsModal
         >
-          <Text style={{ fontSize: 44 }}>💊</Text>
+          <BrandMark size={52} />
           <Text className="text-2xl font-bold text-text mt-2">Pill O-Clock</Text>
           <Text className="text-sm text-muted mt-1 mb-6 text-center">
             {t("appLock.lockedSubtitle")}

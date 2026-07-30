@@ -535,7 +535,7 @@ export default function AppointmentsScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <EmptyState
-            icon="calendar-outline"
+            illustration="obAppointments"
             title={t("appointments.noAppointments")}
             subtitle={tab === "upcoming" ? t("appointments.noAppointmentsSubtitle") : ""}
           />

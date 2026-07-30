@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Tramado sembrado a partir del modulo de la marca: la capsula a 45 grados.
+       Disposicion tipo ladrillo (una centrada + cuatro en las esquinas) para que
+       tilee sin costura y no se lea como una grilla rigida. -->
+  <g fill="#2f7de1" opacity="0.07">
+    <g transform="rotate(45 64 64)"><rect x="45" y="58" width="38" height="12" rx="6"/></g>
+    <g transform="rotate(45 0 0)"><rect x="-19" y="-6" width="38" height="12" rx="6"/></g>
+    <g transform="rotate(45 128 0)"><rect x="109" y="-6" width="38" height="12" rx="6"/></g>
+    <g transform="rotate(45 0 128)"><rect x="-19" y="122" width="38" height="12" rx="6"/></g>
+    <g transform="rotate(45 128 128)"><rect x="109" y="122" width="38" height="12" rx="6"/></g>
+  </g>
+</svg>

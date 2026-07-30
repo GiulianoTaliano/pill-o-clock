@@ -122,7 +122,7 @@ STEP 5 — PLAY CONSOLE — COMPLETE BEFORE REVIEW
     Add disclaimer (already in-app and in store description)
     Note: v1.5.0 is a maintenance release with stability improvements.
     The next feature cycle (perfiles múltiples, Google Fit, barcode scanner, refill
-    reminder) is tracked under v1.5 in docs/roadmap.md.
+    reminder) is tracked under v1.5 in docs-internal/roadmap.md.
     Update release notes in store/play-store-*.txt accordingly.
 
 [ ] App content → App access:

@@ -156,7 +156,7 @@ export default function MedicationsScreen() {
       >
         {medications.length === 0 ? (
           <EmptyState
-            icon="medkit-outline"
+            illustration="noMeds"
             title={t('medications.noMeds')}
             subtitle={t('medications.noMedsSubtitle')}
           />

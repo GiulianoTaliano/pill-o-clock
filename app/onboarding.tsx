@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import Illustration, { IllustrationName } from "../components/Illustration";
 import { useRouter } from "expo-router";
 import { storage } from "../src/storage";
 import { STORAGE_KEYS } from "../src/config";
@@ -28,9 +29,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // ─── Slide data ────────────────────────────────────────────────────────────
 
 type SlideConfig = {
+  art: IllustrationName;
   icon: React.ComponentProps<typeof Ionicons>["name"];
-  iconColor: string;
-  iconBg: string;
   titleKey: string;
   subKey?: string;
   descKey: string;
@@ -38,38 +38,33 @@ type SlideConfig = {
 
 const SLIDES: SlideConfig[] = [
   {
+    art: "obMeds",
     icon: "medical",
-    iconColor: "#4f9cff",
-    iconBg: "#e0eeff",
     titleKey: "onboarding.slide1Title",
     subKey: "onboarding.slide1Sub",
     descKey: "onboarding.slide1Desc",
   },
   {
+    art: "obAlarm",
     icon: "notifications",
-    iconColor: "#f59e0b",
-    iconBg: "#fef3c7",
     titleKey: "onboarding.slide2Title",
     descKey: "onboarding.slide2Desc",
   },
   {
+    art: "obAppointments",
     icon: "calendar",
-    iconColor: "#16a34a",
-    iconBg: "#dcfce7",
     titleKey: "onboarding.slide3Title",
     descKey: "onboarding.slide3Desc",
   },
   {
+    art: "obHealth",
     icon: "fitness",
-    iconColor: "#e11d48",
-    iconBg: "#ffe4e6",
     titleKey: "onboarding.slide4Title",
     descKey: "onboarding.slide4Desc",
   },
   {
+    art: "obPrivacy",
     icon: "shield-checkmark",
-    iconColor: "#4f9cff",
-    iconBg: "#e0eeff",
     titleKey: "onboarding.slide6Title",
     descKey: "onboarding.slide6Desc",
   },
@@ -209,10 +204,12 @@ export default function OnboardingScreen() {
           <View key={i} style={{ width: SCREEN_WIDTH }} className="flex-1 items-center justify-center px-8">
             {/* Icon bubble */}
             <View
-              className="w-28 h-28 rounded-3xl items-center justify-center mb-8"
-              style={{ backgroundColor: slide.iconBg }}
+              className="w-36 h-36 rounded-3xl items-center justify-center mb-8"
+              // Un solo tono derivado del tema: los iconBg por slide eran seis
+              // pasteles claros que en modo oscuro quedaban como bloques brillantes.
+              style={{ backgroundColor: theme.isDark ? "#16233a" : "#e4edfa" }}
             >
-              <Ionicons name={slide.icon} size={60} color={slide.iconColor} />
+              <Illustration name={slide.art} width={130} />
             </View>
 
             {/* Title */}
