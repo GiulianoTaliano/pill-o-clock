@@ -187,6 +187,26 @@ section[id],div[id]{scroll-margin-top:5rem}
 .pts li::before{content:"";width:6px;height:6px;flex:none;background:var(--blue);
   border-radius:50%;transform:translateY(-2px)}
 
+
+/* ── Illustrations ────────────────────────────────────────────────────
+   Las mismas escenas que la app (components/Illustration.tsx), inlineadas
+   con los colores fijos de cada fondo. Aca no hace falta que sean temables:
+   la pagina es light-only, salvo el bloque de privacidad que es tinta
+   invertida y por eso lleva su propia paleta. */
+/* Mas chica en telefono: a 340px sobre 390 de ancho la ilustracion
+   dominaba la seccion en vez de acompanar al texto. */
+.ill{width:100%;height:auto;max-width:230px;display:block;margin-inline:auto}
+@media (min-width:900px){.ill{max-width:340px}}
+.dark .head{max-width:none}
+@media (min-width:900px){
+  .dark .head{display:grid;grid-template-columns:minmax(0,34em) minmax(0,1fr);
+    column-gap:clamp(2.5rem,5vw,4.5rem);align-items:center}
+  .dark .head .tag,.dark .head h2,.dark .head p{grid-column:1}
+  .dark .head .ill-wrap{grid-column:2;grid-row:1/span 3}
+}
+.ill-wrap{margin-top:2rem}
+@media (min-width:900px){.ill-wrap{margin-top:0}}
+
 /* ── Privacy: inverted block for contrast against all the paper ───── */
 .dark{background:var(--ink);color:#c3cede}
 .dark h2,.dark h3{color:var(--paper)}
@@ -384,7 +404,7 @@ footer a:hover{color:var(--blue-deep);text-decoration:underline}
       </div>
     </div>
 
-    <div class="feat">
+    <div class="feat with-art">
       <div>
         <h3 data-i="f5h">Tu historia te pertenece, y te la podés llevar</h3>
         <p data-i="f5p">Registrás presión, glucemia, peso y cómo te sentís, y llevás un informe en PDF a la
@@ -395,6 +415,25 @@ footer a:hover{color:var(--blue-deep);text-decoration:underline}
           <li data-i="f5b">Exportación clínica estándar (HL7 FHIR)</li>
           <li data-i="f5c">Copia de seguridad cifrada, guardada donde vos quieras</li>
         </ul>
+      </div>
+      <div class="ill-wrap">
+        <svg class="ill" viewBox="12 14 96 80" role="img"
+             aria-label="Una línea ascendente de mediciones, con una cápsula apoyada aparte.">
+          <!-- La cápsula va separada del arranque de la línea: pegada, el trazo
+               con punta redonda se fundía con ella y el conjunto leía como un pin. -->
+          <polyline points="32,62 50,48 68,54 92,26" fill="none" stroke="#2f7de1" stroke-width="4"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+          <g fill="#2f7de1">
+            <circle cx="50" cy="48" r="4.5"/><circle cx="68" cy="54" r="4.5"/><circle cx="92" cy="26" r="4.5"/>
+          </g>
+          <defs><clipPath id="illcap">
+            <rect x="17" y="75" width="22" height="10" rx="5" transform="rotate(45 28 80)"/>
+          </clipPath></defs>
+          <g clip-path="url(#illcap)">
+            <rect x="14" y="70" width="13" height="20" fill="#2f7de1" transform="rotate(45 28 80)"/>
+            <rect x="29" y="70" width="14" height="20" fill="#0e1a2d" transform="rotate(45 28 80)"/>
+          </g>
+        </svg>
       </div>
     </div>
   </div>
@@ -408,6 +447,18 @@ footer a:hover{color:var(--blue-deep);text-decoration:underline}
       <h2 data-i="p0h">Lo que tomás no es asunto de nadie más</h2>
       <p data-i="p0p">Tu lista de medicamentos dice más de tu salud que casi cualquier otro dato. Por eso la
         app funciona sin cuenta: no hay usuario, no hay servidor nuestro, no hay nada que filtrarse.</p>
+      <div class="ill-wrap">
+        <svg class="ill" viewBox="12 16 96 70" role="img"
+             aria-label="Un candado cuyo arco es una cápsula de medicamento.">
+          <g fill="none" stroke-width="13" stroke-linecap="round">
+            <path d="M45 52 v-8 a15 15 0 0 1 15-15" stroke="#60a5fa"/>
+            <path d="M60 29 a15 15 0 0 1 15 15 v8" stroke="#e2e8f0"/>
+          </g>
+          <rect x="35" y="50" width="50" height="32" rx="8" fill="#24344a"/>
+          <circle cx="60" cy="63" r="5" fill="#e2e8f0"/>
+          <rect x="57.8" y="63" width="4.4" height="10" rx="2.2" fill="#e2e8f0"/>
+        </svg>
+      </div>
     </div>
     <div class="pgrid">
       <div class="pcell">
