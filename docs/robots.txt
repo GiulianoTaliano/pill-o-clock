@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://giulianotaliano.github.io/pill-o-clock/sitemap.xml
+Sitemap: https://estudiotaliano.com/pill-o-clock/sitemap.xml
