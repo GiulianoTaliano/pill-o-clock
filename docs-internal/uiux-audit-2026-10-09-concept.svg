@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="1070" viewBox="0 0 1640 1070"><title>Pill O-Clock: propuesta conceptual de interfaz</title><desc>Cuatro pantallas ficticias: Hoy, Detalle del tratamiento, Revisión previa y Estado de recordatorios. Propuesta no implementada.</desc><style>text{font-family:Segoe UI,Arial,sans-serif} .ink{fill:#17263C}.muted{fill:#52647C}</style>
+<rect x="0" y="0" width="1640" height="1070" rx="0" fill="#EAF0F8"/>
+<text x="48" y="54" font-size="30" fill="#17263C" font-weight="700">Pill O-Clock · Una agenda personal de cuidado</text>
+<text x="48" y="86" font-size="17" fill="#52647C" font-weight="400">Propuesta conceptual · Datos ficticios · 9 de octubre de 2026 · No implementada</text>
+<rect x="48" y="130" width="356" height="784" rx="28" fill="#FFFFFF" stroke="#D9E2EF"/>
+<rect x="49" y="131" width="354" height="782" rx="27" fill="#F4F7FC"/>
+<text x="70" y="162" font-size="13" fill="#17263C" font-weight="600">7:50</text>
+<text x="381" y="162" font-size="13" fill="#17263C" font-weight="400" text-anchor="end">▰</text>
+<text x="68" y="215" font-size="27" fill="#17263C" font-weight="700">Hoy</text>
+<rect x="310" y="185" width="74" height="38" rx="19" fill="#FFFFFF" stroke="#D9E2EF"/>
+<text x="347" y="210" font-size="15" fill="#17263C" font-weight="600" text-anchor="middle">Yo ▾</text>
+<rect x="181" y="894" width="90" height="4" rx="2" fill="#17263C"/>
+<text x="68" y="244" font-size="15" fill="#52647C" font-weight="400">Viernes 9 de octubre</text>
+<rect x="68" y="266" width="316" height="258" rx="16" fill="#FFFFFF" stroke="#B9CDEF"/>
+<text x="84" y="294" font-size="15" fill="#2459C4" font-weight="600">Próxima dosis</text>
+<text x="84" y="333" font-size="30" fill="#17263C" font-weight="700">08:00</text>
+<text x="84" y="366" font-size="20" fill="#17263C" font-weight="650">Medicación A</text>
+<text x="84" y="392" font-size="15" fill="#52647C" font-weight="400">1 comprimido · Programada</text>
+<rect x="84" y="412" width="284" height="50" rx="12" fill="#2459C4"/>
+<text x="226.0" y="443" font-size="16" fill="#FFFFFF" font-weight="600" text-anchor="middle">Registrar toma</text>
+<text x="154" y="494" font-size="16" fill="#2459C4" font-weight="600" text-anchor="middle">Posponer</text>
+<text x="305" y="494" font-size="15" fill="#2459C4" font-weight="600" text-anchor="middle">Más opciones</text>
+<text x="68" y="561" font-size="18" fill="#17263C" font-weight="650">Después</text>
+<path d="M84 587L84 701" stroke="#B9CDEF"/>
+<circle cx="84" cy="596" r="6" fill="#2459C4"/>
+<text x="106" y="600" font-size="15" fill="#52647C" font-weight="600">13:00</text>
+<text x="106" y="627" font-size="18" fill="#17263C" font-weight="600">Medicación B</text>
+<text x="106" y="649" font-size="14" fill="#52647C" font-weight="400">Ver dosis y recordatorio</text>
+<circle cx="84" cy="674" r="6" fill="#2459C4"/>
+<text x="106" y="678" font-size="15" fill="#52647C" font-weight="600">20:00</text>
+<text x="106" y="705" font-size="18" fill="#17263C" font-weight="600">Medicación C</text>
+<text x="106" y="727" font-size="14" fill="#52647C" font-weight="400">Ver dosis y recordatorio</text>
+<rect x="68" y="751" width="316" height="49" rx="10" fill="#FFFFFF" stroke="#D9E2EF"/>
+<text x="84" y="782" font-size="16" fill="#9A6700" font-weight="600">Sin registrar (1)</text>
+<text x="366" y="782" font-size="18" fill="#52647C" font-weight="400" text-anchor="end">⌄</text>
+<text x="68" y="833" font-size="16" fill="#2459C4" font-weight="600">Registrar a demanda</text>
+<path d="M49 852H403" stroke="#D9E2EF"/>
+<text x="84" y="880" font-size="12" fill="#2459C4" font-weight="600" text-anchor="middle">Hoy</text>
+<text x="155" y="880" font-size="12" fill="#52647C" font-weight="400" text-anchor="middle">Historial</text>
+<text x="226" y="880" font-size="12" fill="#52647C" font-weight="400" text-anchor="middle">Medicamentos</text>
+<text x="297" y="880" font-size="12" fill="#52647C" font-weight="400" text-anchor="middle">Salud</text>
+<text x="368" y="880" font-size="12" fill="#52647C" font-weight="400" text-anchor="middle">Ajustes</text>
+<rect x="440" y="130" width="356" height="784" rx="28" fill="#FFFFFF" stroke="#D9E2EF"/>
+<rect x="441" y="131" width="354" height="782" rx="27" fill="#F4F7FC"/>
+<text x="462" y="162" font-size="13" fill="#17263C" font-weight="600">7:50</text>
+<text x="773" y="162" font-size="13" fill="#17263C" font-weight="400" text-anchor="end">▰</text>
+<text x="460" y="201" font-size="15" fill="#2459C4" font-weight="600">‹ Volver</text>
+<text x="460" y="240" font-size="27" fill="#17263C" font-weight="700">Medicación A</text>
+<rect x="573" y="894" width="90" height="4" rx="2" fill="#17263C"/>
+<text x="460" y="269" font-size="15" fill="#52647C" font-weight="400">Tratamiento de Yo</text>
+<rect x="460" y="293" width="316" height="222" rx="16" fill="#FFFFFF" stroke="#D9E2EF"/>
+<text x="476" y="322" font-size="15" fill="#52647C" font-weight="400">Cantidad por toma</text>
+<text x="476" y="354" font-size="23" fill="#17263C" font-weight="650">1 comprimido</text>
+<path d="M476 373H760" stroke="#D9E2EF"/>
+<text x="476" y="404" font-size="18" fill="#17263C" font-weight="600">Todos los días, 08:00</text>
+<text x="476" y="433" font-size="14" fill="#52647C" font-weight="400">Desde el 9 oct · Sin fecha final</text>
+<text x="476" y="481" font-size="16" fill="#2459C4" font-weight="600">Editar pauta</text>
+<text x="460" y="553" font-size="15" fill="#52647C" font-weight="400">Próximo recordatorio</text>
+<text x="460" y="585" font-size="22" fill="#17263C" font-weight="650">Hoy, 08:00</text>
+<rect x="460" y="613" width="316" height="104" rx="12" fill="#FFFFFF" stroke="#D9E2EF"/>
+<text x="476" y="644" font-size="17" fill="#17263C" font-weight="650">Stock</text>
+<text x="476" y="675" font-size="15" fill="#52647C" font-weight="400">14 comprimidos disponibles</text>
+<text x="476" y="700" font-size="14" fill="#52647C" font-weight="400">Consumo: 1 por toma</text>
+<rect x="460" y="740" width="316" height="50" rx="12" fill="#FFFFFF" stroke="#D9E2EF"/>
+<text x="618.0" y="771" font-size="16" fill="#2459C4" font-weight="600" text-anchor="middle">Editar tratamiento</text>
+<text x="618" y="833" font-size="15" fill="#52647C" font-weight="500" text-anchor="middle">Pausar, archivar o eliminar…</text>
+<rect x="832" y="130" width="356" height="784" rx="28" fill="#FFFFFF" stroke="#D9E2EF"/>
+<rect x="833" y="131" width="354" height="782" rx="27" fill="#F4F7FC"/>
+<text x="854" y="162" font-size="13" fill="#17263C" font-weight="600">7:50</text>
+<text x="1165" y="162" font-size="13" fill="#17263C" font-weight="400" text-anchor="end">▰</text>
+<text x="852" y="201" font-size="15" fill="#2459C4" font-weight="600">‹ Volver</text>
+<text x="852" y="240" font-size="27" fill="#17263C" font-weight="700">Revisar tratamiento</text>
+<rect x="965" y="894" width="90" height="4" rx="2" fill="#17263C"/>
+<text x="852" y="269" font-size="15" fill="#52647C" font-weight="400">Paso 3 de 3 · Para Yo</text>
+<rect x="852" y="304" width="316" height="112" rx="12" fill="#FFFFFF" stroke="#D9E2EF"/>
+<text x="868" y="333" font-size="15" fill="#52647C" font-weight="400">Medicamento</text>
+<text x="1152" y="333" font-size="14" fill="#2459C4" font-weight="600" text-anchor="end">Editar</text>
+<text x="868" y="364" font-size="18" fill="#17263C" font-weight="600">Medicación A</text>
+<text x="868" y="392" font-size="14" fill="#52647C" font-weight="400">1 comprimido por toma</text>
+<rect x="852" y="433" width="316" height="112" rx="12" fill="#FFFFFF" stroke="#D9E2EF"/>
+<text x="868" y="462" font-size="15" fill="#52647C" font-weight="400">Frecuencia</text>
+<text x="1152" y="462" font-size="14" fill="#2459C4" font-weight="600" text-anchor="end">Editar</text>
+<text x="868" y="493" font-size="18" fill="#17263C" font-weight="600">Todos los días</text>
+<text x="868" y="521" font-size="14" fill="#52647C" font-weight="400">08:00 · Desde el 9 de octubre</text>
+<rect x="852" y="562" width="316" height="112" rx="12" fill="#FFFFFF" stroke="#D9E2EF"/>
+<text x="868" y="591" font-size="15" fill="#52647C" font-weight="400">Recordatorios</text>
+<text x="1152" y="591" font-size="14" fill="#2459C4" font-weight="600" text-anchor="end">Editar</text>
+<text x="868" y="622" font-size="18" fill="#17263C" font-weight="600">Primera alarma: hoy, 08:00</text>
+<text x="868" y="650" font-size="14" fill="#52647C" font-weight="400">Notificaciones habilitadas</text>
+<text x="852" y="713" font-size="15" fill="#52647C" font-weight="400">Podés corregir cada sección</text>
+<text x="852" y="737" font-size="15" fill="#52647C" font-weight="400">antes de guardar.</text>
+<rect x="852" y="777" width="316" height="50" rx="12" fill="#2459C4"/>
+<text x="1010.0" y="808" font-size="16" fill="#FFFFFF" font-weight="600" text-anchor="middle">Guardar tratamiento</text>
+<text x="1010" y="857" font-size="14" fill="#52647C" font-weight="400" text-anchor="middle">Se guardará sólo esta pauta</text>
+<rect x="1224" y="130" width="356" height="784" rx="28" fill="#FFFFFF" stroke="#D9E2EF"/>
+<rect x="1225" y="131" width="354" height="782" rx="27" fill="#F4F7FC"/>
+<text x="1246" y="162" font-size="13" fill="#17263C" font-weight="600">7:50</text>
+<text x="1557" y="162" font-size="13" fill="#17263C" font-weight="400" text-anchor="end">▰</text>
+<text x="1244" y="201" font-size="15" fill="#2459C4" font-weight="600">‹ Volver</text>
+<text x="1244" y="240" font-size="27" fill="#17263C" font-weight="700">Recordatorios</text>
+<rect x="1357" y="894" width="90" height="4" rx="2" fill="#17263C"/>
+<rect x="1244" y="270" width="316" height="87" rx="12" fill="#FFF6DF" stroke="#E6C76C"/>
+<text x="1260" y="302" font-size="18" fill="#805400" font-weight="650">Falta un permiso</text>
+<text x="1260" y="330" font-size="15" fill="#805400" font-weight="400">Completá la configuración</text>
+<rect x="1244" y="386" width="316" height="88" rx="12" fill="#FFFFFF" stroke="#D9E2EF"/>
+<circle cx="1267" cy="416" r="10" fill="#E5F4EC"/>
+<text x="1267" y="421" font-size="15" fill="#157347" font-weight="600" text-anchor="middle">✓</text>
+<text x="1288" y="421" font-size="17" fill="#17263C" font-weight="600">Notificaciones</text>
+<text x="1288" y="449" font-size="15" fill="#157347" font-weight="400">Habilitadas</text>
+<rect x="1244" y="493" width="316" height="88" rx="12" fill="#FFFFFF" stroke="#D9E2EF"/>
+<circle cx="1267" cy="523" r="10" fill="#E5F4EC"/>
+<text x="1267" y="528" font-size="15" fill="#157347" font-weight="600" text-anchor="middle">✓</text>
+<text x="1288" y="528" font-size="17" fill="#17263C" font-weight="600">Alarmas exactas</text>
+<text x="1288" y="556" font-size="15" fill="#157347" font-weight="400">Habilitadas</text>
+<rect x="1244" y="600" width="316" height="88" rx="12" fill="#FFFFFF" stroke="#D9E2EF"/>
+<circle cx="1267" cy="630" r="10" fill="#FFF6DF"/>
+<text x="1267" y="635" font-size="15" fill="#805400" font-weight="600" text-anchor="middle">!</text>
+<text x="1288" y="635" font-size="17" fill="#17263C" font-weight="600">Pantalla completa</text>
+<text x="1288" y="663" font-size="15" fill="#805400" font-weight="400">Requiere permiso</text>
+<text x="1244" y="720" font-size="15" fill="#52647C" font-weight="400">Permite mostrar la alarma</text>
+<text x="1244" y="743" font-size="15" fill="#52647C" font-weight="400">sobre la pantalla bloqueada.</text>
+<rect x="1244" y="771" width="316" height="50" rx="12" fill="#2459C4"/>
+<text x="1402.0" y="802" font-size="16" fill="#FFFFFF" font-weight="600" text-anchor="middle">Abrir ajustes del teléfono</text>
+<text x="1402" y="857" font-size="16" fill="#2459C4" font-weight="600" text-anchor="middle">Probar una alarma</text>
+<text x="48" y="956" font-size="18" fill="#17263C" font-weight="650">Próxima acción visible</text>
+<text x="48" y="984" font-size="14" fill="#52647C" font-weight="400">Hora y persona antes que estadísticas</text>
+<text x="440" y="956" font-size="18" fill="#17263C" font-weight="650">Datos que se entienden</text>
+<text x="440" y="984" font-size="14" fill="#52647C" font-weight="400">Pauta y stock con unidades explícitas</text>
+<text x="832" y="956" font-size="18" fill="#17263C" font-weight="650">Revisión antes de guardar</text>
+<text x="832" y="984" font-size="14" fill="#52647C" font-weight="400">Lo mostrado coincide con lo guardado</text>
+<text x="1224" y="956" font-size="18" fill="#17263C" font-weight="650">Estado real de permisos</text>
+<text x="1224" y="984" font-size="14" fill="#52647C" font-weight="400">Reparar y comprobar desde un lugar</text>
+<text x="48" y="1037" font-size="15" fill="#52647C" font-weight="400">La propuesta conserva la marca y el azul existentes. Etiquetas, tamaños y flujo final requieren validación en ambos sistemas.</text>
+</svg>
