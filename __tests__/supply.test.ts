@@ -28,6 +28,8 @@ const sched = (over: Partial<Schedule> = {}): Schedule => ({
 });
 
 describe("estimateDaysOfSupply", () => {
+  beforeAll(() => { jest.useFakeTimers(); jest.setSystemTime(new Date(2026, 9, 9, 0, 0, 0)); });
+  afterAll(() => jest.useRealTimers());
   it("daily single dose: qty 14 → 14 days", () => {
     expect(estimateDaysOfSupply(med(), [sched()])).toBe(14);
   });
@@ -61,5 +63,19 @@ describe("estimateDaysOfSupply", () => {
     expect(
       estimateDaysOfSupply(med(), [sched({ medicationId: "other" })])
     ).toBeNull();
+  });
+});
+
+// Exact regimen days determine coverage; the reference date is deliberately fixed.
+describe("regimen-aware stock coverage", () => {
+  const reference = new Date(2026, 9, 9, 0, 0, 0);
+  it("covers rest days in an every-N-days regimen", () => {
+    expect(estimateDaysOfSupply(med({ stockQuantity: 2, startDate: "2026-10-09", regimen: JSON.stringify({ type: "everyN", n: 3 }) }), [sched()], reference)).toBe(6);
+  });
+  it("does not suggest a refill when the remaining treatment is covered", () => {
+    expect(estimateDaysOfSupply(med({ stockQuantity: 2, startDate: "2026-10-09", endDate: "2026-10-10" }), [sched()], reference)).toBeNull();
+  });
+  it("reports an empty inventory without multiplying by dosage amount", () => {
+    expect(estimateDaysOfSupply(med({ stockQuantity: 0, dosageAmount: 500, dosageUnit: "mg" }), [sched()], reference)).toBe(0);
   });
 });

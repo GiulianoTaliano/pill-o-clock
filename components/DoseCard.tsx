@@ -1,719 +1,583 @@
-import { View, Text, Modal, TextInput, Image, PanResponder, Pressable } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedScrollHandler,
-  interpolate,
-  Extrapolation,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+import { useRef, useState, type ReactNode } from "react";
+import {
+  View,
+  Text,
+  Modal,
+  TextInput,
+  Image,
+  Pressable,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { TodayDose, SkipReason } from "../src/types";
+import { useRouter } from "expo-router";
+import type { TodayDose, SkipReason } from "../src/types";
 import { useAppStore } from "../src/store";
-import { CATEGORY_CONFIG, getCategoryLabel, getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../src/utils";
-import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes } from "../src/services/snoozeSettings";
+import {
+  getColorConfig,
+  formatTimeForDisplay,
+  getLocalizedDosage,
+} from "../src/utils";
+import {
+  SNOOZE_OPTIONS,
+  getDefaultSnoozeMinutes,
+} from "../src/services/snoozeSettings";
+import { formatSnoozedTime } from "../src/services/doseTime";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
+import { useReducedMotion } from "../src/hooks/useReducedMotion";
+import { useToast } from "../src/context/ToastContext";
 import { AppPressable } from "./AppPressable";
 
+type Action = () => void | Promise<void>;
 interface DoseCardProps {
-  /** Opens the injection-site picker (F3, injectables — taken doses only). */
-  onSetSite?: () => void;
   dose: TodayDose;
-  onTake: () => void;
-  onSkip: (reason?: SkipReason) => void;
-  onSnooze: (minutes?: number) => void;
-  /** Optional â€” when provided, an undo button is shown on taken/skipped cards */
-  onRevert?: () => void;
-  /** Optional â€” when provided, the time badge is tappable to pick a custom time */
-  onReschedule?: () => void;
-  /** Optional â€” when provided, a note chip is shown and tapping it saves the note */
-  onUpdateNote?: (note: string) => void;
+  onTake: Action;
+  onSkip: (reason?: SkipReason) => void | Promise<void>;
+  onSnooze: (minutes?: number) => void | Promise<void>;
+  onRevert?: Action;
+  onReschedule?: Action;
+  onUpdateNote?: (note: string) => void | Promise<void>;
+  onSetSite?: Action;
 }
 
-// ─── Snooze Wheel Picker ───────────────────────────────────────────────────
-
-const SNOOZE_ITEM_H = 52;
-const SNOOZE_VISIBLE = 5;
-const SNOOZE_PICKER_H = SNOOZE_ITEM_H * SNOOZE_VISIBLE;
-const SNOOZE_PAD = SNOOZE_ITEM_H * Math.floor(SNOOZE_VISIBLE / 2);
-// Index of the user-configured default interval; read at call time so the
-// wheel pre-selects the latest Settings value (falls back to a valid index).
-const getSnoozeDefaultIdx = () =>
-  Math.max(0, (SNOOZE_OPTIONS as readonly number[]).indexOf(getDefaultSnoozeMinutes()));
-
-interface SnoozeWheelItemProps {
-  minutes: number;
-  index: number;
-  scrollY: { value: number };
-  textColor: string;
-  unitColor: string;
-  onPress: () => void;
-}
-
-function SnoozeWheelItem({ minutes, index, scrollY, textColor, unitColor, onPress }: SnoozeWheelItemProps) {
-  const animStyle = useAnimatedStyle(() => {
-    const dist = Math.abs(scrollY.value - index * SNOOZE_ITEM_H);
-    return {
-      opacity: interpolate(dist, [0, SNOOZE_ITEM_H, SNOOZE_ITEM_H * 2], [1, 0.35, 0.12], Extrapolation.CLAMP),
-      transform: [
-        { scale: interpolate(dist, [0, SNOOZE_ITEM_H, SNOOZE_ITEM_H * 2], [1.05, 0.9, 0.78], Extrapolation.CLAMP) },
-      ],
-    };
-  });
-
+function Sheet({
+  visible,
+  title,
+  onClose,
+  busy,
+  children,
+}: {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  busy: boolean;
+  children: ReactNode;
+}) {
+  const reduced = useReducedMotion();
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const close = () => {
+    if (!busy) onClose();
+  };
   return (
-    <Pressable onPress={onPress} style={{ height: SNOOZE_ITEM_H, justifyContent: 'center', alignItems: 'center' }}>
-      <Animated.View style={[{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }, animStyle]}>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: textColor }}>{minutes}</Text>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: unitColor }}>min</Text>
-      </Animated.View>
-    </Pressable>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={reduced ? "none" : "slide"}
+      onRequestClose={close}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <Pressable
+          onPress={close}
+          accessible={false}
+          className="flex-1 justify-end bg-black/50"
+        >
+          <Pressable
+            onPress={() => {}}
+            accessible={false}
+            accessibilityViewIsModal
+            className="bg-card rounded-t-3xl"
+            style={{ maxHeight: "85%" }}
+          >
+            <View className="flex-row items-center justify-between pl-5 pr-2 pt-3 pb-2 gap-2">
+              <Text
+                accessibilityRole="header"
+                className="text-xl font-bold text-text flex-1"
+              >
+                {title}
+              </Text>
+              <AppPressable
+                disabled={busy}
+                onPress={close}
+                accessibilityLabel={t("common.cancel")}
+                className="w-12 items-center justify-center"
+              >
+                <Ionicons name="close" size={24} color={theme.muted} />
+              </AppPressable>
+            </View>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{
+                paddingHorizontal: 20,
+                paddingBottom: Math.max(insets.bottom, 20) + 12,
+              }}
+            >
+              {children}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
-// ─── Dose Card ─────────────────────────────────────────────────────────────
-
-const STATUS_ICONS = {
-  pending: "time-outline" as const,
-  taken:   "checkmark-circle" as const,
-  skipped: "close-circle" as const,
-  missed:  "alert-circle-outline" as const,
-};
-
-export function DoseCard({ dose, onTake, onSkip, onSnooze, onRevert, onReschedule, onUpdateNote, onSetSite }: DoseCardProps) {
+export function DoseCard({
+  dose,
+  onTake,
+  onSkip,
+  onSnooze,
+  onRevert,
+  onReschedule,
+  onUpdateNote,
+  onSetSite,
+}: DoseCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
-  // Senior / low-vision mode (F1): larger type + taller touch targets.
-  const seniorMode = useAppStore((s) => s.seniorMode);
-  const colors = getColorConfig(dose.medication.color);
-  const statusTheme = theme.doseStatus[dose.status === "missed" ? "missed" : dose.status];
-  const isPending = dose.status === "pending";
-  const isMissed  = dose.status === "missed";
-  const isSnoozed = !!dose.snoozedUntil;
-  const displayTime = dose.snoozedUntil ?? dose.scheduledTime;
-  const displayTimeFormatted = formatTimeForDisplay(displayTime);
+  const router = useRouter();
+  const { showToast } = useToast();
+  const senior = useAppStore((s) => s.seniorMode);
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [sheet, setSheet] = useState<"skip" | "snooze" | "note" | null>(null);
+  const [reason, setReason] = useState<SkipReason | undefined>();
+  const [minutes, setMinutes] = useState(getDefaultSnoozeMinutes);
+  const [note, setNote] = useState("");
+  const completed = dose.status === "taken" || dose.status === "skipped";
+  const color = getColorConfig(dose.medication.color);
+  const time = dose.snoozedUntil
+    ? formatSnoozedTime(dose.snoozedUntil)
+    : formatTimeForDisplay(dose.scheduledTime);
+  const badge = theme.statusBadge[dose.status];
+  const status =
+    dose.status === "missed"
+      ? t("ux.unregistered")
+      : t("status." + dose.status);
 
-  const [noteModalVisible, setNoteModalVisible] = useState(false);
-  const [noteDraft, setNoteDraft] = useState(dose.notes ?? "");
-  const [skipReasonVisible, setSkipReasonVisible] = useState(false);
-  const [snoozePickerVisible, setSnoozePickerVisible] = useState(false);
-  const [showCustomSnooze, setShowCustomSnooze] = useState(false);
-
-  const notePan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setNoteModalVisible(false); },
-    })
-  ).current;
-
-  const skipPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setSkipReasonVisible(false); },
-    })
-  ).current;
-
-  const snoozePan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setSnoozePickerVisible(false); },
-    })
-  ).current;
-
-  // Snooze wheel picker
-  const snoozeScrollY = useSharedValue(getSnoozeDefaultIdx() * SNOOZE_ITEM_H);
-  const snoozeScrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => { snoozeScrollY.value = e.contentOffset.y; },
-  });
-  const snoozeListRef = useRef<any>(null);
-  const [selectedSnoozeIdx, setSelectedSnoozeIdx] = useState(getSnoozeDefaultIdx);
-
-  /**
-   * Commits the wheel position to state.
-   *
-   * Must run on BOTH onMomentumScrollEnd and onScrollEndDrag: a slow drag
-   * released without a fling produces no momentum, so onMomentumScrollEnd never
-   * fires. The wheel still snaps visually (snapToInterval), which used to leave
-   * the selection stale — the confirm button then snoozed by the previously
-   * selected amount instead of the one on screen.
-   */
-  const commitSnoozeScroll = useCallback((offsetY: number) => {
-    const idx = Math.round(offsetY / SNOOZE_ITEM_H);
-    const clamped = Math.max(0, Math.min(idx, SNOOZE_OPTIONS.length - 1));
-    setSelectedSnoozeIdx((prev) => {
-      if (clamped !== prev) Haptics.selectionAsync();
-      return clamped;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (snoozePickerVisible) {
-      // Re-read on every open so a Settings change is reflected immediately.
-      const defaultIdx = getSnoozeDefaultIdx();
-      setShowCustomSnooze(false);
-      setSelectedSnoozeIdx(defaultIdx);
-      snoozeScrollY.value = defaultIdx * SNOOZE_ITEM_H;
-      const timer = setTimeout(() => {
-        snoozeListRef.current?.scrollTo?.({ y: defaultIdx * SNOOZE_ITEM_H, animated: false });
-      }, 100);
-      return () => clearTimeout(timer);
+  async function run(action: Action, closeSheet = false) {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      await action();
+      if (closeSheet) setSheet(null);
+    } catch (error) {
+      const name = error instanceof Error ? error.name : "";
+      showToast(
+        t(name.startsWith("Saved") ? "ux.savedWithWarning" : "ux.saveFailed"),
+        "error"
+      );
+      if (name.startsWith("Saved") && closeSheet) setSheet(null);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
-  }, [snoozePickerVisible]);
-
-  // Reanimated: flash + ring burst on take button
-  const takeScale   = useSharedValue(1);
-  const ringScale   = useSharedValue(0.4);
-  const ringOpacity = useSharedValue(0);
-
-  const takeAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: takeScale.value }],
-  }));
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: ringScale.value }],
-    opacity: ringOpacity.value,
-  }));
-
-  function handleTakePress() {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Action fires immediately â€” animation is purely cosmetic
-    onTake();
-    // Quick scale flash
-    takeScale.value = withSequence(
-      withTiming(1.06, { duration: 70 }),
-      withTiming(1,    { duration: 110 })
-    );
-    // Expanding ring (destello)
-    ringScale.value   = 0.4;
-    ringOpacity.value = 0.7;
-    ringScale.value   = withTiming(2.0, { duration: 380 });
-    ringOpacity.value = withTiming(0,   { duration: 380 });
   }
-
-  const SKIP_REASONS: { key: SkipReason; icon: string; color: string }[] = [
-    { key: "forgot",      icon: "help-circle-outline",  color: theme.warning },
-    { key: "side_effect", icon: "alert-circle-outline",  color: theme.danger },
-    { key: "no_stock",    icon: "cube-outline",          color: theme.accent },
-    { key: "other",       icon: "ellipsis-horizontal",   color: theme.muted },
+  const reasonKeys: SkipReason[] = [
+    "forgot",
+    "side_effect",
+    "no_stock",
+    "other",
   ];
-
   return (
-  <>
-    <View
-      style={{ backgroundColor: statusTheme.bg, borderColor: statusTheme.border }}
-      className="rounded-2xl border p-4 mb-3 shadow-sm"
-    >
-      {/* Header */}
-      <View className="flex-row items-center justify-between mb-2">
-        <View className="flex-row items-center gap-2 flex-1">
-          {/* Pill icon or photo */}
+    <>
+      <View
+        className="bg-card border border-border rounded-3xl p-4 mb-3"
+        accessibilityState={{ busy }}
+      >
+        <View className="flex-row items-center justify-between gap-2 mb-3">
+          <AppPressable
+            disabled={completed || !onReschedule || busy}
+            onPress={() => onReschedule && run(onReschedule)}
+            accessibilityRole={onReschedule && !completed ? "button" : "text"}
+            accessibilityLabel={time}
+            accessibilityHint={
+              onReschedule && !completed
+                ? t("doseCard.rescheduleTitle")
+                : undefined
+            }
+            className="flex-row items-center gap-2"
+          >
+            <Ionicons
+              name={dose.snoozedUntil ? "alarm-outline" : "time-outline"}
+              size={20}
+              color={theme.primary}
+            />
+            <Text
+              className="text-2xl font-bold text-text"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {time}
+            </Text>
+            {onReschedule && !completed && (
+              <Ionicons name="pencil-outline" size={15} color={theme.muted} />
+            )}
+          </AppPressable>
+          <View
+            style={{
+              backgroundColor: badge.bg,
+              paddingHorizontal: 10,
+              paddingVertical: 7,
+              borderRadius: 12,
+            }}
+          >
+            <Text
+              style={{ color: badge.color, fontSize: 13, fontWeight: "600" }}
+            >
+              {status}
+            </Text>
+          </View>
+        </View>
+        {dose.snoozedUntil && (
+          <Text className="text-sm text-muted mb-2">
+            {t("ux.originalTime", {
+              time: formatTimeForDisplay(dose.scheduledTime),
+            })}
+          </Text>
+        )}
+        <View className="flex-row items-start gap-3">
           {dose.medication.photoUri ? (
             <Image
               source={{ uri: dose.medication.photoUri }}
-              className="w-10 h-10 rounded-full"
-              resizeMode="cover"
+              className="w-11 h-11 rounded-xl"
+              accessible={false}
             />
           ) : (
             <View
-              style={{ backgroundColor: colors.bg }}
-              className="w-10 h-10 rounded-full items-center justify-center"
+              className="w-11 h-11 rounded-xl items-center justify-center"
+              style={{
+                backgroundColor: theme.cardAlt,
+                borderLeftWidth: 4,
+                borderLeftColor: color.bg,
+              }}
             >
-              <Ionicons name="medical" size={20} color="#fff" />
+              <Ionicons
+                name="medical-outline"
+                size={23}
+                color={theme.primary}
+              />
             </View>
           )}
           <View className="flex-1">
-            <Text className={`${seniorMode ? "text-xl" : "text-base"} font-bold text-text`} numberOfLines={1}>{dose.medication.name}</Text>
-            <View className="flex-row items-center gap-1.5 mt-0.5 flex-shrink" style={{ overflow: 'hidden' }}>
-              <Text className={seniorMode ? "text-base" : "text-sm"} style={{ color: theme.secondaryText }} numberOfLines={1}>{getLocalizedDosage(dose.medication, t)}</Text>
-              <Text style={{ color: theme.secondaryText }}>·</Text>
-              <Ionicons
-                name={CATEGORY_CONFIG[dose.medication.category].icon as any}
-                size={11}
-                color={CATEGORY_CONFIG[dose.medication.category].tint}
-              />
+            <AppPressable
+              onPress={() =>
+                router.push({
+                  pathname: "/medication/[id]",
+                  params: { id: dose.medication.id },
+                })
+              }
+              accessibilityLabel={
+                t("ux.viewMedicine") + ": " + dose.medication.name
+              }
+              style={{ minHeight: 0 }}
+            >
               <Text
-                style={{ color: theme.isDark
-                  ? CATEGORY_CONFIG[dose.medication.category].labelDark
-                  : CATEGORY_CONFIG[dose.medication.category].labelLight }}
-                className="text-xs font-semibold"
-                numberOfLines={1}
+                className={`${
+                  senior ? "text-2xl" : "text-xl"
+                } font-bold text-text`}
               >
-                {getCategoryLabel(dose.medication.category, t)}
+                {dose.medication.name}
               </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Time badge — tappable when pending + onReschedule provided. When it
-            isn't actionable, announce it as plain text, not a button (audit M2). */}
-        <AppPressable
-          accessibilityRole={isPending && onReschedule ? "button" : "text"}
-          accessibilityLabel={displayTimeFormatted}
-          accessibilityHint={isPending && onReschedule ? t('doseCard.rescheduleTitle') : undefined}
-          disabled={!(isPending && onReschedule)}
-          onPress={() => {
-            if (isPending && onReschedule) {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onReschedule();
-            }
-          }}
-          style={{
-            backgroundColor: isSnoozed
-              ? (theme.isDark ? "#451a03" : "#fef3c7")
-              : (theme.isDark ? colors.bg + "50" : colors.bg + "18"),
-            borderColor: isSnoozed
-              ? (theme.isDark ? "#92400e" : "#fcd34d")
-              : (theme.isDark ? colors.bg + "90" : colors.bg + "60"),
-          }}
-          className="rounded-xl px-3 py-1.5 border flex-row items-center gap-1"
-        >
-          {isSnoozed && (
-            <Ionicons name="alarm-outline" size={11} color={theme.amber} />
-          )}
-          <Text
-            style={{ color: isSnoozed
-              ? (theme.isDark ? "#fbbf24" : "#92400e")
-              : colors.text }}
-            className={`${seniorMode ? "text-lg" : "text-sm"} font-bold`}
-          >
-            {displayTimeFormatted}
-          </Text>
-          {isPending && onReschedule && (
-            <Ionicons
-              name="pencil-outline"
-              size={10}
-              color={isSnoozed
-                ? (theme.isDark ? "#fbbf24" : "#92400e")
-                : colors.text}
-              style={{ opacity: 0.6 }}
-            />
-          )}
-        </AppPressable>
-      </View>
-
-      {/* Notes */}
-      {dose.medication.notes ? (
-        <Text className="text-sm mb-2 ml-12" style={{ color: theme.secondaryText }}>{dose.medication.notes}</Text>
-      ) : null}
-
-      {/* Status or Actions â€” minHeight keeps the card from collapsing when switching between
-          the tall 'pending' button row and the compact 'taken/skipped' status line. */}
-      <View style={{ minHeight: 40 }}>
-      {(!isPending && !isMissed) ? (
-        <View className="flex-row items-center justify-between ml-12 gap-2">
-          <View className="flex-row items-center gap-2 flex-1">
-            <Ionicons
-              name={STATUS_ICONS[dose.status]}
-              size={16}
-              color={dose.status === "taken" ? theme.success : theme.danger}
-            />
+            </AppPressable>
             <Text
-              style={{ color: dose.status === "taken"
-                ? (theme.isDark ? "#4ade80" : "#15803d")
-                : (theme.isDark ? "#f87171" : "#b91c1c") }}
-              className="text-sm font-semibold"
+              className={`${senior ? "text-lg" : "text-base"} text-muted mt-1`}
             >
-              {t(`status.${dose.status}`)}
-              {dose.takenAt
-                ? t('doseCard.takenAt', { time: new Date(dose.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })
-                : ""}
+              {getLocalizedDosage(dose.medication, t)}
             </Text>
           </View>
-          {onRevert && (
+        </View>
+        {dose.medication.notes ? (
+          <Text className="text-base text-muted mt-3 leading-6">
+            {dose.medication.notes}
+          </Text>
+        ) : null}
+        {!completed ? (
+          <View className="mt-4">
             <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={t('doseCard.revert')}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
-              className="flex-row items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 min-h-[44px]"
+              disabled={busy}
+              onPress={() => run(onTake)}
+              accessibilityLabel={
+                t("ux.recordTake") + ": " + dose.medication.name
+              }
+              className="bg-action rounded-2xl py-3.5 px-4 flex-row items-center justify-center gap-2"
+              style={{ minHeight: senior ? 58 : 50 }}
             >
-              <Ionicons name="arrow-undo-outline" size={14} color={theme.muted} />
-              <Text className="text-muted text-sm font-semibold">
-                {t('doseCard.revert')}
+              {busy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Ionicons name="checkmark" size={22} color="#fff" />
+              )}
+              <Text className="text-white text-base font-bold">
+                {t("ux.recordTake")}
               </Text>
             </AppPressable>
-          )}
-        </View>
-      ) : isPending ? (
-        <>
-          <View className="flex-row gap-2 mt-2">
-            {/* Snooze */}
-            <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={t('doseCard.snooze')}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSnoozePickerVisible(true); }}
-              className={`flex-1 flex-row items-center justify-center gap-1.5 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-3 ${seniorMode ? "min-h-[56px]" : "min-h-[44px]"}`}
-            >
-              <Ionicons name="alarm-outline" size={16} color={theme.amber} />
-              <Text className={`text-amber-700 dark:text-amber-300 ${seniorMode ? "text-base" : "text-sm"} font-semibold`} numberOfLines={1}>{t('doseCard.snooze')}</Text>
-            </AppPressable>
-
-            {/* Skip */}
-            <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={t('doseCard.skip')}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
-              className={`flex-1 flex-row items-center justify-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-3 ${seniorMode ? "min-h-[56px]" : "min-h-[44px]"}`}
-            >
-              <Ionicons name="close-outline" size={16} color={theme.danger} />
-              <Text className={`text-red-700 dark:text-red-300 ${seniorMode ? "text-base" : "text-sm"} font-semibold`} numberOfLines={1}>{t('doseCard.skip')}</Text>
-            </AppPressable>
-
-            {/* Take */}
-            <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
+            <View className="flex-row gap-2 mt-1">
               <AppPressable
-                accessibilityRole="button"
-                accessibilityLabel={t('doseCard.take')}
-                onPress={handleTakePress}
-                className={`flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-3 py-3 ${seniorMode ? "min-h-[56px]" : "min-h-[44px]"}`}
+                disabled={busy}
+                onPress={() => {
+                  setMinutes(getDefaultSnoozeMinutes());
+                  setSheet("snooze");
+                }}
+                className="flex-1 rounded-xl px-2 py-3 flex-row justify-center items-center gap-2"
               >
-                <Ionicons name="checkmark" size={seniorMode ? 22 : 16} color="#fff" />
-                <Text className={`text-white ${seniorMode ? "text-lg" : "text-sm"} font-bold`} numberOfLines={1}>{t('doseCard.take')}</Text>
+                <Ionicons
+                  name="alarm-outline"
+                  size={19}
+                  color={theme.primary}
+                />
+                <Text className="text-primary text-base font-semibold">
+                  {t("doseCard.snooze")}
+                </Text>
               </AppPressable>
-              {/* Destello ring â€” expands and fades on tap */}
-              <Animated.View
-                style={[
-                  ringStyle,
-                  {
-                    position: 'absolute',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    borderRadius: 12,
-                    borderWidth: 2.5,
-                    borderColor: '#22c55e',
-                    backgroundColor: 'transparent',
-                    pointerEvents: 'none',
-                  } as any,
-                ]}
-              />
-            </Animated.View>
-          </View>
-
-          {/* Undo snooze â€” shown below the action row when the dose is snoozed */}
-          {isSnoozed && onRevert && (
-            <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={t('doseCard.revertSnooze')}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRevert(); }}
-              className="flex-row items-center gap-1 mt-2 ml-12"
-            >
-              <Ionicons name="arrow-undo-outline" size={13} color={theme.muted} />
-              <Text className="text-xs text-muted">{t('doseCard.revertSnooze')}</Text>
-            </AppPressable>
-          )}
-        </>
-      ) : (
-        /* Missed: allow recording a late dose, but no snooze */
-        <View className="flex-row gap-3 mt-2 items-center">
-          <View className="flex-row items-center gap-1.5 mr-1">
-            <Ionicons name={STATUS_ICONS[dose.status]} size={14} color={theme.muted} />
-            <Text className="text-xs text-muted font-semibold">{t(`status.${dose.status}`)}</Text>
-          </View>
-
-          <AppPressable
-            accessibilityRole="button"
-            accessibilityLabel={t('doseCard.skip')}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSkipReasonVisible(true); }}
-            className="flex-row items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 min-h-[44px]"
-          >
-            <Ionicons name="close-outline" size={16} color={theme.muted} />
-            <Text className="text-muted text-sm font-semibold">{t('doseCard.skip')}</Text>
-          </AppPressable>
-
-          <Animated.View style={[{ flex: 1 }, takeAnimStyle]}>
-            <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={t('doseCard.takeLate')}
-              onPress={handleTakePress}
-              className="flex-1 flex-row items-center justify-center gap-2 bg-green-700 rounded-xl px-4 py-3 min-h-[44px]"
-            >
-              <Ionicons name="checkmark" size={16} color="#fff" />
-              <Text className="text-white text-sm font-bold">{t('doseCard.takeLate')}</Text>
-            </AppPressable>
-          </Animated.View>
-        </View>
-      )}
-      </View>
-
-      {/* Note chip (taken/skipped only) */}
-      {!isPending && !isMissed && onUpdateNote && (
-        <AppPressable
-          accessibilityRole="button"
-          accessibilityLabel={t('doseCard.addNote')}
-          onPress={() => { setNoteDraft(dose.notes ?? ""); setNoteModalVisible(true); }}
-          className="flex-row items-center gap-1.5 mt-2 ml-12 py-1 min-h-[44px]"
-        >
-          <Ionicons name={dose.notes ? "chatbubble-outline" : "add-circle-outline"} size={16} color={theme.secondaryText} />
-          <Text className="text-sm" style={{ color: theme.secondaryText }}>
-            {dose.notes ? dose.notes : t('doseCard.addNote')}
-          </Text>
-        </AppPressable>
-      )}
-
-      {/* Injection-site chip (F3, taken injectable doses only) */}
-      {dose.status === "taken" && dose.medication.isInjectable && onSetSite && (
-        <AppPressable
-          accessibilityRole="button"
-          accessibilityLabel={t('sites.title')}
-          onPress={onSetSite}
-          className="flex-row items-center gap-1.5 ml-12 py-1 min-h-[44px]"
-        >
-          <Ionicons name="locate-outline" size={16} color={theme.secondaryText} />
-          <Text className="text-sm" style={{ color: theme.secondaryText }}>
-            {dose.injectionSite ? t(`sites.${dose.injectionSite}` as never) : t('sites.record')}
-          </Text>
-        </AppPressable>
-      )}
-
-      {/* Skip reason chip (skipped only) */}
-      {dose.status === "skipped" && dose.skipReason && (
-        <View className="flex-row items-center gap-1.5 mt-1 ml-12">
-          <Ionicons name="information-circle-outline" size={14} color={theme.secondaryText} />
-          <Text className="text-sm" style={{ color: theme.secondaryText }}>{t(`doseCard.skipReason_${dose.skipReason}`)}</Text>
-        </View>
-      )}
-    </View>
-
-    {/* Note editing modal */}
-    <Modal
-      visible={noteModalVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setNoteModalVisible(false)}
-    >
-      <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setNoteModalVisible(false)}>
-        <Pressable onPress={() => {}} className="bg-card rounded-t-3xl">
-          <View className="items-center pt-3 pb-1" {...notePan.panHandlers}>
-            <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
-          </View>
-          <View className="px-5 pb-8 pt-2">
-          <Text className="text-base font-bold text-text mb-3">{t('doseCard.noteModalTitle')}</Text>
-          <TextInput
-            value={noteDraft}
-            onChangeText={setNoteDraft}
-            placeholder={t('doseCard.noteModalPlaceholder')}
-            placeholderTextColor={theme.muted}
-            className="border border-border rounded-2xl px-4 py-3 text-text text-sm bg-slate-50 dark:bg-slate-800 mb-4"
-            multiline
-            numberOfLines={3}
-            maxLength={200}
-            autoFocus
-          />
-          <View className="flex-row gap-3">
-            <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
-              onPress={() => setNoteModalVisible(false)}
-              className="flex-1 rounded-2xl py-3 items-center bg-slate-100 dark:bg-slate-800"
-            >
-              <Text className="text-muted font-semibold">{t('common.cancel')}</Text>
-            </AppPressable>
-            <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={t('common.save')}
-              onPress={() => {
-                onUpdateNote?.(noteDraft.trim());
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                setNoteModalVisible(false);
-              }}
-              className="flex-1 rounded-2xl py-3 items-center bg-primary"
-            >
-              <Text className="text-white font-bold">{t('common.save')}</Text>
-            </AppPressable>
-          </View>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-
-    {/* Skip reason modal */}
-    <Modal
-      visible={skipReasonVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setSkipReasonVisible(false)}
-    >
-      <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setSkipReasonVisible(false)}>
-        <Pressable onPress={() => {}} className="bg-card rounded-t-3xl">
-          <View className="items-center pt-3 pb-1" {...skipPan.panHandlers}>
-            <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
-          </View>
-          <View className="px-5 pb-8 pt-2">
-          <Text className="text-base font-bold text-text mb-1">{t('doseCard.skipReasonTitle')}</Text>
-          <Text className="text-xs text-muted mb-4">{t('doseCard.skipReasonSubtitle')}</Text>
-          {SKIP_REASONS.map(({ key, icon, color }) => (
-            <AppPressable
-              key={key}
-              accessibilityRole="button"
-              accessibilityLabel={t(`doseCard.skipReason_${key}`)}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSkipReasonVisible(false);
-                onSkip(key);
-              }}
-              className="flex-row items-center gap-3 py-3.5 border-b border-border"
-            >
-              <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: color + "18" }}>
-                <Ionicons name={icon as any} size={18} color={color} />
-              </View>
-              <Text className="text-sm font-semibold text-text flex-1">{t(`doseCard.skipReason_${key}`)}</Text>
-              <Ionicons name="chevron-forward" size={14} color={theme.muted} />
-            </AppPressable>
-          ))}
-          <AppPressable
-            accessibilityRole="button"
-            accessibilityLabel={t('common.cancel')}
-            onPress={() => { setSkipReasonVisible(false); onSkip(undefined); }}
-            className="mt-4 items-center py-3 bg-slate-100 dark:bg-slate-800 rounded-2xl"
-          >
-            <Text className="text-muted font-semibold text-sm">{t('common.cancel')}</Text>
-          </AppPressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-
-    {/* Snooze picker modal */}
-    <Modal
-      visible={snoozePickerVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setSnoozePickerVisible(false)}
-    >
-      <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setSnoozePickerVisible(false)}>
-        <Pressable onPress={() => {}} className="bg-card rounded-t-3xl">
-          <View className="items-center pt-3 pb-1" {...snoozePan.panHandlers}>
-            <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
-          </View>
-          <View className="px-5 pb-8 pt-2">
-            <View className="flex-row items-center gap-2 mb-1">
-              <Ionicons name="alarm-outline" size={18} color={theme.amber} />
-              <Text className="text-base font-bold text-text">
-                {t('doseCard.snoozePickerTitle')}
-              </Text>
+              <AppPressable
+                disabled={busy}
+                onPress={() => {
+                  setReason(undefined);
+                  setSheet("skip");
+                }}
+                className="flex-1 rounded-xl px-2 py-3 flex-row justify-center items-center gap-2"
+              >
+                <Ionicons
+                  name="remove-circle-outline"
+                  size={19}
+                  color={theme.muted}
+                />
+                <Text className="text-muted text-base font-semibold">
+                  {t("doseCard.skip")}
+                </Text>
+              </AppPressable>
             </View>
-            <Text className="text-xs text-muted mb-5">
-              {dose.medication.name} — {formatTimeForDisplay(dose.scheduledTime)}
-            </Text>
-
-            {/* Quick presets — the common case is a few minutes; big tappable
-                buttons beat scrubbing a fine wheel for elderly / motor-impaired
-                users (audit UX I6). The wheel is kept behind "Custom…". */}
-            {!showCustomSnooze && (
-              <>
-                <View className="flex-row gap-2 mt-1">
-                  {[10, 15, 30].map((min) => (
-                    <AppPressable
-                      key={min}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${t('doseCard.snooze')} ${min} min`}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        setSnoozePickerVisible(false);
-                        onSnooze(min);
-                      }}
-                      className="flex-1 items-center justify-center py-4 rounded-2xl bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 min-h-[44px]"
-                    >
-                      <Text className="text-amber-700 dark:text-amber-300 text-xl font-black">{min}</Text>
-                      <Text className="text-amber-700 dark:text-amber-300 text-xs font-semibold">min</Text>
-                    </AppPressable>
-                  ))}
-                </View>
-                <AppPressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('doseCard.snoozeCustom')}
-                  onPress={() => setShowCustomSnooze(true)}
-                  className="mt-3 items-center justify-center py-3 min-h-[44px]"
-                >
-                  <Text className="text-muted font-semibold text-sm">{t('doseCard.snoozeCustom')}</Text>
-                </AppPressable>
-              </>
+            {dose.snoozedUntil && onRevert && (
+              <AppPressable
+                disabled={busy}
+                onPress={() => run(onRevert)}
+                className="items-center px-3 py-2"
+              >
+                <Text className="text-muted text-sm">
+                  {t("doseCard.revertSnooze")}
+                </Text>
+              </AppPressable>
             )}
-
-            {showCustomSnooze && (
-              <>
-                {/* Wheel picker */}
-                <View style={{ height: SNOOZE_PICKER_H, position: 'relative' }} className="mx-4">
-                  {/* Center highlight strip */}
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: SNOOZE_PAD,
-                      left: 0,
-                      right: 0,
-                      height: SNOOZE_ITEM_H,
-                      backgroundColor: theme.isDark ? 'rgba(245,158,11,0.14)' : 'rgba(245,158,11,0.10)',
-                      borderRadius: 14,
-                      borderWidth: 1.5,
-                      borderColor: theme.isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.18)',
-                    }}
-                    pointerEvents="none"
-                  />
-
-                  <Animated.ScrollView
-                    ref={snoozeListRef}
-                    onScroll={snoozeScrollHandler}
-                    scrollEventThrottle={16}
-                    snapToInterval={SNOOZE_ITEM_H}
-                    decelerationRate="fast"
-                    bounces={false}
-                    overScrollMode="never"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingVertical: SNOOZE_PAD }}
-                    onMomentumScrollEnd={(e: any) => commitSnoozeScroll(e.nativeEvent.contentOffset.y)}
-                    // Covers the slow-drag case, where no momentum phase runs.
-                    onScrollEndDrag={(e: any) => commitSnoozeScroll(e.nativeEvent.contentOffset.y)}
-                  >
-                    {SNOOZE_OPTIONS.map((min, i) => (
-                      <SnoozeWheelItem
-                        key={min}
-                        minutes={min}
-                        index={i}
-                        scrollY={snoozeScrollY}
-                        textColor={theme.isDark ? '#f1f5f9' : '#1e293b'}
-                        unitColor={theme.muted}
-                        onPress={() => {
-                          snoozeListRef.current?.scrollTo?.({ y: i * SNOOZE_ITEM_H, animated: true });
-                          setSelectedSnoozeIdx(i);
-                        }}
-                      />
-                    ))}
-                  </Animated.ScrollView>
-                </View>
-
-                {/* Confirm */}
+          </View>
+        ) : (
+          <View className="mt-3">
+            {dose.takenAt && (
+              <Text className="text-base text-muted">
+                {t("doseCard.takenAt", {
+                  time: new Date(dose.takenAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                }).trim()}
+              </Text>
+            )}
+            {dose.skipReason && (
+              <Text className="text-base text-muted">
+                {t("doseCard.skipReason_" + dose.skipReason)}
+              </Text>
+            )}
+            <View className="flex-row flex-wrap items-center justify-between gap-2">
+              {onUpdateNote && (
                 <AppPressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t('doseCard.snooze')} ${SNOOZE_OPTIONS[selectedSnoozeIdx]} min`}
+                  disabled={busy}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    setSnoozePickerVisible(false);
-                    onSnooze(SNOOZE_OPTIONS[selectedSnoozeIdx]);
+                    setNote(dose.notes ?? "");
+                    setSheet("note");
                   }}
-                  className="mt-5 rounded-2xl py-3.5 items-center flex-row justify-center gap-2 bg-amber-500 dark:bg-amber-600"
+                  className="flex-1 flex-row items-center gap-2 py-2"
                 >
-                  <Ionicons name="alarm-outline" size={18} color="#fff" />
-                  <Text className="text-white font-bold text-base">
-                    {t('doseCard.snooze')} {SNOOZE_OPTIONS[selectedSnoozeIdx]} min
+                  <Ionicons
+                    name="chatbubble-outline"
+                    size={18}
+                    color={theme.primary}
+                  />
+                  <Text className="text-primary text-base flex-1">
+                    {dose.notes || t("doseCard.addNote")}
                   </Text>
                 </AppPressable>
-              </>
-            )}
-
-            {/* Cancel */}
-            <AppPressable
-              accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
-              onPress={() => setSnoozePickerVisible(false)}
-              className="mt-3 items-center py-3"
-            >
-              <Text className="text-muted font-semibold text-sm">{t('common.cancel')}</Text>
-            </AppPressable>
+              )}
+              {onRevert && (
+                <AppPressable
+                  disabled={busy}
+                  onPress={() => run(onRevert)}
+                  className="px-3 py-2 flex-row items-center gap-2"
+                >
+                  <Ionicons
+                    name="arrow-undo-outline"
+                    size={18}
+                    color={theme.muted}
+                  />
+                  <Text className="text-muted text-base">
+                    {t("doseCard.revert")}
+                  </Text>
+                </AppPressable>
+              )}
+            </View>
+            {dose.status === "taken" &&
+              dose.medication.isInjectable &&
+              onSetSite && (
+                <AppPressable
+                  disabled={busy}
+                  onPress={() => run(onSetSite)}
+                  className="flex-row gap-2 items-center py-2"
+                >
+                  <Ionicons
+                    name="locate-outline"
+                    size={18}
+                    color={theme.primary}
+                  />
+                  <Text className="text-primary text-base">
+                    {dose.injectionSite
+                      ? t("sites." + dose.injectionSite)
+                      : t("sites.record")}
+                  </Text>
+                </AppPressable>
+              )}
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  </>
+        )}
+      </View>
+      <Sheet
+        visible={sheet === "skip"}
+        title={t("doseCard.skipReasonTitle")}
+        busy={busy}
+        onClose={() => setSheet(null)}
+      >
+        <Text className="text-base text-muted mb-3">
+          {dose.medication.name + " · " + time}
+        </Text>
+        {[undefined, ...reasonKeys].map((key) => (
+          <AppPressable
+            key={key ?? "none"}
+            disabled={busy}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: reason === key }}
+            onPress={() => setReason(key)}
+            className="flex-row gap-3 items-center py-3.5 border-b border-border"
+          >
+            <Ionicons
+              name={reason === key ? "radio-button-on" : "radio-button-off"}
+              size={23}
+              color={reason === key ? theme.primary : theme.muted}
+            />
+            <Text className="text-base text-text flex-1">
+              {key
+                ? t("doseCard.skipReason_" + key)
+                : t("ux.skipWithoutReason")}
+            </Text>
+          </AppPressable>
+        ))}
+        <AppPressable
+          disabled={busy}
+          onPress={() => run(() => onSkip(reason), true)}
+          className="bg-action items-center rounded-2xl py-3.5 mt-5"
+        >
+          <Text className="text-white text-base font-bold">
+            {t("doseCard.skip")}
+          </Text>
+        </AppPressable>
+        <AppPressable
+          disabled={busy}
+          onPress={() => setSheet(null)}
+          className="items-center py-3 mt-1"
+        >
+          <Text className="text-muted text-base font-semibold">
+            {t("common.cancel")}
+          </Text>
+        </AppPressable>
+      </Sheet>
+      <Sheet
+        visible={sheet === "snooze"}
+        title={t("doseCard.snoozePickerTitle")}
+        busy={busy}
+        onClose={() => setSheet(null)}
+      >
+        <Text className="text-base text-muted mb-4">
+          {dose.medication.name + " · " + time}
+        </Text>
+        <View className="flex-row flex-wrap gap-2">
+          {SNOOZE_OPTIONS.map((value) => (
+            <AppPressable
+              key={value}
+              disabled={busy}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: minutes === value }}
+              onPress={() => setMinutes(value)}
+              style={{
+                width: "30%",
+                backgroundColor:
+                  minutes === value ? theme.actionFill : theme.cardAlt,
+                borderRadius: 16,
+                minHeight: 54,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: minutes === value ? theme.onAction : theme.text,
+                  fontSize: 18,
+                  fontWeight: "600",
+                }}
+              >
+                {value} min
+              </Text>
+            </AppPressable>
+          ))}
+        </View>
+        <AppPressable
+          disabled={busy}
+          onPress={() => run(() => onSnooze(minutes), true)}
+          className="bg-action rounded-2xl items-center py-3.5 mt-5"
+        >
+          <Text className="text-white text-base font-bold">
+            {t("doseCard.snooze")} {minutes} min
+          </Text>
+        </AppPressable>
+        <AppPressable
+          disabled={busy}
+          onPress={() => setSheet(null)}
+          className="items-center py-3 mt-1"
+        >
+          <Text className="text-muted text-base font-semibold">
+            {t("common.cancel")}
+          </Text>
+        </AppPressable>
+      </Sheet>
+      <Sheet
+        visible={sheet === "note"}
+        title={t("doseCard.noteModalTitle")}
+        busy={busy}
+        onClose={() => setSheet(null)}
+      >
+        <TextInput
+          value={note}
+          onChangeText={setNote}
+          editable={!busy}
+          placeholder={t("doseCard.noteModalPlaceholder")}
+          accessibilityLabel={t("doseCard.noteModalTitle")}
+          placeholderTextColor={theme.muted}
+          multiline
+          maxLength={200}
+          autoFocus
+          className="bg-card-alt border border-border text-text text-base rounded-2xl p-4"
+          style={{ minHeight: 110, textAlignVertical: "top" }}
+        />
+        <AppPressable
+          disabled={busy}
+          onPress={() => run(() => onUpdateNote?.(note.trim()), true)}
+          className="bg-action rounded-2xl items-center py-3.5 mt-5"
+        >
+          <Text className="text-white text-base font-bold">
+            {t("common.save")}
+          </Text>
+        </AppPressable>
+        <AppPressable
+          disabled={busy}
+          onPress={() => setSheet(null)}
+          className="items-center py-3 mt-1"
+        >
+          <Text className="text-muted text-base font-semibold">
+            {t("common.cancel")}
+          </Text>
+        </AppPressable>
+      </Sheet>
+    </>
   );
 }

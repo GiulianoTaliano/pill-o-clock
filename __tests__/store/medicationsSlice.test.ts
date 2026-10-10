@@ -19,7 +19,9 @@ import { makeMedication, makeSchedule, makeTodayDose, makeDoseLog } from "../fac
 // ─── Mock external dependencies ────────────────────────────────────────────
 
 jest.mock("../../src/db/database", () => ({
-  upsertDoseLog: jest.fn().mockResolvedValue(undefined),
+  saveDoseLogWithStock: jest.fn().mockResolvedValue(undefined),
+  removeDoseLogWithStock: jest.fn().mockResolvedValue(undefined),
+  saveMedicationWithSchedules: jest.fn().mockResolvedValue(undefined),
   deleteDoseLog: jest.fn().mockResolvedValue(undefined),
   getDoseLogByScheduleAndDate: jest.fn().mockResolvedValue(null),
   getMedications: jest.fn().mockResolvedValue([]),
@@ -82,6 +84,8 @@ function makeTestStore(initialState: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(db.saveDoseLogWithStock).mockResolvedValue(undefined);
+  jest.mocked(db.getDoseLogByScheduleAndDate).mockResolvedValue(null);
   mockLoadTodayLogs.mockResolvedValue(undefined);
   jest.mocked(db.getMedications).mockResolvedValue([]);
   jest.mocked(db.getActiveMedications).mockResolvedValue([]);
@@ -92,6 +96,21 @@ beforeEach(() => {
 // ─── addMedication ─────────────────────────────────────────────────────────
 
 describe("addMedication", () => {
+  it('reports a saved treatment separately when notification scheduling fails', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2025, 5, 16, 7));
+    try {
+      const medication = makeMedication();
+      const schedule = makeSchedule();
+      jest.mocked(db.getActiveMedications).mockResolvedValue([medication]);
+      jest.mocked(db.getAllActiveSchedules).mockResolvedValue([schedule]);
+      jest.mocked(notifs.scheduleDoseChain).mockRejectedValueOnce(new Error('permission'));
+      const store = makeTestStore();
+      await expect(store.getState().addMedication(medication, [{ time: '08:00', days: [] }])).rejects.toMatchObject({ name: 'SavedMedicationError', saved: true });
+      expect(store.getState().medications).toEqual([medication]);
+      expect(store.getState().schedules).toEqual([schedule]);
+    } finally { jest.useRealTimers(); }
+  });
   it("inserts the medication and its schedules into the DB", async () => {
     const scheduleInput = { time: "08:00", days: [] };
 
@@ -101,8 +120,10 @@ describe("addMedication", () => {
       [scheduleInput]
     );
 
-    expect(jest.mocked(db.insertMedication)).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(db.insertSchedule)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(db.saveMedicationWithSchedules)).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Test', isActive: true }),
+      [expect.objectContaining({ ...scheduleInput, medicationId: expect.any(String) })]
+    );
   });
 
   it("returns the newly created medication with generated id and timestamps", async () => {
@@ -125,7 +146,7 @@ describe("addMedication", () => {
       [{ time: "08:00", days: [] }, { time: "20:00", days: [] }]
     );
 
-    expect(jest.mocked(db.insertSchedule)).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(db.saveMedicationWithSchedules).mock.calls[0][1]).toHaveLength(2);
   });
 
   it("reloads medications and schedules after insertion", async () => {
@@ -184,14 +205,10 @@ describe("updateMedication", () => {
       ]
     );
 
-    // Existing schedule is updated in place (id preserved), NOT deleted+recreated
-    expect(jest.mocked(db.updateSchedule)).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(db.updateSchedule).mock.calls[0][0]).toMatchObject({ id: "sch-1", time: "09:00" });
-    expect(jest.mocked(db.deleteSchedule)).not.toHaveBeenCalled();
-
-    // The new schedule is inserted with a generated (non-"sch-1") id
-    expect(jest.mocked(db.insertSchedule)).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(db.insertSchedule).mock.calls[0][0].id).not.toBe("sch-1");
+    const savedSchedules = jest.mocked(db.saveMedicationWithSchedules).mock.calls[0][1];
+    expect(savedSchedules).toHaveLength(2);
+    expect(savedSchedules[0]).toMatchObject({ id: 'sch-1', time: '09:00' });
+    expect(savedSchedules[1].id).not.toBe('sch-1');
   });
 
   it("deletes a schedule the user removed", async () => {
@@ -205,8 +222,9 @@ describe("updateMedication", () => {
       [{ id: "sch-1", time: "08:00", days: [] }] // sch-2 dropped
     );
 
-    expect(jest.mocked(db.deleteSchedule)).toHaveBeenCalledWith("sch-2");
-    expect(jest.mocked(db.deleteSchedule)).not.toHaveBeenCalledWith("sch-1");
+    expect(jest.mocked(db.saveMedicationWithSchedules).mock.calls[0][1]).toEqual([
+      expect.objectContaining({ id: 'sch-1' }),
+    ]);
   });
 });
 
@@ -303,13 +321,26 @@ describe("revertSnooze", () => {
 // ─── logPRNDose ────────────────────────────────────────────────────────────
 
 describe("logPRNDose", () => {
+  it('checks the whole configured interval, including intervals longer than two days', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2025, 5, 16, 10));
+    try {
+      const med = makeMedication({ isPRN: true, prnMinIntervalMinutes: 72 * 60 });
+      jest.mocked(db.getDoseLogsByDateRange).mockResolvedValueOnce([makeDoseLog({ takenAt: new Date(2025, 5, 14, 12).toISOString() })]);
+      const store = makeTestStore();
+      const check = await store.getState().logPRNDose(med);
+      expect(db.getDoseLogsByDateRange).toHaveBeenCalledWith('2025-06-13', '2025-06-16');
+      expect(check).toMatchObject({ blocked: true, tooSoon: true });
+      expect(db.saveDoseLogWithStock).not.toHaveBeenCalled();
+    } finally { jest.useRealTimers(); }
+  });
   it("persists a 'taken' log for the PRN medication", async () => {
     const med = makeMedication({ isPRN: true });
     const store = makeTestStore();
     await store.getState().logPRNDose(med);
 
-    expect(jest.mocked(db.upsertDoseLog)).toHaveBeenCalledTimes(1);
-    const log = jest.mocked(db.upsertDoseLog).mock.calls[0][0];
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledTimes(1);
+    const log = jest.mocked(db.saveDoseLogWithStock).mock.calls[0][0];
     expect(log.status).toBe("taken");
     expect(log.medicationId).toBe("med-1");
     expect(log.takenAt).toBeDefined();
@@ -322,7 +353,7 @@ describe("logPRNDose", () => {
     await store.getState().logPRNDose(med);
     await store.getState().logPRNDose(med);
 
-    const [call1, call2] = jest.mocked(db.upsertDoseLog).mock.calls;
+    const [call1, call2] = jest.mocked(db.saveDoseLogWithStock).mock.calls;
     expect(call1[0].scheduleId).not.toBe(call2[0].scheduleId);
   });
 
@@ -333,7 +364,7 @@ describe("logPRNDose", () => {
 
     await store.getState().logPRNDose(med);
 
-    expect(jest.mocked(db.updateMedicationStock)).toHaveBeenCalledWith("med-1", 4);
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledWith(expect.objectContaining({ stockDelta: 1 }), 4);
   });
 
   it("calls loadTodayLogs after logging", async () => {
@@ -379,6 +410,7 @@ describe("archiveMedication", () => {
     jest.mocked(db.getSchedulesByMedication).mockResolvedValue([sch]);
 
     const store = makeTestStore({ medications: [med] });
+    jest.mocked(db.getAllActiveSchedules).mockResolvedValue([sch]);
     await store.getState().unarchiveMedication("med-1");
 
     expect(jest.mocked(db.updateMedication)).toHaveBeenCalledWith(
@@ -386,6 +418,7 @@ describe("archiveMedication", () => {
     );
     // Rescheduling goes through _scheduleNotificationsForSchedule → scheduleDoseChain.
     expect(jest.mocked(notifs.scheduleDoseChain)).toHaveBeenCalled();
+    expect(store.getState().schedules).toEqual([sch]);
   });
 });
 

@@ -9,6 +9,10 @@ const en: TranslationShape = {
     edit: "Edit",
     add: "Add",
     close: "Close",
+    back: "Back",
+    share: "Share",
+    clear: "Clear",
+    saved: "Saved",
     confirm: "Confirm",
     yes: "Yes",
     no: "No",
@@ -367,6 +371,7 @@ const en: TranslationShape = {
 
   // ─── Appointments ─────────────────────────────────────────────────────────
   appointments: {
+    myLocation: "Use my location",
     title: "Appointments",
     noAppointments: "No appointments",
     noAppointmentsSubtitle: "Add your next doctor visit or checkup",
@@ -440,6 +445,7 @@ const en: TranslationShape = {
   // ─── Health & measurements ─────────────────────────────────────────────────────
   health: {
     title: "Health",
+    addButton: "Add measurement",
     tabMeasurements: "Measurements",
     tabDiary: "Diary",
     noMeasurements: "No measurements yet",

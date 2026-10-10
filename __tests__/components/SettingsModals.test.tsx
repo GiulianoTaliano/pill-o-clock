@@ -1,0 +1,52 @@
+import React from "react";
+import { render, screen, fireEvent, act } from "@testing-library/react-native";
+import { PassphraseModal } from "../../components/PassphraseModal";
+import { ProfileModal } from "../../components/ProfileModal";
+jest.mock("../../src/i18n", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
+it("passphrase cancel is distinct from explicitly choosing a plain backup", () => {
+  const done = jest.fn();
+  render(<PassphraseModal visible mode="set" onDone={done} />);
+  fireEvent.press(screen.getByText("common.cancel"));
+  expect(done).toHaveBeenLastCalledWith({ kind: "cancel" });
+  fireEvent.press(screen.getByText("uxSettings.plain"));
+  expect(done).toHaveBeenLastCalledWith({ kind: "plain" });
+});
+it("passphrase submission validates matching values and clears them when reopened", () => {
+  const done = jest.fn();
+  const { rerender } = render(<PassphraseModal visible mode="set" onDone={done} />);
+  fireEvent.changeText(screen.getByLabelText("backupCrypto.passphrasePlaceholder"), "secret1");
+  fireEvent.changeText(screen.getByLabelText("backupCrypto.confirmPlaceholder"), "wrong");
+  fireEvent.press(screen.getByText("backupCrypto.encrypt"));
+  expect(done).not.toHaveBeenCalled();
+  expect(screen.getByText("uxSettings.mismatch")).toBeTruthy();
+  fireEvent.changeText(screen.getByLabelText("backupCrypto.confirmPlaceholder"), "secret1");
+  fireEvent.press(screen.getByText("backupCrypto.encrypt"));
+  expect(done).toHaveBeenCalledWith({ kind: "passphrase", passphrase: "secret1" });
+  rerender(<PassphraseModal visible={false} mode="set" onDone={done} />);
+  rerender(<PassphraseModal visible mode="set" onDone={done} />);
+  expect(screen.getByLabelText("backupCrypto.passphrasePlaceholder").props.value).toBe("");
+});
+it("failed profile save preserves entered values and keeps the modal open", async () => {
+  const save = jest.fn().mockRejectedValue(new Error("disk full"));
+  const close = jest.fn();
+  render(<ProfileModal visible profile={null} onSave={save} onDelete={jest.fn()} onClose={close} />);
+  fireEvent.changeText(screen.getByLabelText("uxSettings.profileName"), "Ana");
+  fireEvent.changeText(screen.getByLabelText("uxSettings.contactPhone"), "+54 11 12345678");
+  await act(async () => { fireEvent.press(screen.getByText("common.save")); });
+  expect(close).not.toHaveBeenCalled();
+  expect(screen.getByText("uxSettings.operationError")).toBeTruthy();
+  expect(screen.getByLabelText("uxSettings.profileName").props.value).toBe("Ana");
+});
+it("prevents duplicate profile submissions while saving and closes after success", async () => {
+  let finish!: () => void;
+  const save = jest.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+  const close = jest.fn();
+  render(<ProfileModal visible profile={null} onSave={save} onDelete={jest.fn()} onClose={close} />);
+  fireEvent.changeText(screen.getByLabelText("uxSettings.profileName"), "Ana");
+  fireEvent.press(screen.getByText("common.save"));
+  expect(screen.queryByText("common.save")).toBeNull();
+  expect(save).toHaveBeenCalledTimes(1);
+  await act(async () => { finish(); });
+  expect(close).toHaveBeenCalledTimes(1);
+});

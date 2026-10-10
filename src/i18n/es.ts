@@ -7,6 +7,10 @@ const es = {
     edit: "Editar",
     add: "Agregar",
     close: "Cerrar",
+    back: "Volver",
+    share: "Compartir",
+    clear: "Limpiar",
+    saved: "Guardado",
     confirm: "Confirmar",
     yes: "Sí",
     no: "No",
@@ -365,6 +369,7 @@ const es = {
 
   // ─── Citas ───────────────────────────────────────────────────────────────
   appointments: {
+    myLocation: "Usar mi ubicación",
     title: "Citas",
     noAppointments: "Sin citas",
     noAppointmentsSubtitle: "Agregá tu próxima visita médica tocando +",
@@ -438,6 +443,7 @@ const es = {
   // ─── Health & measurements ─────────────────────────────────────────────────────
   health: {
     title: "Salud",
+    addButton: "Agregar medición",
     tabMeasurements: "Mediciones",
     tabDiary: "Diario",
     noMeasurements: "Sin mediciones aún",

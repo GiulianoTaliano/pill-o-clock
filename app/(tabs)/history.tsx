@@ -1,460 +1,666 @@
-import { View, Text, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { AdBanner } from "../../components/AdBanner";
-import { InsightsCard } from "../../components/InsightsCard";
-import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFocusEffect } from "expo-router";
-import { generateAndShareReport } from "../../src/services/pdfReport";
 import {
-  addDays, addMonths, eachDayOfInterval, format, getDaysInMonth,
-  startOfDay, startOfMonth, startOfWeek, subMonths, subWeeks,
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  ScrollView,
+  Modal,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import {
+  addDays,
+  addMonths,
+  eachDayOfInterval,
+  format,
+  getDaysInMonth,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+  subWeeks,
 } from "date-fns";
 import { useAppStore } from "../../src/store";
-import { DoseLog, Medication } from "../../src/types";
-import { getColorConfig, toDateString, getLocalizedDosage } from "../../src/utils";
+import type { DoseLog, Medication } from "../../src/types";
+import {
+  getMedications,
+  getSchedulesByMedication,
+} from "../../src/db/database";
+import { getActiveProfileId } from "../../src/services/profileStore";
+import { useToast } from "../../src/context/ToastContext";
+import { toDateString, formatTimeForDisplay } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
-import { useSkeletonAnimation, SkeletonBox } from "../../components/Skeleton";
-import { FlashList } from "@shopify/flash-list";
-
-const STATUS_ICONS = {
-  taken:   "checkmark-circle" as const,
-  skipped: "close-circle" as const,
-  pending: "time" as const,
-  missed:  "alert-circle-outline" as const,
-};
-
-// ─── Heatmap cell ──────────────────────────────────────────────────────────
-
-function dayAdherenceColor(dayLogs: DoseLog[] | undefined): string {
-  if (!dayLogs || dayLogs.length === 0) return "transparent";
-  const taken   = dayLogs.filter((l) => l.status === "taken").length;
-  const counted = dayLogs.filter((l) => l.status !== "pending").length;
-  if (counted === 0) return "transparent";
-  const pct = taken / counted;
-  if (pct === 1) return "#22c55e";   // all taken → green
-  if (pct >= 0.5) return "#f97316"; // partial → orange
-  return "#ef4444";                  // mostly missed/skipped → red
-}
-// ─── Skeleton components ─────────────────────────────────────────────────────────────
-
-function HistoryStatsSkeleton() {
-  const anim = useSkeletonAnimation();
-  return (
-    <Animated.View style={[anim, { flexDirection: "row", paddingHorizontal: 20, gap: 8, marginBottom: 12 }]}>
-      <SkeletonBox style={{ flex: 1, height: 72, borderRadius: 16 }} />
-      <SkeletonBox style={{ flex: 1, height: 72, borderRadius: 16 }} />
-      <SkeletonBox style={{ flex: 1, height: 72, borderRadius: 16 }} />
-    </Animated.View>
-  );
-}
-
-function HistoryHeatmapSkeleton({ rows, dayHeaders }: { rows: number; dayHeaders: string[] }) {
-  const anim = useSkeletonAnimation();
-  return (
-    <View className="bg-card border border-border rounded-2xl p-4 mb-3 mx-5">
-      <View className="flex-row mb-1">
-        {dayHeaders.map((h, i) => (
-          <Text key={i} className="flex-1 text-center text-xs text-muted font-semibold">{h}</Text>
-        ))}
-      </View>
-      <Animated.View style={anim}>
-        {Array.from({ length: rows }).map((_, rowIdx) => (
-          <View key={rowIdx} className="flex-row mb-1">
-            {Array.from({ length: 7 }).map((_, colIdx) => (
-              <SkeletonBox key={colIdx} style={{ flex: 1, aspectRatio: 1, margin: 2, borderRadius: 8 }} />
-            ))}
-          </View>
-        ))}
-      </Animated.View>
-      <View className="flex-row gap-3 mt-2 justify-center">
-        {[{ color: "#22c55e", label: "100%" }, { color: "#f97316", label: "≥50%" }, { color: "#ef4444", label: "<50%" }]
-          .map(({ color, label }) => (
-            <View key={label} className="flex-row items-center gap-1">
-              <View className="w-3 h-3 rounded-sm" style={{ backgroundColor: color + "cc" }} />
-              <Text className="text-xs text-muted">{label}</Text>
-            </View>
-          ))}
-      </View>
-    </View>
-  );
-}
-
-function HistoryLogRowSkeleton() {
-  const anim = useSkeletonAnimation();
-  return (
-    <Animated.View style={anim}>
-      <View className="flex-row items-center bg-card rounded-2xl border border-border px-4 py-3 mb-2">
-        <SkeletonBox style={{ width: 36, height: 36, borderRadius: 18, marginRight: 12 }} />
-        <View style={{ flex: 1, gap: 6 }}>
-          <SkeletonBox style={{ height: 13, width: "60%", borderRadius: 6 }} />
-          <SkeletonBox style={{ height: 11, width: "40%", borderRadius: 6 }} />
-        </View>
-        <SkeletonBox style={{ width: 56, height: 24, borderRadius: 10 }} />
-      </View>
-    </Animated.View>
-  );
-}
-// ─── Screen ────────────────────────────────────────────────────────────────
+import { InsightsCard } from "../../components/InsightsCard";
+import { ProfileChip } from "../../components/ProfileChip";
+import { EmptyState } from "../../components/EmptyState";
+import { ReportPreparationModal } from "../../components/ReportPreparationModal";
+import { AdBanner } from "../../components/AdBanner";
 
 export default function HistoryScreen() {
   const { t } = useTranslation();
   const theme = useAppTheme();
-  const medications = useAppStore((s) => s.medications);
-  const getHistoryLogs = useAppStore((s) => s.getHistoryLogs);
-  const [logs, setLogs] = useState<DoseLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sharing, setSharing] = useState(false);
-  const [viewMode, setViewMode] = useState<"week" | "month">("week");
-
-  // Share the doctor PDF report from here — the screen where "how am I doing?"
-  // intent lives — instead of only from deep inside Settings (audit UX I7).
-  const handleShareReport = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSharing(true);
-    try {
-      await generateAndShareReport();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
-    } finally {
-      setSharing(false);
-    }
-  };
-  const [offset, setOffset] = useState(0); // weeks (week view) or months (month view) back
-
-  // ── Date ranges ─────────────────────────────────────────────────────────
-
-  // Week view: ISO week (Monday–Sunday)
-  const weekStart = startOfWeek(
-    subWeeks(startOfDay(new Date()), offset),
-    { weekStartsOn: 1 }
-  );
-  const weekEnd = addDays(weekStart, 6);
-
-  // Month view: full calendar month
+  const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
+  const revertDose = useAppStore((s) => s.revertDose);
+  const [recordMedications, setRecordMedications] = useState<Medication[]>([]);
+  const [undoBusy, setUndoBusy] = useState(false);
+  const undoGuard = useRef(false);
+  const medications = useAppStore((s) => s.medications),
+    getLogs = useAppStore((s) => s.getHistoryLogs),
+    profile = useAppStore((s) => s.activeProfileId);
+  const [logs, setLogs] = useState<DoseLog[]>([]),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(false);
+  const [mode, setMode] = useState<"week" | "month">("week"),
+    [offset, setOffset] = useState(0),
+    [day, setDay] = useState<string | null>(null);
+  const [medId, setMedId] = useState<string | null>(null),
+    [status, setStatus] = useState<string | null>(null),
+    [detail, setDetail] = useState<DoseLog | null>(null),
+    [report, setReport] = useState(false);
+  const request = useRef(0);
   const monthStart = startOfMonth(subMonths(new Date(), offset));
   const monthEnd = addDays(startOfMonth(addMonths(monthStart, 1)), -1);
-
-  const fromDate = viewMode === "week" ? weekStart : monthStart;
-  const toDate   = viewMode === "week" ? weekEnd   : monthEnd;
-  const fromStr  = toDateString(fromDate);
-  const toStr    = toDateString(toDate);
-
-  const loadLogs = useCallback(() => {
+  const weekStart = startOfWeek(subWeeks(startOfDay(new Date()), offset), {
+    weekStartsOn: 1,
+  });
+  const from = mode === "week" ? weekStart : monthStart,
+    to = mode === "week" ? addDays(weekStart, 6) : monthEnd;
+  const fromStr = toDateString(from),
+    toStr = toDateString(to);
+  const load = useCallback(async () => {
+    const token = ++request.current;
     setLoading(true);
-    getHistoryLogs(fromStr, toStr).then(setLogs).finally(() => setLoading(false));
-  }, [fromStr, toStr, getHistoryLogs]);
-
-  useEffect(() => { loadLogs(); }, [loadLogs]);
-
-  useFocusEffect(
-    useCallback(() => { loadLogs(); }, [loadLogs])
-  );
-
-  // Reset offset when switching view modes
-  const switchViewMode = (mode: "week" | "month") => {
-    setOffset(0);
-    setViewMode(mode);
-  };
-
-  // ── Derived data ─────────────────────────────────────────────────────────
-
-  const medMap = new Map<string, Medication>(medications.map((m) => [m.id, m]));
-
-  // Group logs by date
-  const byDate = new Map<string, DoseLog[]>();
-  for (const log of logs) {
-    if (!byDate.has(log.scheduledDate)) byDate.set(log.scheduledDate, []);
-    byDate.get(log.scheduledDate)!.push(log);
-  }
-
-  const sortedDates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
-
-  // Flatten grouped logs into a list with section headers for FlashList
-  type HistoryRow = { type: "header"; date: string; label: string } | { type: "log"; log: DoseLog };
-  const flatData = useMemo<HistoryRow[]>(() => {
-    const rows: HistoryRow[] = [];
-    for (const date of sortedDates) {
-      const dateObj = new Date(date + "T12:00");
-      const dayLabel = format(dateObj, "PPP", { locale: getDateLocale() });
-      rows.push({ type: "header", date, label: dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1) });
-      for (const log of byDate.get(date)!) {
-        rows.push({ type: "log", log });
+    setError(false);
+    try {
+      const [result, allMedications] = await Promise.all([
+        getLogs(fromStr, toStr),
+        getMedications(),
+      ]);
+      if (token === request.current && getActiveProfileId() === profile) {
+        setLogs(result);
+        setRecordMedications(
+          allMedications.filter((m) => (m.profileId ?? "default") === profile)
+        );
       }
+    } catch {
+      if (token === request.current) setError(true);
+    } finally {
+      if (token === request.current) setLoading(false);
     }
-    return rows;
-  }, [sortedDates, byDate]);
-
-  const totalTaken   = logs.filter((l) => l.status === "taken").length;
-  const totalSkipped = logs.filter((l) => l.status === "skipped").length;
-  const totalMissed  = logs.filter((l) => l.status === "missed").length;
-  const counted      = logs.filter((l) => l.status !== "pending").length;
-  const adherence    = counted > 0 ? Math.round((totalTaken / counted) * 100) : null;
-
-  // ── Labels ─────────────────────────────────────────────────────────────────
-
-  const rangeLabel = viewMode === "week"
-    ? `${format(fromDate, "d MMM", { locale: getDateLocale() })} – ${format(toDate, "d MMM yyyy", { locale: getDateLocale() })}`
-    : format(monthStart, "MMMM yyyy", { locale: getDateLocale() }).replace(/^\w/, (c) => c.toUpperCase());
-
-  const DAY_HEADERS = t('calendar.dayHeaders', { returnObjects: true }) as string[];
-  // Row count for the month heatmap — derived from monthStart, always available before loading
-  const heatmapRowCount = Math.ceil((getDaysInMonth(monthStart) + (monthStart.getDay() + 6) % 7) / 7);
-
-  // ── Month heatmap grid ────────────────────────────────────────────────────
-
-  const MonthHeatmap = () => {
-    // Build a 7-column (Mon-Sun) grid padded with null for empty cells
-    const firstDayOfMonth = monthStart;
-    const daysInMonth = getDaysInMonth(firstDayOfMonth);
-    // Offset of first day from Monday (0=Mon … 6=Sun)
-    const startOffset = (firstDayOfMonth.getDay() + 6) % 7;
-    const cells: (Date | null)[] = [
-      ...Array(startOffset).fill(null),
-      ...eachDayOfInterval({ start: firstDayOfMonth, end: monthEnd }),
-    ];
-    // Pad to complete last row
-    while (cells.length % 7 !== 0) cells.push(null);
-
-    const today = toDateString(new Date());
-
-    return (
-      <View className="bg-card border border-border rounded-2xl p-4 mb-3 mx-5">
-        {/* Day-of-week headers */}
-        <View className="flex-row mb-1">
-          {DAY_HEADERS.map((h, i) => (
-            <Text key={i} className="flex-1 text-center text-xs text-muted font-semibold">
-              {h}
-            </Text>
-          ))}
-        </View>
-        {/* Rows of weeks */}
-        {Array.from({ length: cells.length / 7 }).map((_, rowIdx) => (
-          <View key={rowIdx} className="flex-row mb-1">
-            {cells.slice(rowIdx * 7, rowIdx * 7 + 7).map((day, colIdx) => {
-              if (!day) return <View key={colIdx} className="flex-1 aspect-square m-0.5" />;
-              const ds = toDateString(day);
-              const dayLogs = byDate.get(ds);
-              const bg = dayAdherenceColor(dayLogs);
-              const isToday = ds === today;
-              return (
-                <View
-                  key={colIdx}
-                  className={`flex-1 aspect-square m-0.5 rounded-lg items-center justify-center ${isToday ? "border-2 border-primary" : ""}`}
-                  style={bg !== "transparent" ? { backgroundColor: bg + "cc" } : { backgroundColor: "#f1f5f9" }}
-                >
-                  <Text
-                    className="text-xs font-medium"
-                    style={{ color: bg !== "transparent" ? "#fff" : theme.muted }}
-                  >
-                    {day.getDate()}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        ))}
-        {/* Legend */}
-        <View className="flex-row gap-3 mt-2 justify-center">
-          {[
-            { color: "#22c55e", label: "100%" },
-            { color: "#f97316", label: "≥50%" },
-            { color: "#ef4444", label: "<50%" },
-          ].map(({ color, label }) => (
-            <View key={label} className="flex-row items-center gap-1">
-              <View className="w-3 h-3 rounded-sm" style={{ backgroundColor: color + "cc" }} />
-              <Text className="text-xs text-muted">{label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
+  }, [fromStr, toStr, getLogs, profile]);
+  useFocusEffect(
+    useCallback(() => {
+      setDay(null);
+      setMedId(null);
+      setDetail(null);
+      void load();
+      return () => {
+        request.current++;
+      };
+    }, [load])
+  );
+  const medMap = new Map(
+    [...recordMedications, ...medications].map((m) => [m.id, m])
+  );
+  const undo = async () => {
+    if (undoGuard.current || !detail) return;
+    const medication = medMap.get(detail.medicationId);
+    if (!medication) return;
+    undoGuard.current = true;
+    setUndoBusy(true);
+    try {
+      const schedules = await getSchedulesByMedication(medication.id);
+      await revertDose({
+        medication,
+        schedule: schedules.find((s) => s.id === detail.scheduleId) ?? {
+          id: detail.scheduleId,
+          medicationId: medication.id,
+          time: detail.scheduledTime,
+          days: [],
+          isActive: false,
+        },
+        scheduledDate: detail.scheduledDate,
+        scheduledTime: detail.scheduledTime,
+        status: detail.status,
+        doseLogId: detail.id,
+      });
+      setDetail(null);
+      await load();
+      showToast(t("ux.undoDone"), "info");
+    } catch (error) {
+      if (error instanceof Error && error.name === "SavedDoseError") {
+        setDetail(null);
+        await load();
+        showToast(t("ux.savedWithWarning"), "error");
+      } else Alert.alert(t("common.error"), t("uxHealth.deleteError"));
+    } finally {
+      undoGuard.current = false;
+      setUndoBusy(false);
+    }
   };
-
-  return (
-    <SafeAreaView className="flex-1 bg-background">
-      {/* Header */}
-      <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
-        <Text className="text-2xl font-black text-text">{t('history.title')}</Text>
-        {/* Week / Month toggle */}
-        <View className="flex-row bg-card border border-border rounded-xl overflow-hidden">
+  const shown = useMemo(
+    () =>
+      logs
+        .filter(
+          (l) =>
+            (!day || l.scheduledDate === day) &&
+            (!medId || l.medicationId === medId) &&
+            (!status || l.status === status)
+        )
+        .sort((a, b) =>
+          `${b.scheduledDate} ${b.scheduledTime}`.localeCompare(
+            `${a.scheduledDate} ${a.scheduledTime}`
+          )
+        ),
+    [logs, day, medId, status]
+  );
+  const settled = logs.filter((l) => l.status !== "pending"),
+    taken = settled.filter((l) => l.status === "taken").length,
+    skipped = settled.filter((l) => l.status === "skipped").length,
+    missed = settled.filter((l) => l.status === "missed").length;
+  const rate = settled.length
+    ? Math.round((taken / settled.length) * 100)
+    : null;
+  const dateLabel = (date: string) =>
+    format(new Date(date + "T12:00"), "PPP", { locale: getDateLocale() });
+  const rangeLabel =
+    mode === "week"
+      ? `${format(from, "d MMM", { locale: getDateLocale() })} – ${format(
+          to,
+          "d MMM yyyy",
+          { locale: getDateLocale() }
+        )}`
+      : format(monthStart, "MMMM yyyy", { locale: getDateLocale() });
+  const change = (newMode: "week" | "month") => {
+    setMode(newMode);
+    setOffset(0);
+    setDay(null);
+  };
+  const header = (
+    <>
+      <View className="px-5 pt-4 pb-4 flex-row gap-3 items-center">
+        <View className="flex-1">
+          <Text className="text-xs uppercase tracking-widest text-muted">
+            {t("history.title")}
+          </Text>
+          <Text className="text-2xl font-bold text-text mt-1">
+            {t("history.adherenceLabel")}
+          </Text>
+        </View>
+        <ProfileChip />
+      </View>
+      <View className="mx-5 flex-row bg-card border border-border rounded-2xl p-1 mb-3">
+        {(["week", "month"] as const).map((v) => (
           <TouchableOpacity
-            onPress={() => switchViewMode("week")}
-            className={`px-4 py-2.5 ${viewMode === "week" ? "bg-primary" : ""}`}
+            key={v}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: mode === v }}
+            onPress={() => change(v)}
+            className={`flex-1 min-h-[48px] items-center justify-center rounded-xl ${
+              mode === v ? "bg-action" : ""
+            }`}
           >
-            <Text className={`text-xs font-bold ${viewMode === "week" ? "text-white" : "text-muted"}`}>
-              {t('history.viewWeek')}
+            <Text
+              className={mode === v ? "text-white font-semibold" : "text-muted"}
+            >
+              {t(v === "week" ? "history.viewWeek" : "history.viewMonth")}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => switchViewMode("month")}
-            className={`px-4 py-2.5 ${viewMode === "month" ? "bg-primary" : ""}`}
-          >
-            <Text className={`text-xs font-bold ${viewMode === "month" ? "text-white" : "text-muted"}`}>
-              {t('history.viewMonth')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        ))}
       </View>
-
-      {/* Range Navigator */}
-      <View className="px-5 py-2 flex-row items-center justify-between">
-        <TouchableOpacity
-          onPress={() => setOffset((o) => o + 1)}
-          className="p-3 bg-card rounded-xl border border-border"
-        >
-          <Ionicons name="chevron-back" size={18} color="#4f9cff" />
-        </TouchableOpacity>
-
-        <View className="items-center">
-          <Text className="text-sm font-bold text-text">{rangeLabel}</Text>
-          {!loading && adherence !== null && (
-            <Text className="text-xs text-muted">{t('history.adherence', { value: adherence })}</Text>
-          )}
-        </View>
-
-        <TouchableOpacity
-          onPress={() => setOffset((o) => Math.max(0, o - 1))}
-          disabled={offset === 0}
-          className={`p-3 bg-card rounded-xl border border-border ${offset === 0 ? "opacity-30" : ""}`}
-        >
-          <Ionicons name="chevron-forward" size={18} color="#4f9cff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats row */}
-      {loading ? (
-        <HistoryStatsSkeleton />
-      ) : (
-        <View className="flex-row px-5 gap-2 mb-3">
-          <View className="flex-1 bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-800/40 rounded-2xl p-3 items-center">
-            <Text className="text-2xl font-black text-green-600 dark:text-green-400">{totalTaken}</Text>
-            <Text className="text-xs text-green-700 dark:text-green-400 font-medium">{t('history.taken')}</Text>
-          </View>
-          <View className="flex-1 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-800/40 rounded-2xl p-3 items-center">
-            <Text className="text-2xl font-black text-red-700 dark:text-red-400">{totalSkipped + totalMissed}</Text>
-            <Text className="text-xs text-red-600 dark:text-red-400 font-medium">{t('history.missed')}</Text>
-          </View>
-          {adherence !== null && (
-            <View className="flex-1 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/40 rounded-2xl p-3 items-center">
-              <Text className="text-2xl font-black text-blue-500 dark:text-blue-400">{adherence}%</Text>
-              <Text className="text-xs text-blue-600 dark:text-blue-400 font-medium">{t('history.adherenceLabel')}</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Share the doctor PDF report from where the intent arises (audit UX I7) */}
-      <View className="px-5 mb-2">
+      <View className="mx-5 flex-row gap-2 items-center mb-4">
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel={t('report.shareWithDoctor')}
-          onPress={handleShareReport}
-          disabled={sharing}
-          className="flex-row items-center justify-center gap-2 bg-primary rounded-2xl py-3 min-h-[44px]"
+          accessibilityLabel={t("uxHealth.previousPeriod")}
+          onPress={() => {
+            setOffset((o) => o + 1);
+            setDay(null);
+          }}
+          className="w-12 h-12 bg-card border border-border rounded-2xl items-center justify-center"
         >
-          <Ionicons name="share-outline" size={18} color="#fff" />
-          <Text className="text-white text-sm font-bold">
-            {sharing ? `${t('report.shareWithDoctor')}…` : t('report.shareWithDoctor')}
-          </Text>
+          <Ionicons name="chevron-back" size={20} color={theme.primary} />
+        </TouchableOpacity>
+        <Text className="flex-1 text-center font-semibold text-text">
+          {rangeLabel}
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("uxHealth.nextPeriod")}
+          accessibilityState={{ disabled: offset === 0 }}
+          disabled={offset === 0}
+          onPress={() => {
+            setOffset((o) => Math.max(0, o - 1));
+            setDay(null);
+          }}
+          className={`w-12 h-12 bg-card border border-border rounded-2xl items-center justify-center ${
+            offset === 0 ? "opacity-40" : ""
+          }`}
+        >
+          <Ionicons name="chevron-forward" size={20} color={theme.primary} />
         </TouchableOpacity>
       </View>
-
-      <FlashList
-        data={loading ? [] : flatData}
-        renderItem={({ item }) => {
-          if (item.type === "header") {
-            return (
-              <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2 mt-4 px-5">
-                {item.label}
-              </Text>
-            );
-          }
-          const log = item.log;
-          const med = medMap.get(log.medicationId);
-          const colors = getColorConfig(med?.color ?? "blue");
-          const statusBadge = theme.statusBadge[log.status as keyof typeof theme.statusBadge];
-          return (
-            <View className="flex-row items-center bg-card rounded-2xl border border-border px-4 py-3 mb-2 mx-5 shadow-sm">
-              <View
-                style={{ backgroundColor: colors.light }}
-                className="w-9 h-9 rounded-full items-center justify-center mr-3"
-              >
-                <Ionicons name="medical" size={18} color={colors.bg} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-bold text-text" numberOfLines={1}>
-                  {med?.name ?? "—"}
-                </Text>
-                <Text className="text-xs text-muted">
-                  {log.scheduledTime} · {med ? getLocalizedDosage(med, t) : ''}
-                </Text>
-                {log.notes ? (
-                  <View className="flex-row items-center gap-1 mt-0.5">
-                    <Ionicons name="chatbubble-outline" size={11} color={theme.muted} />
-                    <Text className="text-xs text-muted italic flex-1" numberOfLines={1}>
-                      {log.notes}
-                    </Text>
-                  </View>
-                ) : null}
-                {log.skipReason ? (
-                  <View className="flex-row items-center gap-1 mt-0.5">
-                    <Ionicons name="help-circle-outline" size={11} color={theme.muted} />
-                    <Text className="text-xs text-muted flex-1" numberOfLines={1}>
-                      {t(`doseCard.skipReason_${log.skipReason}` as any)}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-              <View
-                style={{ backgroundColor: statusBadge.bg }}
-                className="rounded-xl px-2 py-1 flex-row items-center gap-1"
-              >
-                <Ionicons name={STATUS_ICONS[log.status as keyof typeof STATUS_ICONS] ?? "time"} size={12} color={statusBadge.color} />
-                <Text style={{ color: statusBadge.color }} className="text-xs font-semibold">
-                  {t(`status.${log.status}`)}
-                </Text>
-              </View>
+      {!!offset && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => {
+            setOffset(0);
+            setDay(null);
+          }}
+          className="mx-5 min-h-[48px] items-center justify-center mb-3"
+        >
+          <Text className="text-primary font-semibold">
+            {t("calendar.today")}
+          </Text>
+        </TouchableOpacity>
+      )}
+      {loading ? (
+        <View className="py-8 items-center">
+          <ActivityIndicator color={theme.primary} />
+          <Text className="text-muted mt-3">{t("uxHealth.loading")}</Text>
+        </View>
+      ) : error ? (
+        <View className="mx-5">
+          <EmptyState
+            icon="cloud-offline-outline"
+            title={t("uxHealth.loadError")}
+            actionLabel={t("uxHealth.retry")}
+            onAction={() => void load()}
+          />
+        </View>
+      ) : (
+        <>
+          <View className="mx-5 bg-card border border-border rounded-3xl p-5 mb-4">
+            <Text className="text-xs text-muted uppercase tracking-widest">
+              {t("history.adherenceLabel")}
+            </Text>
+            <Text className="text-5xl font-bold text-text mt-3">
+              {rate == null ? "—" : `${rate}%`}
+            </Text>
+            <Text className="text-sm text-muted mt-3 leading-5">
+              {taken}/{settled.length} · {t("uxHealth.statusMeaning")}
+            </Text>
+            <View className="flex-row flex-wrap gap-4 mt-4">
+              {[
+                { label: t("history.taken"), value: taken },
+                { label: t("status.skipped"), value: skipped },
+                { label: t("status.missed"), value: missed },
+              ].map((s) => (
+                <View key={s.label}>
+                  <Text className="text-xl font-bold text-text">{s.value}</Text>
+                  <Text className="text-xs text-muted">{s.label}</Text>
+                </View>
+              ))}
             </View>
+          </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => setReport(true)}
+            className="mx-5 bg-action min-h-[52px] rounded-2xl flex-row items-center justify-center gap-2 mb-5"
+          >
+            <Ionicons name="share-outline" size={20} color="#fff" />
+            <Text className="text-white font-bold">
+              {t("uxHealth.reportPrepare")}
+            </Text>
+          </TouchableOpacity>
+          <InsightsCard />
+          {mode === "month" && (
+            <View className="mx-5 bg-card border border-border rounded-2xl p-3 mb-5">
+              <View className="flex-row mb-2">
+                {(
+                  t("calendar.dayHeaders", { returnObjects: true }) as string[]
+                ).map((h, i) => (
+                  <Text
+                    key={i}
+                    className="flex-1 text-center text-xs text-muted"
+                  >
+                    {h}
+                  </Text>
+                ))}
+              </View>
+              {(() => {
+                const pad = (monthStart.getDay() + 6) % 7;
+                const cells: (Date | null)[] = [
+                  ...Array(pad).fill(null),
+                  ...eachDayOfInterval({ start: monthStart, end: monthEnd }),
+                ];
+                while (cells.length % 7) cells.push(null);
+                return Array.from(
+                  { length: Math.ceil((getDaysInMonth(monthStart) + pad) / 7) },
+                  (_, row) => (
+                    <View key={row} className="flex-row mb-1">
+                      {cells.slice(row * 7, row * 7 + 7).map((d, col) => {
+                        if (!d) return <View key={col} className="flex-1" />;
+                        const ds = toDateString(d),
+                          records = logs.filter(
+                            (l) =>
+                              l.scheduledDate === ds && l.status !== "pending"
+                          ),
+                          n = records.filter(
+                            (l) => l.status === "taken"
+                          ).length;
+                        const pct = records.length ? n / records.length : null;
+                        const badge =
+                          pct == null
+                            ? null
+                            : pct === 1
+                            ? theme.statusBadge.taken
+                            : pct >= 0.5
+                            ? theme.statusBadge.pending
+                            : theme.statusBadge.skipped;
+                        const bg = badge?.bg ?? theme.cardAlt;
+                        const foreground = badge?.color ?? theme.secondaryText;
+                        return (
+                          <TouchableOpacity
+                            key={col}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: day === ds }}
+                            accessibilityLabel={`${dateLabel(ds)}, ${
+                              pct == null
+                                ? t("uxHealth.neutralDay")
+                                : `${n}/${records.length}, ${Math.round(
+                                    pct * 100
+                                  )}%`
+                            }`}
+                            onPress={() =>
+                              setDay((current) => (current === ds ? null : ds))
+                            }
+                            style={{ backgroundColor: bg }}
+                            className={`flex-1 min-h-[48px] rounded-xl items-center justify-center mx-0.5 ${
+                              day === ds ? "border-2 border-primary" : ""
+                            }`}
+                          >
+                            <Text
+                              style={{
+                                color: foreground,
+                              }}
+                              className="font-semibold"
+                            >
+                              {d.getDate()}
+                            </Text>
+                            <Text
+                              style={{
+                                color: foreground,
+                              }}
+                              className="text-[10px]"
+                            >
+                              {pct == null ? "—" : `${n}/${records.length}`}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )
+                );
+              })()}
+              <Text className="text-xs text-muted mt-3">
+                {t("uxHealth.statusMeaning")}
+              </Text>
+            </View>
+          )}
+          <View className="px-5 mb-4">
+            <Text
+              accessibilityRole="header"
+              className="text-lg font-bold text-text"
+            >
+              {day ? dateLabel(day) : t("uxHealth.allRecords")}
+            </Text>
+            {day && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setDay(null)}
+                className="min-h-[48px] justify-center"
+              >
+                <Text className="text-primary">{t("uxHealth.allRecords")}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              gap: 8,
+              paddingBottom: 12,
+            }}
+          >
+            {[
+              null,
+              ...Array.from(new Set(logs.map((l) => l.medicationId))),
+            ].map((id) => (
+              <TouchableOpacity
+                key={id ?? "all"}
+                accessibilityRole="button"
+                accessibilityState={{ selected: medId === id }}
+                onPress={() => setMedId(id)}
+                className={`min-h-[48px] px-4 rounded-xl justify-center border ${
+                  medId === id
+                    ? "bg-action border-primary"
+                    : "bg-card border-border"
+                }`}
+              >
+                <Text className={medId === id ? "text-white" : "text-muted"}>
+                  {id
+                    ? medMap.get(id)?.name ?? t("uxHealth.unknownMedication")
+                    : t("medications.title")}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              gap: 8,
+              paddingBottom: 16,
+            }}
+          >
+            {[null, "taken", "skipped", "missed", "pending"].map((s) => (
+              <TouchableOpacity
+                key={s ?? "all"}
+                accessibilityRole="button"
+                accessibilityState={{ selected: status === s }}
+                onPress={() => setStatus(s)}
+                className={`min-h-[48px] px-4 rounded-xl justify-center border ${
+                  status === s
+                    ? "bg-action border-primary"
+                    : "bg-card border-border"
+                }`}
+              >
+                <Text className={status === s ? "text-white" : "text-muted"}>
+                  {s ? t(`status.${s}`) : t("uxHealth.allRecords")}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
+    </>
+  );
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      <FlatList
+        data={loading || error ? [] : shown}
+        keyExtractor={(l) => l.id}
+        ListHeaderComponent={header}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        renderItem={({ item: l }) => {
+          const badge = theme.statusBadge[l.status];
+          return (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("uxHealth.doseDetails", {
+                name:
+                  medMap.get(l.medicationId)?.name ??
+                  t("uxHealth.unknownMedication"),
+                date: dateLabel(l.scheduledDate),
+                time: formatTimeForDisplay(l.scheduledTime),
+                status: t(`status.${l.status}`),
+              })}
+              onPress={() => setDetail(l)}
+              className="mx-5 bg-card border border-border rounded-2xl p-4 mb-3"
+            >
+              <View className="flex-row items-start gap-3">
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-text">
+                    {medMap.get(l.medicationId)?.name ??
+                      t("uxHealth.unknownMedication")}
+                  </Text>
+                  <Text className="text-sm text-muted mt-1">
+                    {dateLabel(l.scheduledDate)} ·{" "}
+                    {formatTimeForDisplay(l.scheduledTime)}
+                  </Text>
+                </View>
+                <Text
+                  style={{ color: badge.color, backgroundColor: badge.bg }}
+                  className="px-2 py-1 rounded-lg text-xs font-semibold"
+                >
+                  {t(`status.${l.status}`)}
+                </Text>
+              </View>
+              {l.notes && (
+                <Text className="text-sm text-muted mt-3" numberOfLines={2}>
+                  {l.notes}
+                </Text>
+              )}
+              <Text className="text-primary text-xs mt-3">
+                {t("uxHealth.details")} ›
+              </Text>
+            </TouchableOpacity>
           );
         }}
-        keyExtractor={(item, index) => item.type === "header" ? `h-${item.date}` : item.log.id}
-        getItemType={(item) => item.type}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <>
-            {/* On-device adherence insights (F2) — hides itself without data */}
-            <InsightsCard />
-            {/* Month heatmap */}
-            {viewMode === "month" && (
-              loading
-                ? <HistoryHeatmapSkeleton rows={heatmapRowCount} dayHeaders={DAY_HEADERS} />
-                : <MonthHeatmap />
-            )}
-            {/* Loading skeleton */}
-            {loading && (
-              <View className="px-5">
-                {Array.from({ length: 4 }).map((_, i) => <HistoryLogRowSkeleton key={i} />)}
-              </View>
-            )}
-          </>
-        }
         ListEmptyComponent={
-          !loading ? (
-            <View className="py-12 items-center">
-              <Ionicons name="calendar-outline" size={40} color="#cbd5e1" />
-              <Text className="text-muted text-sm mt-3 text-center">
-                {t('history.noLogs')}
-              </Text>
+          !loading && !error ? (
+            <View className="mx-5">
+              <EmptyState
+                icon="calendar-outline"
+                title={t("uxHealth.noResults")}
+              />
             </View>
           ) : null
         }
-        ListFooterComponent={<View className="h-6" />}
       />
-      {/* Monetization slot (renders null while ads are disabled — see ads.ts) */}
+      <Modal
+        visible={!!detail}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!undoGuard.current) setDetail(null);
+        }}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View
+            accessibilityViewIsModal
+            className="bg-background rounded-t-3xl max-h-[90%]"
+          >
+            <ScrollView
+              contentContainerStyle={{
+                padding: 24,
+                paddingBottom: Math.max(insets.bottom, 20) + 20,
+              }}
+            >
+              <Text
+                accessibilityRole="header"
+                className="text-2xl font-bold text-text"
+              >
+                {detail
+                  ? medMap.get(detail.medicationId)?.name ??
+                    t("uxHealth.unknownMedication")
+                  : ""}
+              </Text>
+              {detail && (
+                <>
+                  <Text className="text-base text-muted mt-3">
+                    {dateLabel(detail.scheduledDate)} ·{" "}
+                    {formatTimeForDisplay(detail.scheduledTime)}
+                  </Text>
+                  <Text className="text-lg font-semibold text-text mt-4">
+                    {t(`status.${detail.status}`)}
+                  </Text>
+                  {detail.takenAt && (
+                    <Text className="text-base text-muted mt-3">
+                      {t("uxHealth.takenAt")}{" "}
+                      {format(new Date(detail.takenAt), "Pp", {
+                        locale: getDateLocale(),
+                      })}
+                    </Text>
+                  )}
+                  {detail.notes && (
+                    <Text className="text-base text-text leading-6 mt-4">
+                      {detail.notes}
+                    </Text>
+                  )}
+                  {detail.skipReason && (
+                    <Text className="text-base text-muted mt-4">
+                      {t(`doseCard.skipReason_${detail.skipReason}`)}
+                    </Text>
+                  )}
+                  {detail.injectionSite && (
+                    <Text className="text-base text-muted mt-4">
+                      {t(`sites.${detail.injectionSite}`)}
+                    </Text>
+                  )}
+                </>
+              )}
+              {detail &&
+                medMap.has(detail.medicationId) &&
+                detail.status !== "pending" && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityState={{ busy: undoBusy, disabled: undoBusy }}
+                    disabled={undoBusy}
+                    onPress={() =>
+                      // A past record is a confirmed fact: removing it turns the
+                      // dose into "missed" on the next launch, so ask first.
+                      Alert.alert(
+                        t("uxHealth.undoConfirmTitle"),
+                        t("uxHealth.undoConfirmMessage"),
+                        [
+                          { text: t("common.cancel"), style: "cancel" },
+                          {
+                            text: t("uxHealth.undo"),
+                            style: "destructive",
+                            onPress: () => void undo(),
+                          },
+                        ]
+                      )
+                    }
+                    className="min-h-[52px] rounded-2xl border border-border p-4 items-center mt-6"
+                  >
+                    <Text className="text-primary font-semibold">
+                      {undoBusy ? t("common.saving") : t("uxHealth.undo")}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              <TouchableOpacity
+                accessibilityRole="button"
+                disabled={undoBusy}
+                onPress={() => setDetail(null)}
+                className="bg-action min-h-[52px] rounded-2xl p-4 items-center mt-6"
+              >
+                <Text className="text-white font-bold">
+                  {t("common.close")}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      <ReportPreparationModal
+        visible={report}
+        initialFrom={fromStr}
+        initialTo={toStr}
+        onClose={() => setReport(false)}
+      />
       <AdBanner screen="history" />
     </SafeAreaView>
   );

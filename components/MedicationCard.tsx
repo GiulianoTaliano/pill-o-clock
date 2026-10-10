@@ -1,10 +1,29 @@
-﻿import { View, Text, TouchableOpacity, Switch, Image } from "react-native";
-import { nextDueDate } from "../src/services/injectionSites";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Switch,
+  Image,
+  Modal,
+  Pressable,
+} from "react-native";
+import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { Medication, Schedule, DoseLog } from "../src/types";
-import { CATEGORY_CONFIG, getCategoryLabel, getDayNamesShort, getColorConfig, isScheduleActiveOnDate, toDateString, formatTimeForDisplay, getLocalizedDosage, estimateDaysOfSupply } from "../src/utils";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
+import type { Medication, Schedule, DoseLog } from "../src/types";
+import {
+  getColorConfig,
+  isScheduleActiveOnDate,
+  formatTimeForDisplay,
+  getLocalizedDosage,
+  estimateDaysOfSupply,
+} from "../src/utils";
+import { withEffectiveDose } from "../src/services/regimen";
+import {
+  effectiveDoseDateTime,
+  formatSnoozedTime,
+} from "../src/services/doseTime";
+import { useAppStore } from "../src/store";
 import { useTranslation, getDateLocale } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 
@@ -13,306 +32,313 @@ interface MedicationCardProps {
   schedules: Schedule[];
   onEdit: () => void;
   onDelete: () => void;
-  /** Retire keeping history (F3) — offered alongside delete. */
   onArchive?: () => void;
-  onToggleActive: (isActive: boolean) => void;
-  /** Today's dose logs — used to compute the "next dose" indicator. */
+  onRestore?: () => void;
+  onToggleActive: (active: boolean) => void;
   todayLogs?: DoseLog[];
-  /** When provided (and the med is PRN + active), shows a "Log a dose" button
-   *  so an as-needed dose can be recorded from where the med lives (audit UX I2). */
   onLogPRN?: () => void;
+  disabled?: boolean;
 }
-
 export function MedicationCard({
   medication,
   schedules,
   onEdit,
   onDelete,
   onArchive,
+  onRestore,
   onToggleActive,
   todayLogs = [],
   onLogPRN,
+  disabled,
 }: MedicationCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
+  const [menu, setMenu] = useState(false);
+  const snoozedTimes = useAppStore((state) => state.snoozedTimes);
   const colors = getColorConfig(medication.color);
-
-  function scheduleLabel(s: Schedule): string {
-    const dayNames = getDayNamesShort(t);
-    if (s.days.length === 0) return t('medications.scheduleDaily', { time: formatTimeForDisplay(s.time) });
-    const dayStr = s.days
-      .sort((a, b) => a - b)
-      .map((d) => dayNames[d])
-      .join(", ");
-    return `${dayStr} · ${formatTimeForDisplay(s.time)}`;
+  const now = new Date();
+  const today = format(now, "yyyy-MM-dd");
+  const resolved = new Set(
+    todayLogs
+      .filter(
+        (log) =>
+          log.medicationId === medication.id &&
+          (log.status === "taken" || log.status === "skipped")
+      )
+      .map((log) => `${log.scheduleId}-${log.scheduledDate}`)
+  );
+  let next: { date: string; time: string; postponed?: string } | undefined;
+  if (medication.isActive && !medication.isPRN) {
+    for (let day = 0; day < 62 && !next; day++) {
+      const date = addDays(now, day);
+      const dateStr = format(date, "yyyy-MM-dd");
+      const candidates = schedules
+        .filter(
+          (schedule) =>
+            isScheduleActiveOnDate(schedule, date, medication) &&
+            !resolved.has(`${schedule.id}-${dateStr}`)
+        )
+        .map((schedule) => ({
+          date: dateStr,
+          time: schedule.time,
+          postponed: snoozedTimes[`${schedule.id}-${dateStr}`],
+        }))
+        .filter(
+          (candidate) =>
+            effectiveDoseDateTime(
+              candidate.date,
+              candidate.time,
+              candidate.postponed
+            ) > now
+        )
+        .sort(
+          (a, b) =>
+            effectiveDoseDateTime(a.date, a.time, a.postponed).getTime() -
+            effectiveDoseDateTime(b.date, b.time, b.postponed).getTime()
+        );
+      next = candidates[0];
+    }
+    for (const schedule of schedules) {
+      for (const [key, postponed] of Object.entries(snoozedTimes)) {
+        const date = key.slice(-10);
+        if (
+          key.slice(0, -11) !== schedule.id ||
+          date >= today ||
+          !postponed.includes("T") ||
+          resolved.has(`${schedule.id}-${date}`)
+        )
+          continue;
+        const candidate = { date, time: schedule.time, postponed };
+        const fireDate = effectiveDoseDateTime(date, schedule.time, postponed);
+        if (
+          fireDate > now &&
+          (!next ||
+            fireDate <
+              effectiveDoseDateTime(next.date, next.time, next.postponed))
+        )
+          next = candidate;
+      }
+    }
   }
-
-  // Compute next-dose indicator
-  const nextDoseLabel: string | null = (() => {
-    if (!medication.isActive) return null;
-    if (medication.isPRN) return t('medicationCard.nextDosePRN');
-
-    const now = new Date();
-    const todayStr = toDateString(now);
-    const nowHHmm = format(now, "HH:mm");
-    const todayDate = new Date(todayStr + "T12:00");
-
-    const activeToday = schedules.filter((s) => isScheduleActiveOnDate(s, todayDate, medication));
-    if (activeToday.length === 0) return null;
-
-    // Check which schedules already have a "taken" log today
-    const takenScheduleIds = new Set(
-      todayLogs
-        .filter((l) => l.medicationId === medication.id && l.scheduledDate === todayStr && l.status === "taken")
-        .map((l) => l.scheduleId)
-    );
-
-    const pending = activeToday
-      .filter((s) => !takenScheduleIds.has(s.id))
-      .sort((a, b) => a.time.localeCompare(b.time));
-
-    if (pending.length === 0) return t('medicationCard.todayComplete');
-
-    // Next upcoming time (could be future or already past but not yet taken)
-    const upcoming = pending.find((s) => s.time >= nowHHmm) ?? pending[0];
-    return t('medicationCard.nextDose', { time: formatTimeForDisplay(upcoming.time) });
-  })();
-
+  const latestPRN = todayLogs
+    .filter(
+      (log) => log.medicationId === medication.id && log.status === "taken"
+    )
+    .sort((a, b) => (b.takenAt ?? "").localeCompare(a.takenAt ?? ""))[0];
+  const days = estimateDaysOfSupply(medication, schedules);
+  const status = medication.archivedAt
+    ? "archived"
+    : medication.isActive
+    ? "active"
+    : "paused";
   return (
-    <View
-      style={{ borderLeftColor: colors.bg, backgroundColor: medication.isActive ? theme.card : theme.cardAlt }}
-      className="rounded-2xl border border-border border-l-4 p-4 mb-3 shadow-sm"
-    >
-      {/* Header */}
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3 flex-1">
+    <View className="bg-card rounded-2xl border border-border p-4 mb-3">
+      <View className="flex-row items-start gap-3">
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`${t("common.edit")} ${medication.name}`}
+          disabled={disabled}
+          onPress={onEdit}
+          className="flex-1 flex-row gap-3 items-start min-h-[48px]"
+        >
           {medication.photoUri ? (
             <Image
               source={{ uri: medication.photoUri }}
-              className="w-10 h-10 rounded-full"
-              resizeMode="cover"
+              className="w-11 h-11 rounded-xl"
             />
           ) : (
             <View
               style={{ backgroundColor: colors.light }}
-              className="w-10 h-10 rounded-full items-center justify-center"
+              className="w-11 h-11 rounded-xl items-center justify-center"
             >
-              <Ionicons name="medical" size={20} color={colors.bg} />
+              <Ionicons name="medical-outline" size={22} color={colors.text} />
             </View>
           )}
           <View className="flex-1">
-            <View className="flex-row items-center gap-2 flex-wrap">
-              <Text
-                className={`text-base font-bold ${medication.isActive ? "text-text" : "text-muted"}`}
-                numberOfLines={1}
-              >
-                {medication.name}
-              </Text>
-              {/* Category badge */}
-              <View
-                style={{ backgroundColor: CATEGORY_CONFIG[medication.category].tint + "20",
-                          borderColor: CATEGORY_CONFIG[medication.category].tint + "60" }}
-                className="flex-row items-center gap-1 rounded-lg px-2 py-1 border"
-              >
-                <Ionicons
-                  name={CATEGORY_CONFIG[medication.category].icon as any}
-                  size={12}
-                  color={CATEGORY_CONFIG[medication.category].tint}
-                />
-                <Text
-                  style={{ color: theme.isDark
-                    ? CATEGORY_CONFIG[medication.category].labelDark
-                    : CATEGORY_CONFIG[medication.category].labelLight }}
-                  className="text-xs font-semibold"
-                >
-                  {getCategoryLabel(medication.category, t)}
-                </Text>
-              </View>
-            </View>
-            <Text className="text-sm text-muted">{getLocalizedDosage(medication, t)}</Text>
-          </View>
-        </View>
-
-        <Switch
-          accessibilityRole="switch"
-          accessibilityLabel={medication.name}
-          accessibilityHint={t(medication.isActive ? 'medications.toggleOffHint' : 'medications.toggleOnHint')}
-          accessibilityState={{ checked: medication.isActive }}
-          value={medication.isActive}
-          onValueChange={(v) => { Haptics.selectionAsync(); onToggleActive(v); }}
-          trackColor={{ false: theme.isDark ? "#334155" : "#e2e8f0", true: colors.light }}
-          thumbColor={medication.isActive ? colors.bg : theme.muted}
-        />
-      </View>
-
-      {/* Time-bound info */}
-      {(medication.startDate || medication.endDate) && (
-        <View className="flex-row items-center gap-1 mt-2 ml-12">
-          <Ionicons name="calendar-outline" size={15} color={theme.muted} />
-          <Text className="text-xs text-muted">
-            {medication.startDate
-              ? format(new Date(medication.startDate + "T12:00"), "d MMM", { locale: getDateLocale() })
-              : t('common.start')}
-            {" → "}
-            {medication.endDate
-              ? format(new Date(medication.endDate + "T12:00"), "d MMM yyyy", { locale: getDateLocale() })
-              : t('common.end')}
-          </Text>
-        </View>
-      )}
-
-      {/* Notes */}
-      {medication.notes ? (
-        <Text className="text-xs text-muted mt-1 ml-12">{medication.notes}</Text>
-      ) : null}
-
-      {/* Stock badge */}
-      {medication.stockQuantity != null && (() => {
-        const qty = medication.stockQuantity!;
-        const threshold = medication.stockAlertThreshold;
-        const isLow = threshold != null && qty <= threshold;
-        const isWarning = threshold != null && qty <= threshold + 3 && !isLow;
-        // On the light card the bright status colors fail AA as text (green
-        // 2.28:1, orange 2.8:1); use darkened -700 variants in light, keep the
-        // dark-adaptive theme colors in dark mode (audit OM3).
-        const stockColor = isLow
-          ? (theme.isDark ? theme.danger : "#b91c1c")
-          : isWarning
-            ? (theme.isDark ? theme.warning : "#b45309")
-            : (theme.isDark ? theme.success : "#15803d");
-        return (
-          <View className="flex-row items-center gap-1.5 mt-2 ml-12">
-            <Ionicons
-              name="cube-outline"
-              size={15}
-              color={stockColor}
-            />
-            <Text
-              style={{ color: stockColor }}
-              className="text-xs font-semibold"
-            >
-              {t('stock.badge', { count: qty })}
-              {(() => {
-                const days = estimateDaysOfSupply(medication, schedules);
-                return days != null ? ` · ${t('stock.daysLeft', { count: days })}` : "";
-              })()}
-              {isLow ? ` · ${t('stock.low')}` : ""}
+            <Text className="text-lg font-bold text-text">
+              {medication.name}
+            </Text>
+            <Text className="text-base text-text mt-1">
+              {getLocalizedDosage(withEffectiveDose(medication, today), t)}
+            </Text>
+            <Text className="text-sm text-muted mt-1">
+              {t(`uxMedication.${status}`)}
             </Text>
           </View>
-        );
-      })()}
-
-      {/* Weekly-injectable countdown (F3): next application date */}
-      {medication.isInjectable && medication.isActive && (() => {
-        const next = nextDueDate(medication, schedules, new Date());
-        if (!next) return null;
-        return (
-          <View className="flex-row items-center gap-1.5 mt-2">
-            <Ionicons name="timer-outline" size={14} color={theme.primary} />
-            <Text className="text-xs font-semibold" style={{ color: theme.primary }}>
-              {next.inDays === 1
-                ? t('sites.nextDoseTomorrow')
-                : t('sites.nextDoseInDays', { count: next.inDays })}
-            </Text>
-          </View>
-        );
-      })()}
-
-      {/* Schedules */}
-      {schedules.length > 0 && (
-        <View className="mt-3 gap-1">
-          {schedules.map((s) => (
-            <View
-              key={s.id}
-              style={{ backgroundColor: theme.isDark ? colors.bg + "26" : colors.light }}
-              className="flex-row items-center gap-2 rounded-xl px-3 py-1.5"
-            >
-              <Ionicons name="alarm-outline" size={15} color={theme.isDark ? colors.bg : colors.text} />
-              <Text style={{ color: theme.isDark ? colors.bg : colors.text }} className="text-xs font-medium">
-                {scheduleLabel(s)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* PRN badge when no schedules */}
-      {medication.isPRN && schedules.length === 0 && (
-        <View
-          style={{ backgroundColor: theme.isDark ? colors.bg + "26" : colors.light }}
-          className="flex-row items-center gap-2 rounded-xl px-3 py-1.5 mt-3 self-start"
-        >
-          <Ionicons name="hand-left-outline" size={15} color={theme.isDark ? colors.bg : colors.text} />
-          <Text style={{ color: theme.isDark ? colors.bg : colors.text }} className="text-xs font-medium">
-            {t('medicationCard.nextDosePRN')}
-          </Text>
-        </View>
-      )}
-
-      {/* Log-a-dose action for as-needed meds — lets the user record a dose
-          from the Medications tab instead of hunting the bottom of Home (UX I2). */}
-      {medication.isPRN && medication.isActive && onLogPRN && (
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t('medicationCard.logPRNDose')}
-          onPress={onLogPRN}
-          className="flex-row items-center justify-center gap-2 bg-primary rounded-xl px-4 py-3 min-h-[44px] mt-3"
-        >
-          <Ionicons name="add-circle-outline" size={18} color="#fff" />
-          <Text className="text-white text-sm font-bold">{t('medicationCard.logPRNDose')}</Text>
         </TouchableOpacity>
-      )}
-
-      {/* Next dose indicator */}
-      {nextDoseLabel && !medication.isPRN && (
-        <View className="flex-row items-center gap-1 mt-2 ml-0.5">
-          <Ionicons
-            name={nextDoseLabel === t('medicationCard.todayComplete') ? "checkmark-circle" : "time-outline"}
-            size={15}
-            color={nextDoseLabel === t('medicationCard.todayComplete') ? theme.success : theme.primary}
+        {!medication.archivedAt && (
+          <Switch
+            disabled={disabled}
+            accessibilityRole="switch"
+            accessibilityLabel={`${medication.name}: ${t(
+              "uxMedication." + status
+            )}`}
+            accessibilityState={{ checked: medication.isActive, disabled }}
+            accessibilityHint={t(
+              medication.isActive
+                ? "medications.toggleOffHint"
+                : "medications.toggleOnHint"
+            )}
+            value={medication.isActive}
+            onValueChange={onToggleActive}
+            trackColor={{ true: theme.primary }}
           />
-          <Text
-            className="text-xs font-semibold"
-            style={{ color: nextDoseLabel === t('medicationCard.todayComplete') ? theme.success : theme.primary }}
-          >
-            {nextDoseLabel}
+        )}
+      </View>
+      {next && (
+        <View className="flex-row items-start gap-2 mt-3">
+          <Ionicons name="time-outline" size={18} color={theme.primary} />
+          <Text className="flex-1 text-base text-primary font-semibold">
+            {t("medicationCard.nextDose", {
+              time: next.postponed
+                ? formatSnoozedTime(next.postponed)
+                : `${
+                    next.date === today
+                      ? ""
+                      : format(new Date(next.date + "T12:00"), "d MMM", {
+                          locale: getDateLocale(),
+                        }) + " · "
+                  }${formatTimeForDisplay(next.time)}`,
+            })}
           </Text>
         </View>
       )}
-
-      {/* Actions */}
-      <View className="flex-row justify-end gap-4 mt-3">
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={`${t('common.edit')} ${medication.name}`}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(); }}
-          className="flex-row items-center justify-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-4 py-3 min-h-[44px] min-w-[44px]"
+      {medication.isPRN && latestPRN?.takenAt && (
+        <Text className="text-sm text-muted mt-3">
+          {t("uxMedication.prnLast", {
+            time: format(new Date(latestPRN.takenAt), "d MMM HH:mm", {
+              locale: getDateLocale(),
+            }),
+          })}
+        </Text>
+      )}
+      {medication.stockQuantity != null && (
+        <Text
+          className={`text-sm mt-3 ${
+            medication.stockAlertThreshold != null &&
+            medication.stockQuantity <= medication.stockAlertThreshold
+              ? "text-danger font-semibold"
+              : "text-muted"
+          }`}
         >
-          <Ionicons name="pencil-outline" size={16} color="#3b82f6" />
-          <Text className="text-blue-600 dark:text-blue-400 text-sm font-semibold">{t('common.edit')}</Text>
-        </TouchableOpacity>
-        {onArchive && (
+          {medication.stockQuantity} {t("uxMedication.stockUnit")}
+          {days != null ? ` · ${t("stock.daysLeft", { count: days })}` : ""}
+        </Text>
+      )}
+      <View className="flex-row items-center gap-2 mt-3">
+        {medication.isPRN && medication.isActive && onLogPRN && (
           <TouchableOpacity
+            disabled={disabled}
             accessibilityRole="button"
-            accessibilityLabel={`${t('archive.action')} ${medication.name}`}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onArchive(); }}
-            className="flex-row items-center justify-center gap-1.5 bg-card-alt border border-border rounded-xl px-4 py-3 min-h-[44px] min-w-[44px]"
+            accessibilityLabel={`${t("medicationCard.logPRNDose")} ${
+              medication.name
+            }`}
+            onPress={onLogPRN}
+            className="flex-1 bg-action rounded-xl py-3 px-4 min-h-[48px] items-center"
           >
-            <Ionicons name="archive-outline" size={16} color={theme.muted} />
-            <Text className="text-sm font-semibold text-muted">{t('archive.action')}</Text>
+            <Text className="text-white font-bold text-base">
+              {t("medicationCard.logPRNDose")}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {onRestore && (
+          <TouchableOpacity
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("archive.restore")} ${medication.name}`}
+            onPress={onRestore}
+            className="flex-1 border border-border rounded-xl py-3 px-4 min-h-[48px] items-center"
+          >
+            <Text className="text-primary font-semibold text-base">
+              {t("archive.restore")}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {!medication.archivedAt && (
+          <TouchableOpacity
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("common.edit")} ${medication.name}`}
+            onPress={onEdit}
+            className="flex-1 py-3 px-4 min-h-[48px] items-center rounded-xl border border-border"
+          >
+            <Text className="text-primary font-semibold text-base">
+              {t("common.edit")}
+            </Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
+          disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel={`${t('common.delete')} ${medication.name}`}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
-          className="flex-row items-center justify-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded-xl px-4 py-3 min-h-[44px] min-w-[44px]"
+          accessibilityLabel={`${t("uxMedication.manage")} ${medication.name}`}
+          onPress={() => setMenu(true)}
+          className="w-12 h-12 rounded-xl border border-border items-center justify-center"
         >
-          <Ionicons name="trash-outline" size={16} color={theme.danger} />
-          <Text className="text-red-700 dark:text-red-400 text-sm font-semibold">{t('common.delete')}</Text>
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={22}
+            color={theme.secondaryText}
+          />
         </TouchableOpacity>
       </View>
+      <Modal
+        visible={menu}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenu(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/50 justify-end"
+          onPress={() => setMenu(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            className="bg-card rounded-t-3xl px-5 pt-5 pb-10"
+          >
+            <Text
+              accessibilityRole="header"
+              className="text-xl font-bold text-text mb-3"
+            >
+              {medication.name}
+            </Text>
+            {onArchive && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => {
+                  setMenu(false);
+                  onArchive();
+                }}
+                className="min-h-[52px] py-4"
+              >
+                <Text className="text-base text-text">
+                  {t("uxMedication.archive")}
+                </Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => {
+                setMenu(false);
+                onDelete();
+              }}
+              className="min-h-[52px] py-4"
+            >
+              <Text className="text-base text-danger">
+                {t("common.delete")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => setMenu(false)}
+              className="min-h-[52px] py-4 border-t border-border"
+            >
+              <Text className="text-base text-text font-semibold">
+                {t("common.cancel")}
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
-

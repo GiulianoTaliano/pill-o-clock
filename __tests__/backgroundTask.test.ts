@@ -392,3 +392,16 @@ describe("unregisterBackgroundFetch", () => {
     await expect(unregisterBackgroundFetch()).resolves.toBeUndefined();
   });
 });
+
+
+it("does not close yesterday's dose while its overnight snooze is still future", async () => {
+  const { saveSnoozedDoses } = require("../src/services/snoozedDoses");
+  jest.mocked(db.getMedications).mockResolvedValue([makeMedication()]);
+  jest.mocked(db.getAllSchedules).mockResolvedValue([makeSchedule()]);
+  jest.mocked(db.getDoseLogsByDateRange).mockResolvedValue([]);
+  saveSnoozedDoses({ ["sch-1-" + YESTERDAY]: new Date(2025, 5, 16, 11, 0, 0).toISOString() });
+  try {
+    await closeMissedDoses();
+    expect(jest.mocked(db.insertMissedDoseLogSafe).mock.calls.some(([log]) => log.scheduledDate === YESTERDAY)).toBe(false);
+  } finally { saveSnoozedDoses({}); }
+});

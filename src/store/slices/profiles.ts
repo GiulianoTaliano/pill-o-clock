@@ -27,7 +27,12 @@ import { generateId, toISOString } from "../../utils";
  * Multi-profile slice (F2). The active profile scopes what UI lists show;
  * alarms and notifications always cover every profile (see profileStore.ts).
  */
-export const createProfilesSlice: StateCreator<AppState, [], [], ProfilesSlice> = (set, get) => ({
+export const createProfilesSlice: StateCreator<
+  AppState,
+  [],
+  [],
+  ProfilesSlice
+> = (set, get) => ({
   profiles: [],
   activeProfileId: getActiveProfileId(),
 
@@ -35,11 +40,13 @@ export const createProfilesSlice: StateCreator<AppState, [], [], ProfilesSlice> 
     set({ profiles: await getProfiles() });
   },
 
-  async addProfile(name, color) {
+  async addProfile(name, color, contact) {
     const profile: Profile = {
       id: generateId(),
       name: name.trim(),
       color,
+      emergencyContactName: contact?.name.trim() || undefined,
+      emergencyContactPhone: contact?.phone.trim() || undefined,
       createdAt: toISOString(new Date()),
     };
     await insertProfile(profile);
@@ -58,16 +65,39 @@ export const createProfilesSlice: StateCreator<AppState, [], [], ProfilesSlice> 
       emergencyContactPhone: contact?.phone || undefined,
     };
     await updateProfileDb(updated);
-    set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? updated : p)) }));
+    set((s) => ({
+      profiles: s.profiles.map((p) => (p.id === id ? updated : p)),
+    }));
   },
 
   async switchProfile(id) {
-    if (id === get().activeProfileId) return;
+    if (id === get().activeProfileId) {
+      await get().loadAll();
+      await Promise.all([
+        get().loadHealthMeasurements(),
+        get().loadDailyCheckins(),
+      ]);
+      return;
+    }
     setActiveProfileId(id);
-    set({ activeProfileId: id });
+    set({
+      activeProfileId: id,
+      medications: [],
+      schedules: [],
+      todayLogs: [],
+      appointments: [],
+      appointmentDocuments: [],
+      healthMeasurements: [],
+      dailyCheckins: [],
+      selectedAppointmentId: null,
+      pendingEditAppointmentId: null,
+    });
     // Reload every profile-scoped list for the new person.
     await get().loadAll();
-    await Promise.all([get().loadHealthMeasurements(), get().loadDailyCheckins()]);
+    await Promise.all([
+      get().loadHealthMeasurements(),
+      get().loadDailyCheckins(),
+    ]);
   },
 
   async removeProfile(id) {
@@ -79,13 +109,16 @@ export const createProfilesSlice: StateCreator<AppState, [], [], ProfilesSlice> 
     const meds = (await getMedications()).filter((m) => m.profileId === id);
     for (const med of meds) {
       const schedules = await getSchedulesByMedication(med.id);
-      await Promise.all(schedules.map((s) => cancelScheduleNotifications(s.id)));
+      await Promise.all(
+        schedules.map((s) => cancelScheduleNotifications(s.id))
+      );
       await cancelRenewalReminders(med);
       await deleteMedicationDb(med.id);
     }
     const appts = (await getAppointments()).filter((a) => a.profileId === id);
     for (const appt of appts) {
-      if (appt.notificationId) await cancelAppointmentNotification(appt.notificationId);
+      if (appt.notificationId)
+        await cancelAppointmentNotification(appt.notificationId);
     }
 
     await deleteProfileData(id);

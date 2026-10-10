@@ -52,7 +52,10 @@ export function checkPrnLimits(
 
   let tooSoon = false;
   let nextAllowedAt: Date | null = null;
-  if (medication.prnMinIntervalMinutes != null && medication.prnMinIntervalMinutes > 0) {
+  if (
+    medication.prnMinIntervalMinutes != null &&
+    medication.prnMinIntervalMinutes > 0
+  ) {
     const lastTakenMs = taken.reduce((max, l) => {
       const t = new Date(l.takenAt!).getTime();
       return Number.isFinite(t) && t > max ? t : max;
@@ -66,7 +69,13 @@ export function checkPrnLimits(
     }
   }
 
-  return { blocked: overMax || tooSoon, overMax, tooSoon, takenToday, nextAllowedAt };
+  return {
+    blocked: overMax || tooSoon,
+    overMax,
+    tooSoon,
+    takenToday,
+    nextAllowedAt,
+  };
 }
 
 /** Builds the localized warning body shown before "log anyway". */
@@ -78,13 +87,17 @@ export function prnWarningMessage(
   const parts: string[] = [];
   if (check.overMax) {
     parts.push(
-      t("prn.limitMax", { count: check.takenToday, max: medication.prnMaxPerDay })
+      t("uxMedication.limitMax", {
+        count: check.takenToday,
+        max: medication.prnMaxPerDay,
+      })
     );
   }
   if (check.tooSoon && check.nextAllowedAt) {
     const hh = String(check.nextAllowedAt.getHours()).padStart(2, "0");
     const mm = String(check.nextAllowedAt.getMinutes()).padStart(2, "0");
-    parts.push(t("prn.limitSoon", { time: `${hh}:${mm}` }));
+    const date = localDate(check.nextAllowedAt);
+    parts.push(t("uxMedication.limitSoon", { time: `${date} ${hh}:${mm}` }));
   }
   return parts.join("\n");
 }

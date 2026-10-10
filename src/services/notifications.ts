@@ -5,14 +5,29 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { addDays, addMinutes, format, startOfDay } from "date-fns";
 import { Schedule, Medication, NotificationMap, Appointment } from "../types";
-import { parseTime, isScheduleActiveOnDate, getNextDates, toDateString, getLocalizedDosage, getProfileLabel } from "../utils";
+import {
+  parseTime,
+  isScheduleActiveOnDate,
+  getNextDates,
+  toDateString,
+  getLocalizedDosage,
+  getProfileLabel,
+} from "../utils";
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
 import { resolveNotificationSound } from "./iosAlarmSound";
 import { withEffectiveDose } from "./regimen";
+import { loadSnoozedDoses } from "./snoozedDoses";
+import { effectiveDoseDateTime } from "./doseTime";
 import { detectTimezoneChange } from "./timezone";
-import { getMedications, getAllActiveSchedules, getDoseLogsByDateRange, getDb, getProfiles } from "../db/database";
+import {
+  getMedications,
+  getAllActiveSchedules,
+  getDoseLogsByDateRange,
+  getDb,
+  getProfiles,
+} from "../db/database";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -21,7 +36,12 @@ export const NOTIFICATION_CHANNEL_ID = "pill-reminders-v2";
 // immutable after creation, so a new ID forces a fresh channel on existing devices.
 // Snooze interval setting lives in ./snoozeSettings (user-configurable, F1);
 // re-exported here for backwards compatibility with existing imports.
-export { SNOOZE_OPTIONS, DEFAULT_SNOOZE_MINUTES, getDefaultSnoozeMinutes, setDefaultSnoozeMinutes } from "./snoozeSettings";
+export {
+  SNOOZE_OPTIONS,
+  DEFAULT_SNOOZE_MINUTES,
+  getDefaultSnoozeMinutes,
+  setDefaultSnoozeMinutes,
+} from "./snoozeSettings";
 /** @deprecated Use getDefaultSnoozeMinutes() — the interval is user-configurable now. */
 export const SNOOZE_MINUTES = 15;
 export const REPEAT_INTERVAL_MINUTES = 5;
@@ -82,7 +102,9 @@ export interface NotificationPlan {
  *
  * Android has no cap, so it always gets the full window.
  */
-export function planNotificationBudget(scheduleCount: number): NotificationPlan {
+export function planNotificationBudget(
+  scheduleCount: number
+): NotificationPlan {
   const full = { daysAhead: DAYS_AHEAD, maxRepeats: MAX_REPEATS };
   if (Platform.OS !== "ios" || scheduleCount <= 0) return full;
 
@@ -233,7 +255,9 @@ export async function refreshDoseReminderCategory(): Promise<void> {
     },
     {
       identifier: ACTION_SNOOZE,
-      buttonTitle: i18n.t("notifications.actionSnooze", { minutes: getSnoozeMin() }),
+      buttonTitle: i18n.t("notifications.actionSnooze", {
+        minutes: getSnoozeMin(),
+      }),
       options: { opensAppToForeground: true },
     },
     {
@@ -244,7 +268,9 @@ export async function refreshDoseReminderCategory(): Promise<void> {
   ]);
 }
 
-export async function setupNotifications(): Promise<NotificationSetupResult> {
+export async function setupNotifications(
+  options: { requestPermissions?: boolean } = {}
+): Promise<NotificationSetupResult> {
   // Notifications are not supported on web
   if (Platform.OS === "web") {
     return { granted: false, needsExactAlarmPermission: false };
@@ -287,13 +313,16 @@ export async function setupNotifications(): Promise<NotificationSetupResult> {
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   const needsExactAlarmPermission =
     Platform.OS === "android" &&
-    typeof Platform.Version === "number" &&
-    Platform.Version >= 31 &&
-    Platform.Version < 33;
+    !(await ExpoAlarm.checkExactAlarmPermission().catch(() => false));
 
   if (existingStatus === "granted") {
     await refreshCriticalAlertsStatus();
     return { granted: true, needsExactAlarmPermission };
+  }
+
+  if (options.requestPermissions === false) {
+    await refreshCriticalAlertsStatus();
+    return { granted: false, needsExactAlarmPermission };
   }
 
   const { status } = await Notifications.requestPermissionsAsync({
@@ -341,7 +370,14 @@ async function migrateNotifMapFromAsyncStorage(): Promise<void> {
             `INSERT OR IGNORE INTO notification_map
                (notif_id, schedule_id, scheduled_date, scheduled_time, medication_id, dose_log_id)
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [notifId, data.scheduleId, data.scheduledDate, data.scheduledTime, data.medicationId, data.doseLogId]
+            [
+              notifId,
+              data.scheduleId,
+              data.scheduledDate,
+              data.scheduledTime,
+              data.medicationId,
+              data.doseLogId,
+            ]
           );
         }
       });
@@ -355,7 +391,9 @@ async function migrateNotifMapFromAsyncStorage(): Promise<void> {
 async function loadNotifMap(): Promise<NotificationMap> {
   try {
     const db = await getDb();
-    const rows = await db.getAllAsync<NotifMapRow>("SELECT * FROM notification_map");
+    const rows = await db.getAllAsync<NotifMapRow>(
+      "SELECT * FROM notification_map"
+    );
     const map: NotificationMap = {};
     for (const row of rows) {
       map[row.notif_id] = {
@@ -384,7 +422,14 @@ export async function addNotifMapEntries(
         `INSERT OR REPLACE INTO notification_map
            (notif_id, schedule_id, scheduled_date, scheduled_time, medication_id, dose_log_id)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [notifId, data.scheduleId, data.scheduledDate, data.scheduledTime, data.medicationId, data.doseLogId]
+        [
+          notifId,
+          data.scheduleId,
+          data.scheduledDate,
+          data.scheduledTime,
+          data.medicationId,
+          data.doseLogId,
+        ]
       );
     }
   });
@@ -406,7 +451,9 @@ export async function removeNotifMapEntriesByDose(
     [scheduleId, scheduledDate]
   );
   for (const row of rows) {
-    await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(
+      () => {}
+    );
   }
   await db.runAsync(
     "DELETE FROM notification_map WHERE schedule_id = ? AND scheduled_date = ?",
@@ -466,13 +513,21 @@ async function scheduleOneNotification(
   const notifId = await Notifications.scheduleNotificationAsync({
     content: {
       title: isRepeat
-        ? i18n.t("notifications.repeatTitle", { name: await medDisplayName(medication) })
-        : i18n.t("notifications.reminderTitle", { name: await medDisplayName(medication) }),
+        ? i18n.t("notifications.repeatTitle", {
+            name: await medDisplayName(medication),
+          })
+        : i18n.t("notifications.reminderTitle", {
+            name: await medDisplayName(medication),
+          }),
       body:
         (medication.notes
-          ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
-          : i18n.t("notifications.body", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)) }))
-        + i18n.t("notifications.bodyActions"),
+          ? i18n.t("notifications.bodyWithNotes", {
+              dose: getLocalizedDosage(medication, i18n.t.bind(i18n)),
+              notes: medication.notes,
+            })
+          : i18n.t("notifications.body", {
+              dose: getLocalizedDosage(medication, i18n.t.bind(i18n)),
+            })) + i18n.t("notifications.bodyActions"),
       sound: doseSound(),
       categoryIdentifier: "DOSE_REMINDER",
       // iOS: break through Focus (and the silent switch when Apple approved
@@ -519,26 +574,31 @@ export async function scheduleDoseChain(
   // A single alarm per dose is sufficient — the alarm rings until dismissed.
   if (Platform.OS === "android") {
     await ExpoAlarm.scheduleAlarm({
-      scheduleId:     schedule.id,
-      medicationId:   medication.id,
+      scheduleId: schedule.id,
+      medicationId: medication.id,
       scheduledDate,
-      scheduledTime:  schedule.time,
+      scheduledTime: schedule.time,
       medicationName: await medDisplayName(medication),
-      dose:           getLocalizedDosage(withEffectiveDose(medication, scheduledDate), i18n.t.bind(i18n)),
-      fireTimestamp:  baseDate.getTime(),
+      dose: getLocalizedDosage(
+        withEffectiveDose(medication, scheduledDate),
+        i18n.t.bind(i18n)
+      ),
+      fireTimestamp: baseDate.getTime(),
     });
     // Track in the notification map so rescheduleAllNotifications can detect
     // that this dose already has an alarm and not re-create one.
-    await addNotifMapEntries([{
-      notifId: `android-alarm:${schedule.id}:${scheduledDate}`,
-      data: {
-        doseLogId:     `${schedule.id}-${scheduledDate}`,
-        medicationId:  medication.id,
-        scheduleId:    schedule.id,
-        scheduledDate,
-        scheduledTime: schedule.time,
+    await addNotifMapEntries([
+      {
+        notifId: `android-alarm:${schedule.id}:${scheduledDate}`,
+        data: {
+          doseLogId: `${schedule.id}-${scheduledDate}`,
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+          scheduledDate,
+          scheduledTime: schedule.time,
+        },
       },
-    }]);
+    ]);
     return;
   }
 
@@ -553,7 +613,12 @@ export async function scheduleDoseChain(
   };
 
   // Initial notification
-  const id0 = await scheduleOneNotification(medication, schedule, baseDate, false);
+  const id0 = await scheduleOneNotification(
+    medication,
+    schedule,
+    baseDate,
+    false
+  );
   entries.push({ notifId: id0, data: baseData });
 
   // Repeat notifications every REPEAT_INTERVAL_MINUTES
@@ -561,7 +626,12 @@ export async function scheduleDoseChain(
     const fireDate = addMinutes(baseDate, i * REPEAT_INTERVAL_MINUTES);
     // Only schedule if in future
     if (fireDate > new Date()) {
-      const id = await scheduleOneNotification(medication, schedule, fireDate, true);
+      const id = await scheduleOneNotification(
+        medication,
+        schedule,
+        fireDate,
+        true
+      );
       entries.push({ notifId: id, data: baseData });
     }
   }
@@ -592,39 +662,50 @@ export async function snoozeDose(
     // schedule time (e.g. 13:05) when they used "reschedule once" from Today.
     const displayTime = format(snoozeDate, "HH:mm");
     await ExpoAlarm.scheduleAlarm({
-      scheduleId:     schedule.id,
-      medicationId:   medication.id,
+      scheduleId: schedule.id,
+      medicationId: medication.id,
       scheduledDate,
-      scheduledTime:  displayTime,
+      scheduledTime: displayTime,
       medicationName: await medDisplayName(medication),
-      dose:           getLocalizedDosage(medication, i18n.t.bind(i18n)),
-      fireTimestamp:  snoozeDate.getTime(),
+      dose: getLocalizedDosage(
+        withEffectiveDose(medication, scheduledDate),
+        i18n.t.bind(i18n)
+      ),
+      fireTimestamp: snoozeDate.getTime(),
     });
     // Track in the notification map so rescheduleAllNotifications can detect
     // that this dose already has an alarm and not re-create one at the
     // original schedule time.
-    await addNotifMapEntries([{
-      notifId: `android-alarm:${schedule.id}:${scheduledDate}`,
-      data: {
-        doseLogId:     `${schedule.id}-${scheduledDate}`,
-        medicationId:  medication.id,
-        scheduleId:    schedule.id,
-        scheduledDate,
-        scheduledTime: displayTime,
+    await addNotifMapEntries([
+      {
+        notifId: `android-alarm:${schedule.id}:${scheduledDate}`,
+        data: {
+          doseLogId: `${schedule.id}-${scheduledDate}`,
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+          scheduledDate,
+          scheduledTime: displayTime,
+        },
       },
-    }]);
+    ]);
     return;
   }
 
   // ── iOS: reschedule via expo-notifications ─────────────────────────────
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: i18n.t("notifications.snoozeTitle", { name: await medDisplayName(medication) }),
+      title: i18n.t("notifications.snoozeTitle", {
+        name: await medDisplayName(medication),
+      }),
       body:
         (medication.notes
-          ? i18n.t("notifications.bodyWithNotes", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)), notes: medication.notes })
-          : i18n.t("notifications.body", { dose: getLocalizedDosage(medication, i18n.t.bind(i18n)) }))
-        + i18n.t("notifications.bodyActions"),
+          ? i18n.t("notifications.bodyWithNotes", {
+              dose: getLocalizedDosage(medication, i18n.t.bind(i18n)),
+              notes: medication.notes,
+            })
+          : i18n.t("notifications.body", {
+              dose: getLocalizedDosage(medication, i18n.t.bind(i18n)),
+            })) + i18n.t("notifications.bodyActions"),
       sound: doseSound(),
       categoryIdentifier: "DOSE_REMINDER",
       interruptionLevel: doseInterruptionLevel(),
@@ -711,6 +792,18 @@ export async function scheduleAllUpcoming(
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
   const db = await getDb();
+  if (Platform.OS === "android") {
+    await ExpoAlarm.cancelAllAlarms();
+    const rows = await db.getAllAsync<{
+      schedule_id: string;
+      scheduled_date: string;
+    }>("SELECT DISTINCT schedule_id, scheduled_date FROM notification_map");
+    await Promise.all(
+      rows.map((row) =>
+        ExpoAlarm.cancelAlarm(row.schedule_id, row.scheduled_date)
+      )
+    );
+  }
   await db.runAsync("DELETE FROM notification_map");
 }
 
@@ -752,15 +845,21 @@ export async function setupStockAlertChannel(): Promise<void> {
  * Fires an immediate local notification informing the user that their stock
  * for `medication` is running low.
  */
-export async function scheduleStockAlert(medication: Medication): Promise<void> {
+export async function scheduleStockAlert(
+  medication: Medication
+): Promise<void> {
   if (Platform.OS === "web") return;
   const count = medication.stockQuantity ?? 0;
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: i18n.t("stock.alertTitle", { name: await medDisplayName(medication) }),
+      title: i18n.t("stock.alertTitle", {
+        name: await medDisplayName(medication),
+      }),
       body: i18n.t("stock.alertBody", { count }),
       data: { type: "stock_alert", medicationId: medication.id },
-      ...(Platform.OS === "android" ? { channelId: STOCK_ALERT_CHANNEL_ID } : {}),
+      ...(Platform.OS === "android"
+        ? { channelId: STOCK_ALERT_CHANNEL_ID }
+        : {}),
     },
     trigger: null, // immediate
   });
@@ -775,7 +874,9 @@ export async function cancelRenewalReminders(med: Medication): Promise<void> {
     med.renewalNotifIds
       .split("|")
       .filter(Boolean)
-      .map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {}))
+      .map((id) =>
+        Notifications.cancelScheduledNotificationAsync(id).catch(() => {})
+      )
   );
 }
 
@@ -803,9 +904,14 @@ export async function scheduleRenewalReminders(
         title,
         body,
         data: { type: "renewal", medicationId: med.id },
-        ...(Platform.OS === "android" ? { channelId: STOCK_ALERT_CHANNEL_ID } : {}),
+        ...(Platform.OS === "android"
+          ? { channelId: STOCK_ALERT_CHANNEL_ID }
+          : {}),
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: fireDate,
+      },
     });
     ids.push(id);
   };
@@ -853,7 +959,7 @@ export async function setupAppointmentChannel(): Promise<void> {
 export async function scheduleAppointmentNotification(
   appt: Appointment
 ): Promise<string | undefined> {
-  if (Platform.OS === "web") return undefined;
+  if (Platform.OS === "web" || appt.reminderMinutes === 0) return undefined;
 
   const [year, month, day] = appt.date.split("-").map(Number);
   const [hour, minute] = appt.time ? appt.time.split(":").map(Number) : [9, 0];
@@ -864,16 +970,23 @@ export async function scheduleAppointmentNotification(
 
   // ── Configurable reminder (N minutes before) ──────────────────────────────
   if (appt.reminderMinutes && appt.reminderMinutes > 0) {
-    const fireDate = new Date(apptDate.getTime() - appt.reminderMinutes * 60_000);
+    const fireDate = new Date(
+      apptDate.getTime() - appt.reminderMinutes * 60_000
+    );
     if (fireDate > now) {
       const reminderId = await Notifications.scheduleNotificationAsync({
         content: {
           title: i18n.t("appointments.notifTitle"),
           body: i18n.t("appointments.notifBody", { title: appt.title }),
           data: { type: "appointment", appointmentId: appt.id },
-          ...(Platform.OS === "android" ? { channelId: APPOINTMENTS_CHANNEL_ID } : {}),
+          ...(Platform.OS === "android"
+            ? { channelId: APPOINTMENTS_CHANNEL_ID }
+            : {}),
         },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: fireDate,
+        },
       });
       ids.push(reminderId);
     }
@@ -889,9 +1002,14 @@ export async function scheduleAppointmentNotification(
         title: i18n.t("appointments.notifHeadsUpTitle", { title: appt.title }),
         body: headsUpBody,
         data: { type: "appointment_headsup", appointmentId: appt.id },
-        ...(Platform.OS === "android" ? { channelId: APPOINTMENTS_CHANNEL_ID } : {}),
+        ...(Platform.OS === "android"
+          ? { channelId: APPOINTMENTS_CHANNEL_ID }
+          : {}),
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: apptDate },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: apptDate,
+      },
     });
     ids.push(headsUpId);
   }
@@ -899,12 +1017,16 @@ export async function scheduleAppointmentNotification(
   return ids.length > 0 ? ids.join("|") : undefined;
 }
 
-export async function cancelAppointmentNotification(notificationId: string): Promise<void> {
+export async function cancelAppointmentNotification(
+  notificationId: string
+): Promise<void> {
   // notificationId may be pipe-separated when both a reminder and a heads-up
   // were scheduled (e.g. "id1|id2").
   const ids = notificationId.split("|");
   await Promise.all(
-    ids.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {}))
+    ids.map((id) =>
+      Notifications.cancelScheduledNotificationAsync(id).catch(() => {})
+    )
   );
 }
 
@@ -933,7 +1055,10 @@ export async function scheduleHealthReminder(time: string): Promise<void> {
   // Cancel the previous one first.
   try {
     const existingId = await AsyncStorage.getItem(HEALTH_NOTIF_ID_KEY);
-    if (existingId) await Notifications.cancelScheduledNotificationAsync(existingId).catch(() => {});
+    if (existingId)
+      await Notifications.cancelScheduledNotificationAsync(existingId).catch(
+        () => {}
+      );
   } catch {}
   const [hour, minute] = time.split(":").map(Number);
   const id = await Notifications.scheduleNotificationAsync({
@@ -957,13 +1082,18 @@ export async function cancelHealthReminder(): Promise<void> {
   if (Platform.OS === "web") return;
   try {
     const existingId = await AsyncStorage.getItem(HEALTH_NOTIF_ID_KEY);
-    if (existingId) await Notifications.cancelScheduledNotificationAsync(existingId).catch(() => {});
+    if (existingId)
+      await Notifications.cancelScheduledNotificationAsync(existingId).catch(
+        () => {}
+      );
     await AsyncStorage.removeItem(HEALTH_NOTIF_ID_KEY);
     await AsyncStorage.removeItem(HEALTH_REMINDER_TIME_KEY);
   } catch {}
 }
 
-export async function cancelScheduleNotifications(scheduleId: string): Promise<void> {
+export async function cancelScheduleNotifications(
+  scheduleId: string
+): Promise<void> {
   const db = await getDb();
   const rows = await db.getAllAsync<NotifMapRow>(
     "SELECT * FROM notification_map WHERE schedule_id = ?",
@@ -982,9 +1112,13 @@ export async function cancelScheduleNotifications(scheduleId: string): Promise<v
   }
 
   for (const row of rows) {
-    await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(
+      () => {}
+    );
   }
-  await db.runAsync("DELETE FROM notification_map WHERE schedule_id = ?", [scheduleId]);
+  await db.runAsync("DELETE FROM notification_map WHERE schedule_id = ?", [
+    scheduleId,
+  ]);
 }
 
 // ─── Cleanup expired NotificationMap entries ──────────────────────────────
@@ -997,12 +1131,12 @@ export async function cancelScheduleNotifications(scheduleId: string): Promise<v
 export async function cleanupExpiredNotifMapEntries(): Promise<void> {
   if (Platform.OS === "web") return;
   try {
-    const today = toDateString(new Date());
+    // Overnight snoozes keep yesterday's original dose key until resolved.
+    const oldest = toDateString(addDays(new Date(), -1));
     const db = await getDb();
-    await db.runAsync(
-      "DELETE FROM notification_map WHERE scheduled_date < ?",
-      [today]
-    );
+    await db.runAsync("DELETE FROM notification_map WHERE scheduled_date < ?", [
+      oldest,
+    ]);
   } catch {
     // Non-critical — swallow so callers never fail due to this.
   }
@@ -1032,7 +1166,9 @@ export async function rescheduleAllNotifications(): Promise<void> {
           title: i18n.t("timezone.adjustedTitle"),
           body: i18n.t("timezone.adjustedBody", { tz: tz.to }),
           data: { type: "timezone_adjusted" },
-          ...(Platform.OS === "android" ? { channelId: STOCK_ALERT_CHANNEL_ID } : {}),
+          ...(Platform.OS === "android"
+            ? { channelId: STOCK_ALERT_CHANNEL_ID }
+            : {}),
         },
         trigger: null, // immediate, informational
       });
@@ -1046,7 +1182,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
 
   const now = new Date();
   const todayStr = toDateString(now);
-  const endStr   = toDateString(addDays(now, DAYS_AHEAD));
+  const endStr = toDateString(addDays(now, DAYS_AHEAD));
 
   const db = await getDb();
   const [medications, schedules, mappedRows, logs] = await Promise.all([
@@ -1055,7 +1191,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
     db.getAllAsync<{ schedule_id: string; scheduled_date: string }>(
       "SELECT DISTINCT schedule_id, scheduled_date FROM notification_map"
     ),
-    getDoseLogsByDateRange(todayStr, endStr),
+    getDoseLogsByDateRange(toDateString(addDays(now, -1)), endStr),
   ]);
 
   const scheduledKeys = new Set(
@@ -1078,6 +1214,31 @@ export async function rescheduleAllNotifications(): Promise<void> {
       .filter((l) => l.status !== "pending")
       .map((l) => `${l.scheduleId}:${l.scheduledDate}`)
   );
+  const postponed = loadSnoozedDoses();
+  // Restore an overnight snooze too, including after a sound/zone rebuild.
+  for (const [key, value] of Object.entries(postponed)) {
+    const originalDate = key.slice(-10);
+    if (originalDate >= todayStr || !value.includes("T")) continue;
+    const scheduleId = key.slice(0, -11);
+    const schedule = schedules.find((s) => s.id === scheduleId);
+    const med =
+      schedule && medications.find((m) => m.id === schedule.medicationId);
+    if (
+      !schedule ||
+      !med?.isActive ||
+      resolvedKeys.has(`${scheduleId}:${originalDate}`) ||
+      scheduledKeys.has(`${scheduleId}:${originalDate}`)
+    )
+      continue;
+    const fireDate = effectiveDoseDateTime(originalDate, schedule.time, value);
+    if (fireDate > now)
+      await snoozeDose(
+        withEffectiveDose(med, originalDate),
+        schedule,
+        originalDate,
+        fireDate
+      );
+  }
 
   for (const sched of schedules) {
     const med = medications.find((m) => m.id === sched.medicationId);
@@ -1095,8 +1256,31 @@ export async function rescheduleAllNotifications(): Promise<void> {
       // Already resolved by the user → never re-alarm.
       if (resolvedKeys.has(`${sched.id}:${scheduledDate}`)) continue;
 
+      const snooze = postponed[`${sched.id}-${scheduledDate}`];
+      if (snooze) {
+        const postponedDate = effectiveDoseDateTime(
+          scheduledDate,
+          sched.time,
+          snooze
+        );
+        if (postponedDate > now)
+          await snoozeDose(
+            withEffectiveDose(med, scheduledDate),
+            sched,
+            scheduledDate,
+            postponedDate
+          );
+        continue;
+      }
+
       const [h, m] = sched.time.split(":").map(Number);
-      const fireDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);
+      const fireDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        h,
+        m
+      );
       if (fireDate <= now) continue;
 
       await scheduleDoseChain(med, sched, scheduledDate, plan.maxRepeats);

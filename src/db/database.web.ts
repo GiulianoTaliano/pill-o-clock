@@ -1,309 +1,470 @@
-/**
- * Web-specific database implementation.
- * Uses localStorage for persistence so data survives page refreshes.
- * Metro automatically picks this file over database.ts on the web platform.
- */
-
-import {
+/** Persistent web adapter with the same profile scoping as the native database. */
+import type {
   Medication,
   Schedule,
   DoseLog,
   DoseStatus,
   Profile,
   Appointment,
+  AppointmentDocument,
+  Allergy,
+  HealthMeasurement,
+  DailyCheckin,
+  MeasurementType,
 } from "../types";
-
-// ─── LocalStorage helpers ──────────────────────────────────────────────────
-
+import {
+  getActiveProfileId,
+  setActiveProfileId,
+  DEFAULT_PROFILE_ID,
+} from "../services/profileStore";
 const KEYS = {
   medications: "pilloclock:medications",
   schedules: "pilloclock:schedules",
   doseLogs: "pilloclock:dose_logs",
   profiles: "pilloclock:profiles",
+  appointments: "pilloclock:appointments",
+  documents: "pilloclock:documents",
+  allergies: "pilloclock:allergies",
+  measurements: "pilloclock:measurements",
+  checkins: "pilloclock:checkins",
 };
-
+const defaultProfile = (): Profile => ({
+  id: DEFAULT_PROFILE_ID,
+  name: "",
+  color: "blue",
+  createdAt: "1970-01-01T00:00:00.000Z",
+});
 function load<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T[]) : [];
-  } catch {
-    return [];
-  }
+  const raw = localStorage.getItem(key);
+  return raw ? (JSON.parse(raw) as T[]) : [];
 }
-
-function save<T>(key: string, data: T[]): void {
-  localStorage.setItem(key, JSON.stringify(data));
+function save<T>(key: string, rows: T[]) {
+  localStorage.setItem(key, JSON.stringify(rows));
 }
-
-// ─── Init (no-op on web) ───────────────────────────────────────────────────
-
-export async function initDatabase(): Promise<void> {
-  // Nothing to initialise – localStorage is always available.
+function insert<T extends { id: string }>(key: string, row: T) {
+  const rows = load<T>(key);
+  if (rows.some((r) => r.id === row.id)) throw new Error("Duplicate record");
+  save(key, [...rows, row]);
 }
-
-// ─── Medications ───────────────────────────────────────────────────────────
-
-export async function getMedications(): Promise<Medication[]> {
-  return load<Medication>(KEYS.medications).sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-}
-
-export async function getMedicationById(
-  id: string
-): Promise<Medication | null> {
-  return load<Medication>(KEYS.medications).find((m) => m.id === id) ?? null;
-}
-
-export async function insertMedication(med: Medication): Promise<void> {
-  const all = load<Medication>(KEYS.medications);
-  all.push(med);
-  save(KEYS.medications, all);
-}
-
-export async function updateMedication(med: Medication): Promise<void> {
-  const all = load<Medication>(KEYS.medications).map((m) =>
-    m.id === med.id ? med : m
-  );
-  save(KEYS.medications, all);
-}
-
-export async function deleteMedication(id: string): Promise<void> {
+function update<T extends { id: string }>(key: string, row: T) {
   save(
-    KEYS.medications,
-    load<Medication>(KEYS.medications).filter((m) => m.id !== id)
+    key,
+    load<T>(key).map((r) => (r.id === row.id ? row : r))
   );
-  // Cascade: remove schedules and their dose logs
-  const schedules = load<Schedule>(KEYS.schedules).filter(
-    (s) => s.medicationId === id
+}
+function remove<T extends { id: string }>(key: string, id: string) {
+  save(
+    key,
+    load<T>(key).filter((r) => r.id !== id)
+  );
+}
+const scoped = <T extends { profileId?: string }>(rows: T[]) =>
+  rows.filter(
+    (r) => (r.profileId ?? DEFAULT_PROFILE_ID) === getActiveProfileId()
+  );
+const limitRows = <T>(rows: T[], limit: number) =>
+  limit > 0 ? rows.slice(0, limit) : rows;
+/** Roll back every table if any import write fails. Scheduling is disabled on web. */
+export function getDb() {
+  return {
+    withTransactionAsync: async (fn: () => Promise<void>) => {
+      const before = Object.values(KEYS).map(
+        (key) => [key, localStorage.getItem(key)] as const
+      );
+      try {
+        await fn();
+      } catch (error) {
+        for (const [key, value] of before) {
+          if (value === null) localStorage.removeItem(key);
+          else localStorage.setItem(key, value);
+        }
+        throw error;
+      }
+    },
+  };
+}
+export async function initDatabase() {
+  const rows = load<Profile>(KEYS.profiles);
+  if (!rows.some((p) => p.id === DEFAULT_PROFILE_ID))
+    save(KEYS.profiles, [defaultProfile(), ...rows]);
+}
+export async function getProfiles(): Promise<Profile[]> {
+  const rows = load<Profile>(KEYS.profiles);
+  return rows.length ? rows : [defaultProfile()];
+}
+export async function insertProfile(profile: Profile) {
+  if (!load<Profile>(KEYS.profiles).length)
+    save(KEYS.profiles, [defaultProfile()]);
+  insert(KEYS.profiles, profile);
+}
+export async function updateProfile(profile: Profile) {
+  update(KEYS.profiles, profile);
+}
+export async function reconcileActiveProfile() {
+  const profiles = await getProfiles();
+  const id = profiles.some((p) => p.id === getActiveProfileId())
+    ? getActiveProfileId()
+    : DEFAULT_PROFILE_ID;
+  setActiveProfileId(id);
+  return id;
+}
+export async function deleteProfileData(id: string) {
+  if (id === DEFAULT_PROFILE_ID)
+    throw new Error("The default profile cannot be deleted");
+  const appointmentIds = new Set(
+    (await getAppointments()).filter((a) => a.profileId === id).map((a) => a.id)
   );
   save(
-    KEYS.schedules,
-    load<Schedule>(KEYS.schedules).filter((s) => s.medicationId !== id)
-  );
-  const scheduleIds = new Set(schedules.map((s) => s.id));
-  save(
-    KEYS.doseLogs,
-    load<DoseLog>(KEYS.doseLogs).filter(
-      (l) => !scheduleIds.has(l.scheduleId)
+    KEYS.documents,
+    (await getAllAppointmentDocuments()).filter(
+      (d) => !appointmentIds.has(d.appointmentId)
     )
   );
+  for (const key of [
+    KEYS.appointments,
+    KEYS.allergies,
+    KEYS.measurements,
+    KEYS.checkins,
+  ])
+    save(
+      key,
+      load<{ profileId?: string }>(key).filter((r) => r.profileId !== id)
+    );
+  remove<Profile>(KEYS.profiles, id);
 }
-
-// ─── Schedules ─────────────────────────────────────────────────────────────
-
-export async function getSchedulesByMedication(
-  medicationId: string
-): Promise<Schedule[]> {
-  return load<Schedule>(KEYS.schedules)
-    .filter((s) => s.medicationId === medicationId)
-    .sort((a, b) => a.time.localeCompare(b.time));
+export async function clearAllDataNoTx() {
+  for (const key of Object.values(KEYS)) save(key, []);
+  save(KEYS.profiles, [defaultProfile()]);
 }
-
-export async function getAllActiveSchedules(): Promise<Schedule[]> {
-  const meds = new Set(
-    load<Medication>(KEYS.medications)
-      .filter((m) => m.isActive)
-      .map((m) => m.id)
+export async function clearAllData() {
+  await getDb().withTransactionAsync(clearAllDataNoTx);
+}
+export async function getMedications() {
+  return load<Medication>(KEYS.medications).sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt)
   );
-  return load<Schedule>(KEYS.schedules).filter(
+}
+export async function getActiveMedications() {
+  return scoped(await getMedications());
+}
+export async function getMedicationById(id: string) {
+  return (await getMedications()).find((m) => m.id === id) ?? null;
+}
+export async function insertMedication(m: Medication) {
+  insert(KEYS.medications, {
+    ...m,
+    profileId: m.profileId ?? getActiveProfileId(),
+  });
+}
+export async function updateMedication(m: Medication) {
+  update(KEYS.medications, m);
+}
+export async function saveMedicationWithSchedules(
+  med: Medication,
+  schedules: Schedule[]
+) {
+  if (schedules.some((s) => s.medicationId !== med.id))
+    throw new Error("Schedule owner mismatch");
+  await getDb().withTransactionAsync(async () => {
+    if (await getMedicationById(med.id)) await updateMedication(med);
+    else await insertMedication(med);
+    await deleteSchedulesByMedication(med.id);
+    for (const schedule of schedules) await insertSchedule(schedule);
+  });
+}
+export async function updateMedicationStock(id: string, stockQuantity: number) {
+  const m = await getMedicationById(id);
+  if (m) await updateMedication({ ...m, stockQuantity });
+}
+export async function setMedicationRenewalNotifIds(
+  id: string,
+  renewalNotifIds: string | undefined
+) {
+  const m = await getMedicationById(id);
+  if (m) await updateMedication({ ...m, renewalNotifIds });
+}
+export async function deleteMedication(id: string) {
+  remove<Medication>(KEYS.medications, id);
+  await deleteSchedulesByMedication(id);
+}
+export async function getAllSchedules() {
+  return load<Schedule>(KEYS.schedules);
+}
+export async function getAllActiveSchedules() {
+  const meds = new Set(
+    (await getMedications()).filter((m) => m.isActive).map((m) => m.id)
+  );
+  return (await getAllSchedules()).filter(
     (s) => s.isActive && meds.has(s.medicationId)
   );
 }
-
-export async function getAllSchedules(): Promise<Schedule[]> {
-  return load<Schedule>(KEYS.schedules).sort((a, b) => {
-    const med = a.medicationId.localeCompare(b.medicationId);
-    return med !== 0 ? med : a.time.localeCompare(b.time);
-  });
+export async function getSchedulesByMedication(id: string) {
+  return (await getAllSchedules()).filter((s) => s.medicationId === id);
 }
-
-export async function insertSchedule(schedule: Schedule): Promise<void> {
-  const all = load<Schedule>(KEYS.schedules);
-  all.push(schedule);
-  save(KEYS.schedules, all);
+export async function insertSchedule(s: Schedule) {
+  insert(KEYS.schedules, s);
 }
-
-export async function updateSchedule(schedule: Schedule): Promise<void> {
-  const all = load<Schedule>(KEYS.schedules).map((s) =>
-    s.id === schedule.id ? schedule : s
-  );
-  save(KEYS.schedules, all);
+export async function updateSchedule(s: Schedule) {
+  update(KEYS.schedules, s);
 }
-
-export async function deleteSchedule(id: string): Promise<void> {
+export async function deleteSchedule(id: string) {
+  remove<Schedule>(KEYS.schedules, id);
+}
+export async function deleteSchedulesByMedication(id: string) {
   save(
     KEYS.schedules,
-    load<Schedule>(KEYS.schedules).filter((s) => s.id !== id)
-  );
-  save(
-    KEYS.doseLogs,
-    load<DoseLog>(KEYS.doseLogs).filter((l) => l.scheduleId !== id)
+    (await getAllSchedules()).filter((s) => s.medicationId !== id)
   );
 }
-
-export async function deleteSchedulesByMedication(
-  medicationId: string
-): Promise<void> {
-  const removed = load<Schedule>(KEYS.schedules).filter(
-    (s) => s.medicationId === medicationId
-  );
-  save(
-    KEYS.schedules,
-    load<Schedule>(KEYS.schedules).filter(
-      (s) => s.medicationId !== medicationId
-    )
-  );
-  const ids = new Set(removed.map((s) => s.id));
-  save(
-    KEYS.doseLogs,
-    load<DoseLog>(KEYS.doseLogs).filter((l) => !ids.has(l.scheduleId))
+export async function getAllDoseLogs() {
+  return load<DoseLog>(KEYS.doseLogs).sort(
+    (a, b) =>
+      b.scheduledDate.localeCompare(a.scheduledDate) ||
+      b.scheduledTime.localeCompare(a.scheduledTime)
   );
 }
-
-// ─── Dose Logs ─────────────────────────────────────────────────────────────
-
-export async function getAllDoseLogs(): Promise<DoseLog[]> {
-  return load<DoseLog>(KEYS.doseLogs).sort((a, b) => {
-    const d = b.scheduledDate.localeCompare(a.scheduledDate);
-    return d !== 0 ? d : b.scheduledTime.localeCompare(a.scheduledTime);
-  });
+export async function getDoseLogsByDate(date: string) {
+  return (await getAllDoseLogs()).filter((l) => l.scheduledDate === date);
 }
-
-export async function getDoseLogsByDate(date: string): Promise<DoseLog[]> {
-  return load<DoseLog>(KEYS.doseLogs)
-    .filter((l) => l.scheduledDate === date)
-    .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+export async function getDoseLogsByDateRange(from: string, to: string) {
+  return (await getAllDoseLogs()).filter(
+    (l) => l.scheduledDate >= from && l.scheduledDate <= to
+  );
 }
-
-export async function getDoseLogsByDateRange(
-  from: string,
-  to: string
-): Promise<DoseLog[]> {
-  return load<DoseLog>(KEYS.doseLogs)
-    .filter((l) => l.scheduledDate >= from && l.scheduledDate <= to)
-    .sort((a, b) => {
-      const d = b.scheduledDate.localeCompare(a.scheduledDate);
-      return d !== 0 ? d : b.scheduledTime.localeCompare(a.scheduledTime);
-    });
-}
-
-export async function getDoseLogByScheduleAndDate(
-  scheduleId: string,
-  date: string
-): Promise<DoseLog | null> {
+export async function getDoseLogByScheduleAndDate(id: string, date: string) {
   return (
-    load<DoseLog>(KEYS.doseLogs).find(
-      (l) => l.scheduleId === scheduleId && l.scheduledDate === date
+    (await getAllDoseLogs()).find(
+      (l) => l.scheduleId === id && l.scheduledDate === date
     ) ?? null
   );
 }
-
-export async function upsertDoseLog(log: DoseLog): Promise<void> {
-  const all = load<DoseLog>(KEYS.doseLogs);
-  const idx = all.findIndex(
-    (l) => l.scheduleId === log.scheduleId && l.scheduledDate === log.scheduledDate
-  );
-  if (idx >= 0) {
-    all[idx] = { ...all[idx], status: log.status, takenAt: log.takenAt };
-  } else {
-    all.push(log);
-  }
-  save(KEYS.doseLogs, all);
+export async function upsertDoseLog(log: DoseLog) {
+  const rows = await getAllDoseLogs();
+  save(KEYS.doseLogs, [
+    ...rows.filter(
+      (l) =>
+        !(
+          l.scheduleId === log.scheduleId &&
+          l.scheduledDate === log.scheduledDate
+        )
+    ),
+    log,
+  ]);
 }
-
-export async function updateDoseLogStatus(
+export const upsertDoseLogNoTx = upsertDoseLog;
+export async function saveDoseLogWithStock(
+  log: DoseLog,
+  stockQuantity?: number
+) {
+  await getDb().withTransactionAsync(async () => {
+    await upsertDoseLog(log);
+    if (stockQuantity !== undefined)
+      await updateMedicationStock(log.medicationId, stockQuantity);
+  });
+}
+export async function removeDoseLogWithStock(
   scheduleId: string,
-  scheduledDate: string,
+  date: string,
+  medicationId: string,
+  stockQuantity?: number
+) {
+  await getDb().withTransactionAsync(async () => {
+    await deleteDoseLog(scheduleId, date);
+    if (stockQuantity !== undefined)
+      await updateMedicationStock(medicationId, stockQuantity);
+  });
+}
+export async function insertMissedDoseLogSafe(log: DoseLog) {
+  if (!(await getDoseLogByScheduleAndDate(log.scheduleId, log.scheduledDate)))
+    await upsertDoseLog(log);
+}
+export async function updateDoseLogStatus(
+  id: string,
+  date: string,
   status: DoseStatus,
   takenAt?: string
-): Promise<void> {
-  const all = load<DoseLog>(KEYS.doseLogs).map((l) =>
-    l.scheduleId === scheduleId && l.scheduledDate === scheduledDate
-      ? { ...l, status, takenAt: takenAt ?? l.takenAt }
-      : l
-  );
-  save(KEYS.doseLogs, all);
+) {
+  const l = await getDoseLogByScheduleAndDate(id, date);
+  if (l) await upsertDoseLog({ ...l, status, takenAt });
 }
-
-export async function deleteDoseLog(
-  scheduleId: string,
-  scheduledDate: string
-): Promise<void> {
+export async function deleteDoseLog(id: string, date: string) {
   save(
     KEYS.doseLogs,
-    load<DoseLog>(KEYS.doseLogs).filter(
-      (l) => !(l.scheduleId === scheduleId && l.scheduledDate === scheduledDate)
+    (await getAllDoseLogs()).filter(
+      (l) => !(l.scheduleId === id && l.scheduledDate === date)
     )
   );
 }
-
-// ─── Dev / Reset ───────────────────────────────────────────────────────────
-
-export async function clearAllData(): Promise<void> {
-  save(KEYS.medications, []);
-  save(KEYS.schedules, []);
-  save(KEYS.doseLogs, []);
-}
-
-// ─── Profiles (F2 multi-profile — minimal web parity) ──────────────────────
-// The web target is deferred (backlog D5) and this stub predates several
-// native tables (appointments, health, check-ins). The F2 surface below
-// keeps the module interface aligned with database.ts so shared code
-// resolves on every platform.
-
-const DEFAULT_PROFILE: Profile = { id: "default", name: "", color: "blue", createdAt: "1970-01-01T00:00:00.000Z" };
-
-export async function getProfiles(): Promise<Profile[]> {
-  const rows = load<Profile>(KEYS.profiles);
-  return rows.length ? rows : [DEFAULT_PROFILE];
-}
-
-export async function insertProfile(profile: Profile): Promise<void> {
-  save(KEYS.profiles, [...(await getProfiles()), profile]);
-}
-
-export async function updateProfile(profile: Profile): Promise<void> {
-  save(KEYS.profiles, (await getProfiles()).map((p) => (p.id === profile.id ? profile : p)));
-}
-
-export async function deleteProfileData(profileId: string): Promise<void> {
-  if (profileId === "default") throw new Error("The default profile cannot be deleted");
-  save(KEYS.profiles, (await getProfiles()).filter((p) => p.id !== profileId));
-}
-
-/** Web keeps a single implicit profile — active getters delegate. */
-export async function getActiveMedications(): Promise<Medication[]> {
-  return getMedications();
-}
-
-/** Appointments are not persisted on web (pre-existing stub gap). */
-export async function getAppointments(): Promise<Appointment[]> {
-  return [];
-}
-
-export async function getActiveAppointments(): Promise<Appointment[]> {
-  return [];
-}
-
-/** Stock counter update (web parity with database.ts). */
-export async function updateMedicationStock(id: string, newQuantity: number): Promise<void> {
-  const meds = load<Medication>(KEYS.medications);
-  save(KEYS.medications, meds.map((m) => (m.id === id ? { ...m, stockQuantity: newQuantity } : m)));
-}
-
-/** Dose-log note update (web parity with database.ts). */
 export async function updateDoseLogNotes(
-  scheduleId: string,
-  scheduledDate: string,
+  id: string,
+  date: string,
   notes: string
-): Promise<void> {
-  const logs = load<DoseLog>(KEYS.doseLogs);
-  save(
-    KEYS.doseLogs,
-    logs.map((l) =>
-      l.scheduleId === scheduleId && l.scheduledDate === scheduledDate ? { ...l, notes } : l
-    )
+) {
+  const l = await getDoseLogByScheduleAndDate(id, date);
+  if (l) await upsertDoseLog({ ...l, notes });
+}
+export async function setDoseInjectionSite(
+  id: string,
+  date: string,
+  injectionSite: string
+) {
+  const l = await getDoseLogByScheduleAndDate(id, date);
+  if (l) await upsertDoseLog({ ...l, injectionSite });
+}
+export async function getAppointments() {
+  return load<Appointment>(KEYS.appointments).sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? "")
   );
+}
+export async function getActiveAppointments() {
+  return scoped(await getAppointments());
+}
+export async function insertAppointment(a: Appointment) {
+  insert(KEYS.appointments, {
+    ...a,
+    profileId: a.profileId ?? getActiveProfileId(),
+  });
+}
+export async function updateAppointment(a: Appointment) {
+  update(KEYS.appointments, a);
+}
+export async function deleteAppointment(id: string) {
+  remove<Appointment>(KEYS.appointments, id);
+  save(
+    KEYS.documents,
+    (await getAllAppointmentDocuments()).filter((d) => d.appointmentId !== id)
+  );
+}
+export async function getAllAppointmentDocuments() {
+  return load<AppointmentDocument>(KEYS.documents);
+}
+export async function getAppointmentDocuments(id: string) {
+  return (await getAllAppointmentDocuments()).filter(
+    (d) => d.appointmentId === id
+  );
+}
+export async function insertAppointmentDocument(d: AppointmentDocument) {
+  insert(KEYS.documents, d);
+}
+export async function deleteAppointmentDocument(id: string) {
+  remove<AppointmentDocument>(KEYS.documents, id);
+}
+export async function getAllAllergies() {
+  return load<Allergy>(KEYS.allergies);
+}
+export async function getActiveAllergies() {
+  return scoped(await getAllAllergies());
+}
+export async function insertAllergy(a: Allergy) {
+  insert(KEYS.allergies, {
+    ...a,
+    profileId: a.profileId ?? getActiveProfileId(),
+  });
+}
+export async function deleteAllergy(id: string) {
+  remove<Allergy>(KEYS.allergies, id);
+}
+export async function updateAllergy(allergy: Allergy) {
+  const existing = (await getActiveAllergies()).find(
+    (a) => a.id === allergy.id
+  );
+  if (existing)
+    update(KEYS.allergies, {
+      ...existing,
+      name: allergy.name,
+      ingRxcui: allergy.ingRxcui,
+    });
+}
+export async function getAllHealthMeasurements() {
+  return load<HealthMeasurement>(KEYS.measurements).sort((a, b) =>
+    b.measuredAt.localeCompare(a.measuredAt)
+  );
+}
+export async function getHealthMeasurements(
+  type?: MeasurementType,
+  limit = 60
+) {
+  return limitRows(
+    (await getAllHealthMeasurements()).filter((m) => !type || m.type === type),
+    limit
+  );
+}
+export async function getActiveHealthMeasurements(
+  type?: MeasurementType,
+  limit = 60
+) {
+  return limitRows(
+    scoped(await getAllHealthMeasurements()).filter(
+      (m) => !type || m.type === type
+    ),
+    limit
+  );
+}
+export async function insertHealthMeasurement(m: HealthMeasurement) {
+  insert(KEYS.measurements, {
+    ...m,
+    profileId: m.profileId ?? getActiveProfileId(),
+  });
+}
+export async function deleteHealthMeasurement(id: string) {
+  remove<HealthMeasurement>(KEYS.measurements, id);
+}
+export async function updateHealthMeasurement(m: HealthMeasurement) {
+  const existing = scoped(await getAllHealthMeasurements()).find(
+    (r) => r.id === m.id
+  );
+  if (existing)
+    update(KEYS.measurements, {
+      ...existing,
+      type: m.type,
+      value1: m.value1,
+      value2: m.value2,
+      measuredAt: m.measuredAt,
+      notes: m.notes,
+    });
+}
+export async function getAllDailyCheckins() {
+  return load<DailyCheckin>(KEYS.checkins).sort((a, b) =>
+    b.date.localeCompare(a.date)
+  );
+}
+export async function getDailyCheckins(from?: string, to?: string) {
+  const rows = await getAllDailyCheckins();
+  return from && to
+    ? rows.filter((c) => c.date >= from && c.date <= to)
+    : rows.slice(0, 90);
+}
+export async function getActiveDailyCheckins(
+  from?: string,
+  to?: string,
+  limit = 90
+) {
+  const rows = scoped(await getAllDailyCheckins());
+  return from && to
+    ? rows.filter((c) => c.date >= from && c.date <= to)
+    : limitRows(rows, limit);
+}
+export async function getDailyCheckinByDate(date: string) {
+  return (
+    (await getActiveDailyCheckins(undefined, undefined, 0)).find(
+      (c) => c.date === date
+    ) ?? null
+  );
+}
+export async function upsertDailyCheckin(checkin: DailyCheckin) {
+  const c = {
+    ...checkin,
+    profileId: checkin.profileId ?? getActiveProfileId(),
+  };
+  save(KEYS.checkins, [
+    ...(await getAllDailyCheckins()).filter(
+      (r) =>
+        !(
+          (r.profileId ?? DEFAULT_PROFILE_ID) === c.profileId &&
+          r.date === c.date
+        )
+    ),
+    c,
+  ]);
 }

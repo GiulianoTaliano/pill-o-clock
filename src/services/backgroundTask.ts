@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 import * as Sentry from "@sentry/react-native";
 import * as BackgroundFetch from "expo-background-fetch";
 import * as TaskManager from "expo-task-manager";
-import { addDays, format, subDays } from "date-fns";
+import { addDays, subDays } from "date-fns";
 import {
   initDatabase,
   getMedications,
@@ -12,7 +12,14 @@ import {
 } from "../db/database";
 import { rescheduleAllNotifications } from "./notifications";
 import { DoseLog } from "../types";
-import { generateId, isScheduleActiveOnDate, toDateString, toISOString } from "../utils";
+import {
+  generateId,
+  isScheduleActiveOnDate,
+  toDateString,
+  toISOString,
+} from "../utils";
+import { loadSnoozedDoses } from "./snoozedDoses";
+import { effectiveDoseDateTime } from "./doseTime";
 
 // ─── Task name ─────────────────────────────────────────────────────────────
 
@@ -41,18 +48,19 @@ export const BG_TASK_NAME = "PILL_RESCHEDULE_NOTIFICATIONS";
 // IMPORTANT: defineTask must be called at module scope (before any renders).
 // Importing this file from _layout.tsx is sufficient.
 
-if (Platform.OS !== "web") TaskManager.defineTask(BG_TASK_NAME, async () => {
-  try {
-    await initDatabase();
-    await closeMissedDoses();
-    await rescheduleAllNotifications();
-    return BackgroundFetch.BackgroundFetchResult.NewData;
-  } catch (e) {
-    console.warn("[BackgroundTask] reschedule failed:", e);
-    Sentry.captureException(e, { tags: { task: BG_TASK_NAME } });
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
+if (Platform.OS !== "web")
+  TaskManager.defineTask(BG_TASK_NAME, async () => {
+    try {
+      await initDatabase();
+      await closeMissedDoses();
+      await rescheduleAllNotifications();
+      return BackgroundFetch.BackgroundFetchResult.NewData;
+    } catch (e) {
+      console.warn("[BackgroundTask] reschedule failed:", e);
+      Sentry.captureException(e, { tags: { task: BG_TASK_NAME } });
+      return BackgroundFetch.BackgroundFetchResult.Failed;
+    }
+  });
 
 // ─── Registration helpers ──────────────────────────────────────────────────
 
@@ -72,8 +80,8 @@ export async function registerBackgroundFetch(): Promise<void> {
     if (!isRegistered) {
       await BackgroundFetch.registerTaskAsync(BG_TASK_NAME, {
         minimumInterval: 60 * 60 * 6, // 6 hours
-        stopOnTerminate: false,       // keep alive after app is killed (Android)
-        startOnBoot: true,            // reschedule after device restart
+        stopOnTerminate: false, // keep alive after app is killed (Android)
+        startOnBoot: true, // reschedule after device restart
       });
     }
   } catch (e) {
@@ -106,7 +114,6 @@ const MISSED_LOOKBACK_DAYS = 30;
 
 export async function closeMissedDoses(): Promise<void> {
   const now = new Date();
-  const todayStr = toDateString(now);
   const cutoff = subDays(now, MISSED_LOOKBACK_DAYS);
   const cutoffStr = toDateString(cutoff);
   const yesterdayStr = toDateString(subDays(now, 1));
@@ -118,9 +125,12 @@ export async function closeMissedDoses(): Promise<void> {
   ]);
 
   // Build a fast lookup set of already-logged (scheduleId, date) pairs
-  const logged = new Set(existingLogs.map((l) => `${l.scheduleId}|${l.scheduledDate}`));
+  const logged = new Set(
+    existingLogs.map((l) => `${l.scheduleId}|${l.scheduledDate}`)
+  );
   const medMap = new Map(meds.map((m) => [m.id, m]));
   const nowIso = toISOString(now);
+  const postponed = loadSnoozedDoses();
 
   // Iterate each day in the range [cutoff, yesterday]
   let cursor = new Date(cutoff);
@@ -132,6 +142,9 @@ export async function closeMissedDoses(): Promise<void> {
       if (!med) continue;
       if (!isScheduleActiveOnDate(schedule, cursor, med)) continue;
       if (logged.has(`${schedule.id}|${dateStr}`)) continue;
+      const snooze = postponed[`${schedule.id}-${dateStr}`];
+      if (snooze && effectiveDoseDateTime(dateStr, schedule.time, snooze) > now)
+        continue;
 
       const missedLog: DoseLog = {
         id: generateId(),

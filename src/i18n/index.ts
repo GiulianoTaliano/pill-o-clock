@@ -1,5 +1,5 @@
 import i18n from "i18next";
-import { initReactI18next, useTranslation } from "react-i18next";
+import { initReactI18next, useTranslation, setI18n, setDefaults } from "react-i18next";
 import * as Localization from "expo-localization";
 import { storage } from "../storage";
 import { STORAGE_KEYS } from "../config";
@@ -7,6 +7,15 @@ import { es as esDateLocale, enUS, ptBR } from "date-fns/locale";
 import en from "./en";
 import es from "./es";
 import pt from "./pt";
+import ux from "./ux";
+import uxMedication from "./uxMedication";
+import uxHealth from "./uxHealth";
+import uxSettings from "./uxSettings";
+
+// Root reads the translation hook while asynchronous startup is still loading.
+// It must render so its initialization effect can run before translations are ready.
+setDefaults({ useSuspense: false });
+setI18n(i18n);
 
 export const LANGUAGE_KEY = STORAGE_KEYS.LANGUAGE;
 export const SUPPORTED_LANGUAGES = ["es", "en", "pt"] as const;
@@ -41,12 +50,37 @@ export async function initI18n(): Promise<void> {
   // eslint-disable-next-line import/no-named-as-default-member
   await i18n.use(initReactI18next).init({
     resources: {
-      en: { translation: en },
-      es: { translation: es },
-      pt: { translation: pt },
+      en: {
+        translation: {
+          ...en,
+          ...ux.en,
+          ...uxMedication.en,
+          ...uxHealth.en,
+          ...uxSettings.en,
+        },
+      },
+      es: {
+        translation: {
+          ...es,
+          ...ux.es,
+          ...uxMedication.es,
+          ...uxHealth.es,
+          ...uxSettings.es,
+        },
+      },
+      pt: {
+        translation: {
+          ...pt,
+          ...ux.pt,
+          ...uxMedication.pt,
+          ...uxHealth.pt,
+          ...uxSettings.pt,
+        },
+      },
     },
     lng: lang,
     fallbackLng: "en",
+    react: { useSuspense: false },
     interpolation: {
       // React already escapes values
       escapeValue: false,

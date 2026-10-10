@@ -9,22 +9,18 @@ import {
   getActiveMedications,
   getSchedulesByMedication,
   getAllActiveSchedules,
-  insertMedication,
   updateMedication,
   deleteMedication,
-  insertSchedule,
-  updateSchedule,
-  deleteSchedule,
   getDoseLogsByDateRange,
   getDoseLogByScheduleAndDate,
-  upsertDoseLog,
-  deleteDoseLog,
-  updateMedicationStock,
   updateDoseLogNotes,
+  saveMedicationWithSchedules,
+  saveDoseLogWithStock,
+  removeDoseLogWithStock,
+  setMedicationRenewalNotifIds,
 } from "../../db/database";
 import {
   generateId,
-  today,
   toISOString,
   toDateString,
   isScheduleActiveOnDate,
@@ -39,11 +35,48 @@ import {
   cancelRenewalReminders,
   DAYS_AHEAD,
 } from "../../services/notifications";
-import { setMedicationRenewalNotifIds } from "../../db/database";
 import { checkPrnLimits } from "../../services/prnLimits";
 import { getDefaultSnoozeMinutes } from "../../services/snoozeSettings";
+import { effectiveDoseDateTime } from "../../services/doseTime";
+import { saveSnoozedDoses } from "../../services/snoozedDoses";
 
-export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsSlice> = (set, get) => ({
+export class SavedMedicationError extends Error {
+  readonly saved = true;
+  constructor() {
+    super("uxMedication.notificationsPending");
+    this.name = "SavedMedicationError";
+  }
+}
+
+export class SavedDoseError extends Error {
+  readonly saved = true;
+  constructor() {
+    super("uxMedication.operationError");
+    this.name = "SavedDoseError";
+  }
+}
+
+const mutations = new Map<string, Promise<unknown>>();
+async function serialized<T>(
+  key: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  const previous = mutations.get(key) ?? Promise.resolve();
+  const task = previous.catch(() => undefined).then(operation);
+  mutations.set(key, task);
+  try {
+    return await task;
+  } finally {
+    if (mutations.get(key) === task) mutations.delete(key);
+  }
+}
+
+export const createMedicationsSlice: StateCreator<
+  AppState,
+  [],
+  [],
+  MedicationsSlice
+> = (set, get) => ({
   medications: [],
   schedules: [],
 
@@ -57,8 +90,6 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
       createdAt: toISOString(new Date()),
     };
 
-    await insertMedication(med);
-
     const schedules: Schedule[] = scheduleInputs.map((s) => ({
       ...s,
       id: generateId(),
@@ -66,22 +97,28 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
       isActive: true,
     }));
 
-    await Promise.all(
-      schedules.map(async (s) => {
-        await insertSchedule(s);
-        await _scheduleNotificationsForSchedule(med, s);
-      })
+    await saveMedicationWithSchedules(med, schedules);
+
+    const notificationResults = await Promise.allSettled(
+      schedules.map((s) => _scheduleNotificationsForSchedule(med, s))
     );
 
     // Prescription-renewal reminders (F1).
     if (med.renewalDate) {
-      const renewalIds = await scheduleRenewalReminders(med);
-      await setMedicationRenewalNotifIds(med.id, renewalIds ?? null);
+      try {
+        const renewalIds = await scheduleRenewalReminders(med);
+        await setMedicationRenewalNotifIds(med.id, renewalIds ?? null);
+      } catch {
+        notificationResults.push({ status: "rejected", reason: "renewal" });
+      }
     }
 
     const allSchedules = await getAllActiveSchedules();
     const allMeds = await getActiveMedications();
     set({ medications: allMeds, schedules: allSchedules });
+
+    if (notificationResults.some((result) => result.status === "rejected"))
+      throw new SavedMedicationError();
 
     return med;
   },
@@ -89,53 +126,52 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
   // ── Update medication ──────────────────────────────────────────────────
 
   async updateMedication(med, scheduleInputs) {
-    // Re-plan renewal reminders: cancel whatever was scheduled for the
-    // previous renewalDate, then schedule for the (possibly new) one.
-    const prev = get().medications.find((m) => m.id === med.id);
-    if (prev) await cancelRenewalReminders(prev);
-    const renewalIds = await scheduleRenewalReminders(med);
-    med = { ...med, renewalNotifIds: renewalIds };
-
-    await updateMedication(med);
-
+    const previous = get().medications.find((item) => item.id === med.id);
     const existing = await getSchedulesByMedication(med.id);
-    const existingById = new Map(existing.map((s) => [s.id, s]));
-
-    // Preserve the identity of schedules the user kept so their dose_logs
-    // (keyed by schedule id — dose_logs has no FK) stay attached. Otherwise an
-    // edit regenerates the id and already-taken doses resurrect as "missed" and
-    // can be taken twice (audit H17). Only mint a new id for genuinely new rows.
-    const resolved: Schedule[] = scheduleInputs.map((s) => {
-      const keepId = s.id && existingById.has(s.id) ? s.id : generateId();
-      return { id: keepId, time: s.time, days: s.days, medicationId: med.id, isActive: true };
-    });
-    const keptIds = new Set(resolved.map((s) => s.id));
-
-    // Delete schedules the user removed (existing but no longer present).
-    const removed = existing.filter((s) => !keptIds.has(s.id));
-    await Promise.all(
-      removed.map((s) =>
-        Promise.all([cancelScheduleNotifications(s.id), deleteSchedule(s.id)])
+    const existingIds = new Set(existing.map((item) => item.id));
+    const resolved: Schedule[] = scheduleInputs.map((input) => ({
+      id: input.id && existingIds.has(input.id) ? input.id : generateId(),
+      time: input.time,
+      days: input.days,
+      medicationId: med.id,
+      isActive: true,
+    }));
+    await saveMedicationWithSchedules(
+      { ...med, renewalNotifIds: undefined },
+      resolved
+    );
+    const results = await Promise.allSettled(
+      existing.map((item) => cancelScheduleNotifications(item.id))
+    );
+    if (previous) {
+      try {
+        await cancelRenewalReminders(previous);
+      } catch {
+        results.push({ status: "rejected", reason: "renewal cancellation" });
+      }
+    }
+    const scheduled = await Promise.allSettled(
+      resolved.map((item) =>
+        med.isActive
+          ? _scheduleNotificationsForSchedule(med, item)
+          : Promise.resolve()
       )
     );
-
-    // Upsert kept/new schedules and (re)schedule their notifications. Existing
-    // rows are cancelled first because their time/days may have changed.
-    await Promise.all(
-      resolved.map(async (s) => {
-        if (existingById.has(s.id)) {
-          await cancelScheduleNotifications(s.id);
-          await updateSchedule(s);
-        } else {
-          await insertSchedule(s);
-        }
-        if (med.isActive) await _scheduleNotificationsForSchedule(med, s);
-      })
-    );
-
-    const allSchedules = await getAllActiveSchedules();
-    const allMeds = await getActiveMedications();
-    set({ medications: allMeds, schedules: allSchedules });
+    results.push(...scheduled);
+    if (med.isActive && med.renewalDate) {
+      try {
+        const ids = await scheduleRenewalReminders(med);
+        await setMedicationRenewalNotifIds(med.id, ids ?? null);
+      } catch {
+        results.push({ status: "rejected", reason: "renewal" });
+      }
+    }
+    set({
+      medications: await getActiveMedications(),
+      schedules: await getAllActiveSchedules(),
+    });
+    if (results.some((result) => result.status === "rejected"))
+      throw new SavedMedicationError();
   },
 
   // ── Delete medication ──────────────────────────────────────────────────
@@ -161,14 +197,30 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
     await updateMedication(updated);
 
     const schedules = await getSchedulesByMedication(id);
-    if (!isActive) {
-      await Promise.all(schedules.map((s) => cancelScheduleNotifications(s.id)));
-    } else {
-      await Promise.all(schedules.map((s) => _scheduleNotificationsForSchedule(updated, s)));
+    const results = await Promise.allSettled(
+      schedules.map((s) =>
+        isActive
+          ? _scheduleNotificationsForSchedule(updated, s)
+          : cancelScheduleNotifications(s.id)
+      )
+    );
+    try {
+      if (!isActive) await cancelRenewalReminders(med);
+      else if (updated.renewalDate) {
+        const ids = await scheduleRenewalReminders(updated);
+        await setMedicationRenewalNotifIds(id, ids ?? null);
+      }
+    } catch {
+      results.push({ status: "rejected", reason: "renewal" });
     }
 
-    const allMeds = await getActiveMedications();
-    set({ medications: allMeds });
+    const [allMeds, allSchedules] = await Promise.all([
+      getActiveMedications(),
+      getAllActiveSchedules(),
+    ]);
+    set({ medications: allMeds, schedules: allSchedules });
+    if (results.some((result) => result.status === "rejected"))
+      throw new SavedMedicationError();
   },
 
   // ── Archive / unarchive (F3): retire without losing history ────────────
@@ -187,104 +239,179 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
       archiveReason: reason,
       renewalNotifIds: undefined,
     });
-    set({ medications: await getActiveMedications() });
+    set({
+      medications: await getActiveMedications(),
+      schedules: await getAllActiveSchedules(),
+    });
   },
 
   async unarchiveMedication(id) {
     const med = get().medications.find((m) => m.id === id);
     if (!med) return;
-    const restored = { ...med, isActive: true, archivedAt: undefined, archiveReason: undefined };
+    const restored = {
+      ...med,
+      isActive: true,
+      archivedAt: undefined,
+      archiveReason: undefined,
+    };
     await updateMedication(restored);
     const schedules = await getSchedulesByMedication(id);
-    await Promise.all(schedules.map((s) => _scheduleNotificationsForSchedule(restored, s)));
-    set({ medications: await getActiveMedications() });
+    const results = await Promise.allSettled(
+      schedules.map((s) => _scheduleNotificationsForSchedule(restored, s))
+    );
+    if (restored.renewalDate) {
+      try {
+        const ids = await scheduleRenewalReminders(restored);
+        await setMedicationRenewalNotifIds(id, ids ?? null);
+      } catch {
+        results.push({ status: "rejected", reason: "renewal" });
+      }
+    }
+    set({
+      medications: await getActiveMedications(),
+      schedules: await getAllActiveSchedules(),
+    });
+    if (results.some((result) => result.status === "rejected"))
+      throw new SavedMedicationError();
   },
 
   // ── Mark dose (taken / skipped) ────────────────────────────────────────
 
   async markDose(dose, status, notes, skipReason) {
-    const now = new Date();
-    // Read the prior log BEFORE upsert so stock changes stay idempotent:
-    // we only decrement when a dose *becomes* taken, and restore when a
-    // previously-taken dose is changed to skipped (audit H16).
-    const prior = await getDoseLogByScheduleAndDate(dose.schedule.id, dose.scheduledDate);
-    const log: DoseLog = {
-      id: generateId(),
-      medicationId: dose.medication.id,
-      scheduleId: dose.schedule.id,
-      scheduledDate: dose.scheduledDate,
-      scheduledTime: dose.snoozedUntil ?? dose.scheduledTime,
-      status,
-      takenAt: status === "taken" ? toISOString(now) : undefined,
-      createdAt: toISOString(now),
-      notes,
-      skipReason: status === "skipped" ? skipReason : undefined,
-    };
-
-    await upsertDoseLog(log);
-    await cancelDoseNotifications(dose.schedule.id, dose.scheduledDate);
-
-    const doseKey = `${dose.schedule.id}-${dose.scheduledDate}`;
-    set((s) => {
-      const { [doseKey]: _removed, ...rest } = s.snoozedTimes;
-      return { snoozedTimes: rest };
-    });
-
-    // Stock reconciliation (idempotent). A dose becoming "taken" decrements 1;
-    // a previously-"taken" dose changing to "skipped" restores 1. Re-marking a
-    // dose with the same status (or skip→skip) leaves stock untouched, so undo
-    // + re-take can no longer double-decrement (audit H16).
-    const wasTaken = prior?.status === "taken";
-    const isTaken = status === "taken";
-    if (isTaken !== wasTaken) {
+    return serialized(dose.medication.id, async () => {
+      const now = new Date();
+      // Read the prior log BEFORE upsert so stock changes stay idempotent:
+      // we only decrement when a dose *becomes* taken, and restore when a
+      // previously-taken dose is changed to skipped (audit H16).
+      const prior = await getDoseLogByScheduleAndDate(
+        dose.schedule.id,
+        dose.scheduledDate
+      );
+      if (prior?.status === status) {
+        // The log is unchanged, but a reminder left armed by an earlier failed
+        // cancellation (or a re-armed loop) must still be silenced.
+        let cancelFailed = false;
+        try {
+          await cancelDoseNotifications(dose.schedule.id, dose.scheduledDate);
+        } catch {
+          cancelFailed = true;
+        }
+        await get().loadTodayLogs();
+        if (cancelFailed) throw new SavedDoseError();
+        return;
+      }
       const latestMed =
         get().medications.find((m) => m.id === dose.medication.id) ??
         dose.medication;
-      if (latestMed.stockQuantity != null) {
-        if (isTaken && latestMed.stockQuantity > 0) {
-          const newQty = latestMed.stockQuantity - 1;
-          await updateMedicationStock(latestMed.id, newQty);
-          if (
-            latestMed.stockAlertThreshold != null &&
-            newQty < latestMed.stockAlertThreshold
-          ) {
-            await scheduleStockAlert({ ...latestMed, stockQuantity: newQty });
+      const wasTaken = prior?.status === "taken";
+      const isTaken = status === "taken";
+      const consumed =
+        isTaken &&
+        latestMed.stockQuantity != null &&
+        latestMed.stockQuantity > 0
+          ? 1
+          : 0;
+      const restored = wasTaken ? prior.stockDelta ?? 1 : 0;
+      const log: DoseLog = {
+        id: generateId(),
+        medicationId: dose.medication.id,
+        scheduleId: dose.schedule.id,
+        scheduledDate: dose.scheduledDate,
+        scheduledTime: format(
+          effectiveDoseDateTime(
+            dose.scheduledDate,
+            dose.scheduledTime,
+            dose.snoozedUntil
+          ),
+          "HH:mm"
+        ),
+        status,
+        takenAt: status === "taken" ? toISOString(now) : undefined,
+        createdAt: toISOString(now),
+        notes: notes ?? prior?.notes,
+        injectionSite: prior?.injectionSite,
+        skipReason: status === "skipped" ? skipReason : undefined,
+        stockDelta: consumed,
+      };
+
+      const nextStock =
+        latestMed.stockQuantity == null
+          ? undefined
+          : isTaken
+          ? latestMed.stockQuantity - consumed
+          : latestMed.stockQuantity + restored;
+      await saveDoseLogWithStock(log, nextStock);
+      let notificationFailed = false;
+      try {
+        await cancelDoseNotifications(dose.schedule.id, dose.scheduledDate);
+      } catch {
+        notificationFailed = true;
+      }
+      const doseKey = `${dose.schedule.id}-${dose.scheduledDate}`;
+      set((state) => {
+        // Retain the original-day link for an overnight dose so today's completed
+        // list can still resolve it after registration (including after restart).
+        if (state.snoozedTimes[doseKey]?.includes("T")) return {};
+        const { [doseKey]: removed, ...snoozedTimes } = state.snoozedTimes;
+        saveSnoozedDoses(snoozedTimes);
+        return { snoozedTimes };
+      });
+      if (nextStock != null) {
+        set({ medications: await getActiveMedications() });
+        if (
+          isTaken &&
+          consumed > 0 &&
+          latestMed.stockAlertThreshold != null &&
+          nextStock < latestMed.stockAlertThreshold
+        ) {
+          try {
+            await scheduleStockAlert({
+              ...latestMed,
+              stockQuantity: nextStock,
+            });
+          } catch {
+            notificationFailed = true;
           }
-          const allMeds = await getActiveMedications();
-          set({ medications: allMeds });
-        } else if (!isTaken) {
-          // taken → skipped: give the pill back
-          const newQty = latestMed.stockQuantity + 1;
-          await updateMedicationStock(latestMed.id, newQty);
-          const allMeds = await getActiveMedications();
-          set({ medications: allMeds });
         }
       }
-    }
 
-    // ── Store-review prompt ─────────────────────────────────────────────
-    if (status === "taken") {
-      const prompted = storage.getString(STORAGE_KEYS.REVIEW_PROMPTED);
-      if (!prompted) {
-        let firstLaunch = storage.getString(STORAGE_KEYS.FIRST_LAUNCH);
-        if (!firstLaunch) {
-          firstLaunch = new Date().toISOString();
-          storage.set(STORAGE_KEYS.FIRST_LAUNCH, firstLaunch);
+      await get().loadTodayLogs();
+      if (notificationFailed) throw new SavedDoseError();
+
+      // ── Store-review prompt after the dose UI is refreshed ───────────────
+      try {
+        if (status === "taken") {
+          const prompted = storage.getString(STORAGE_KEYS.REVIEW_PROMPTED);
+          if (!prompted) {
+            let firstLaunch = storage.getString(STORAGE_KEYS.FIRST_LAUNCH);
+            if (!firstLaunch) {
+              firstLaunch = new Date().toISOString();
+              storage.set(STORAGE_KEYS.FIRST_LAUNCH, firstLaunch);
+            }
+
+            const prevCount = parseInt(
+              storage.getString(STORAGE_KEYS.DOSES_TAKEN_COUNT) ?? "0",
+              10
+            );
+            const newCount = prevCount + 1;
+            storage.set(STORAGE_KEYS.DOSES_TAKEN_COUNT, String(newCount));
+
+            const daysSince =
+              (Date.now() - new Date(firstLaunch).getTime()) / 86_400_000;
+            if (
+              daysSince >= 7 &&
+              newCount >= 10 &&
+              (await StoreReview.isAvailableAsync())
+            ) {
+              await StoreReview.requestReview();
+              storage.set(STORAGE_KEYS.REVIEW_PROMPTED, "1");
+            }
+          }
         }
-
-        const prevCount = parseInt(storage.getString(STORAGE_KEYS.DOSES_TAKEN_COUNT) ?? "0", 10);
-        const newCount = prevCount + 1;
-        storage.set(STORAGE_KEYS.DOSES_TAKEN_COUNT, String(newCount));
-
-        const daysSince = (Date.now() - new Date(firstLaunch).getTime()) / 86_400_000;
-        if (daysSince >= 7 && newCount >= 10 && (await StoreReview.isAvailableAsync())) {
-          await StoreReview.requestReview();
-          storage.set(STORAGE_KEYS.REVIEW_PROMPTED, "1");
-        }
+      } catch {
+        /* A store-review service failure must not turn a saved dose into an error. */
       }
-    }
-
-    await get().loadTodayLogs();
+    });
   },
 
   async updateDoseNote(scheduleId, scheduledDate, notes) {
@@ -295,48 +422,65 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
   // ── Snooze ─────────────────────────────────────────────────────────────
 
   async snoozeDose(dose, minutes = getDefaultSnoozeMinutes()) {
-    const now = new Date();
-    const [sh, sm] = dose.schedule.time.split(":").map(Number);
-    const originalDateTime = new Date(
-      now.getFullYear(), now.getMonth(), now.getDate(), sh, sm
-    );
+    if (!Number.isFinite(minutes) || minutes <= 0)
+      throw new Error("uxMedication.invalidNumber");
     const key = `${dose.schedule.id}-${dose.scheduledDate}`;
-
-    if (originalDateTime > now) {
-      const currentSnoozedHHmm = get().snoozedTimes[key];
-      const baseDate = currentSnoozedHHmm
-        ? (() => {
-            const [bh, bm] = currentSnoozedHHmm.split(":").map(Number);
-            return new Date(now.getFullYear(), now.getMonth(), now.getDate(), bh, bm);
-          })()
-        : originalDateTime;
-      const fireDate = addMinutes(baseDate, minutes);
-      const snoozeHHmm = format(fireDate, "HH:mm");
-
-      await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate, fireDate);
-      set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: snoozeHHmm } }));
-    } else {
-      const snoozeDate = addMinutes(new Date(), minutes);
-      const snoozeHHmm = format(snoozeDate, "HH:mm");
-      // Pass the explicit fire date so the alarm honours the picked duration.
-      // Without it, snoozeDose falls back to now + the Settings default, so a
-      // ringing dose (schedule time already in the past → this branch) ignored
-      // the minutes chosen on the alarm screen.
-      await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate, snoozeDate);
-      set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: snoozeHHmm } }));
-    }
+    const now = new Date();
+    const original = effectiveDoseDateTime(
+      dose.scheduledDate,
+      dose.schedule.time,
+      get().snoozedTimes[key]
+    );
+    const fireDate = addMinutes(original > now ? original : now, minutes);
+    await snoozeDose(
+      dose.medication,
+      dose.schedule,
+      dose.scheduledDate,
+      fireDate
+    );
+    const value =
+      toDateString(fireDate) === dose.scheduledDate
+        ? format(fireDate, "HH:mm")
+        : fireDate.toISOString();
+    set((state) => {
+      const snoozedTimes = { ...state.snoozedTimes, [key]: value };
+      saveSnoozedDoses(snoozedTimes);
+      return { snoozedTimes };
+    });
   },
 
   // ── Reschedule once ────────────────────────────────────────────────────
 
   async rescheduleOnce(dose, newTime) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(newTime))
+      throw new Error("uxMedication.invalidNumber");
     const key = `${dose.schedule.id}-${dose.scheduledDate}`;
     const [h, m] = newTime.split(":").map(Number);
     const now = new Date();
-    const fireDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+    const fireDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      h,
+      m
+    );
 
-    await snoozeDose(dose.medication, dose.schedule, dose.scheduledDate, fireDate);
-    set((s) => ({ snoozedTimes: { ...s.snoozedTimes, [key]: newTime } }));
+    if (fireDate <= now) throw new Error("uxMedication.timePast");
+    await snoozeDose(
+      dose.medication,
+      dose.schedule,
+      dose.scheduledDate,
+      fireDate
+    );
+    set((s) => {
+      const value =
+        toDateString(fireDate) === dose.scheduledDate
+          ? newTime
+          : fireDate.toISOString();
+      const snoozedTimes = { ...s.snoozedTimes, [key]: value };
+      saveSnoozedDoses(snoozedTimes);
+      return { snoozedTimes };
+    });
   },
 
   // ── Revert snooze ────────────────────────────────────────────────────
@@ -349,11 +493,16 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
     const [y, mo, d] = dose.scheduledDate.split("-").map(Number);
     const originalFireDate = new Date(y, mo - 1, d, h, m);
     if (originalFireDate > new Date()) {
-      await scheduleDoseChain(dose.medication, dose.schedule, dose.scheduledDate);
+      await scheduleDoseChain(
+        dose.medication,
+        dose.schedule,
+        dose.scheduledDate
+      );
     }
 
     set((s) => {
       const { [key]: _removed, ...rest } = s.snoozedTimes;
+      saveSnoozedDoses(rest);
       return { snoozedTimes: rest };
     });
   },
@@ -361,30 +510,75 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
   // ── Revert dose ────────────────────────────────────────────────────────
 
   async revertDose(dose) {
-    // If we're undoing a dose that had been marked "taken", give the pill back
-    // so undo + re-take can't double-decrement stock (audit H16).
-    const prior = await getDoseLogByScheduleAndDate(dose.schedule.id, dose.scheduledDate);
-    await deleteDoseLog(dose.schedule.id, dose.scheduledDate);
-
-    if (prior?.status === "taken") {
-      const latestMed =
-        get().medications.find((m) => m.id === dose.medication.id) ??
-        dose.medication;
-      if (latestMed.stockQuantity != null) {
-        await updateMedicationStock(latestMed.id, latestMed.stockQuantity + 1);
-        const allMeds = await getActiveMedications();
-        set({ medications: allMeds });
+    return serialized(dose.medication.id, async () => {
+      const prior = await getDoseLogByScheduleAndDate(
+        dose.schedule.id,
+        dose.scheduledDate
+      );
+      if (!prior) {
+        await get().loadTodayLogs();
+        return;
       }
-    }
-
-    await _scheduleNotificationsForSchedule(dose.medication, dose.schedule);
-
-    const revertKey = `${dose.schedule.id}-${dose.scheduledDate}`;
-    set((s) => {
-      const { [revertKey]: _removed, ...rest } = s.snoozedTimes;
-      return { snoozedTimes: rest };
+      const medication =
+        get().medications.find((item) => item.id === dose.medication.id) ??
+        dose.medication;
+      const restored = prior.status === "taken" ? prior.stockDelta ?? 1 : 0;
+      const quantity =
+        medication.stockQuantity == null
+          ? undefined
+          : medication.stockQuantity + restored;
+      await removeDoseLogWithStock(
+        dose.schedule.id,
+        dose.scheduledDate,
+        medication.id,
+        quantity
+      );
+      if (quantity != null) set({ medications: await getActiveMedications() });
+      const postponed =
+        get().snoozedTimes[`${dose.schedule.id}-${dose.scheduledDate}`];
+      set((state) => {
+        if (postponed?.includes("T")) return {};
+        const {
+          [`${dose.schedule.id}-${dose.scheduledDate}`]: removed,
+          ...snoozedTimes
+        } = state.snoozedTimes;
+        saveSnoozedDoses(snoozedTimes);
+        return { snoozedTimes };
+      });
+      await get().loadTodayLogs();
+      const [year, month, day] = dose.scheduledDate.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      const fireDate = effectiveDoseDateTime(
+        dose.scheduledDate,
+        dose.schedule.time,
+        postponed
+      );
+      if (
+        !dose.schedule.id.startsWith("prn-") &&
+        medication.isActive &&
+        !medication.archivedAt &&
+        isScheduleActiveOnDate(dose.schedule, date, medication) &&
+        fireDate > new Date()
+      ) {
+        try {
+          if (postponed)
+            await snoozeDose(
+              medication,
+              dose.schedule,
+              dose.scheduledDate,
+              fireDate
+            );
+          else
+            await scheduleDoseChain(
+              medication,
+              dose.schedule,
+              dose.scheduledDate
+            );
+        } catch {
+          throw new SavedDoseError();
+        }
+      }
     });
-    await get().loadTodayLogs();
   },
 
   // ── History ────────────────────────────────────────────────────────────
@@ -405,49 +599,66 @@ export const createMedicationsSlice: StateCreator<AppState, [], [], MedicationsS
   // ── Log PRN dose ──────────────────────────────────────────────────────
 
   async logPRNDose(medication, opts) {
-    const now = new Date();
+    return serialized(medication.id, async () => {
+      medication =
+        get().medications.find((item) => item.id === medication.id) ??
+        medication;
+      const now = new Date();
 
-    // PRN safety limits (F2): when configured, evaluate BEFORE logging and
-    // return the check so the UI can warn + require an explicit "log anyway"
-    // (opts.force). Yesterday+today covers any realistic min-interval window.
-    if (
-      !opts?.force &&
-      (medication.prnMaxPerDay != null || medication.prnMinIntervalMinutes != null)
-    ) {
-      const from = toDateString(new Date(now.getTime() - 86_400_000));
-      const recent = await getDoseLogsByDateRange(from, toDateString(now));
-      const check = checkPrnLimits(medication, recent, now);
-      if (check.blocked) return check;
-    }
-
-    // Each PRN log gets a unique scheduleId so that multiple doses on the
-    // same day are tracked as separate entries (not overwritten by upsert).
-    const log: DoseLog = {
-      id: generateId(),
-      medicationId: medication.id,
-      scheduleId: `prn-${medication.id}-${generateId().slice(0, 8)}`,
-      scheduledDate: toDateString(now),
-      scheduledTime: format(now, "HH:mm"),
-      status: "taken",
-      takenAt: toISOString(now),
-      createdAt: toISOString(now),
-    };
-    await upsertDoseLog(log);
-
-    if (medication.stockQuantity != null && medication.stockQuantity > 0) {
-      const newQty = medication.stockQuantity - 1;
-      await updateMedicationStock(medication.id, newQty);
+      // PRN safety limits (F2): when configured, evaluate BEFORE logging and
+      // return the check so the UI can warn + require an explicit "log anyway"
+      // (opts.force). Include the complete configured interval, including several days.
       if (
-        medication.stockAlertThreshold != null &&
-        newQty < medication.stockAlertThreshold
+        !opts?.force &&
+        (medication.prnMaxPerDay != null ||
+          medication.prnMinIntervalMinutes != null)
       ) {
-        await scheduleStockAlert({ ...medication, stockQuantity: newQty });
+        const intervalDays = Math.ceil(
+          (medication.prnMinIntervalMinutes ?? 0) / (24 * 60)
+        );
+        const from = toDateString(addDays(now, -Math.max(1, intervalDays)));
+        const recent = await getDoseLogsByDateRange(from, toDateString(now));
+        const check = checkPrnLimits(medication, recent, now);
+        if (check.blocked) return check;
       }
-      const allMeds = await getActiveMedications();
-      set({ medications: allMeds });
-    }
 
-    await get().loadTodayLogs();
+      // Each PRN log gets a unique scheduleId so that multiple doses on the
+      // same day are tracked as separate entries (not overwritten by upsert).
+      const log: DoseLog = {
+        id: generateId(),
+        medicationId: medication.id,
+        scheduleId: `prn-${medication.id}-${generateId().slice(0, 8)}`,
+        scheduledDate: toDateString(now),
+        scheduledTime: format(now, "HH:mm"),
+        status: "taken",
+        takenAt: toISOString(now),
+        createdAt: toISOString(now),
+      };
+      log.stockDelta =
+        medication.stockQuantity != null && medication.stockQuantity > 0
+          ? 1
+          : 0;
+      const quantity =
+        medication.stockQuantity == null
+          ? undefined
+          : medication.stockQuantity - log.stockDelta;
+      await saveDoseLogWithStock(log, quantity);
+      if (quantity != null) set({ medications: await getActiveMedications() });
+      await get().loadTodayLogs();
+      if (
+        quantity != null &&
+        log.stockDelta > 0 &&
+        medication.stockAlertThreshold != null &&
+        quantity < medication.stockAlertThreshold
+      ) {
+        try {
+          await scheduleStockAlert({ ...medication, stockQuantity: quantity });
+        } catch {
+          throw new SavedDoseError();
+        }
+      }
+      return undefined;
+    });
   },
 });
 

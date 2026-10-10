@@ -19,6 +19,8 @@ import {
 import { getActiveProfileId } from "./profileStore";
 import i18n from "../i18n";
 import type { Allergy, Medication, Profile, Schedule } from "../types";
+import { describeMedicationPlan, isMedicationCurrent } from "./carePlan";
+import { toDateString } from "../utils";
 
 function t(key: string): string {
   return i18n.t(key) as string;
@@ -37,7 +39,9 @@ function patientResource(profile: Profile | null, displayName: string) {
           contact: [
             {
               name: { text: profile.emergencyContactName ?? "" },
-              telecom: [{ system: "phone", value: profile.emergencyContactPhone }],
+              telecom: [
+                { system: "phone", value: profile.emergencyContactPhone },
+              ],
             },
           ],
         }
@@ -45,8 +49,11 @@ function patientResource(profile: Profile | null, displayName: string) {
   };
 }
 
-function medicationStatementResource(med: Medication, schedules: Schedule[], index: number) {
-  const timings = schedules.filter((s) => s.isActive).map((s) => s.time);
+function medicationStatementResource(
+  med: Medication,
+  schedules: Schedule[],
+  index: number
+) {
   return {
     resourceType: "MedicationStatement",
     id: `medstmt-${index}`,
@@ -56,12 +63,21 @@ function medicationStatementResource(med: Medication, schedules: Schedule[], ind
       text: med.name,
       ...(med.rxcui ? { coding: [{ system: RXNORM, code: med.rxcui }] } : {}),
     },
-    ...(med.startDate ? { effectivePeriod: { start: med.startDate, ...(med.endDate ? { end: med.endDate } : {}) } } : {}),
+    ...(med.startDate
+      ? {
+          effectivePeriod: {
+            start: med.startDate,
+            ...(med.endDate ? { end: med.endDate } : {}),
+          },
+        }
+      : {}),
     dosage: [
       {
-        text: med.isPRN
-          ? `${med.dosage} — ${t("fhir.prn")}`
-          : `${med.dosage}${timings.length ? ` — ${timings.join(", ")}` : ""}`,
+        text: describeMedicationPlan(
+          med,
+          schedules,
+          (key, opts) => i18n.t(key, opts) as string
+        ),
         ...(med.isPRN ? { asNeededBoolean: true } : {}),
       },
     ],
@@ -77,14 +93,17 @@ function allergyResource(allergy: Allergy, index: number) {
     clinicalStatus: {
       coding: [
         {
-          system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+          system:
+            "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
           code: "active",
         },
       ],
     },
     code: {
       text: allergy.name,
-      ...(allergy.ingRxcui ? { coding: [{ system: RXNORM, code: allergy.ingRxcui }] } : {}),
+      ...(allergy.ingRxcui
+        ? { coding: [{ system: RXNORM, code: allergy.ingRxcui }] }
+        : {}),
     },
   };
 }
@@ -99,7 +118,9 @@ export function buildFhirBundle(
 ) {
   const entries = [
     { resource: patientResource(profile, displayName) },
-    ...meds.map((m, i) => ({ resource: medicationStatementResource(m.med, m.schedules, i + 1) })),
+    ...meds.map((m, i) => ({
+      resource: medicationStatementResource(m.med, m.schedules, i + 1),
+    })),
     ...allergies.map((a, i) => ({ resource: allergyResource(a, i + 1) })),
   ];
   return {
@@ -111,19 +132,25 @@ export function buildFhirBundle(
 }
 
 export async function generateAndShareFhirBundle(): Promise<void> {
+  const profileId = getActiveProfileId();
   const [profiles, meds, allergies] = await Promise.all([
     getProfiles(),
     getActiveMedications(),
     getActiveAllergies(),
   ]);
-  const profile = profiles.find((p) => p.id === getActiveProfileId()) ?? null;
+  const profile = profiles.find((p) => p.id === profileId) ?? null;
   const displayName = profile?.name || (i18n.t("profiles.me") as string);
 
-  const activeMeds = meds.filter((m) => m.isActive);
+  const activeMeds = meds.filter((m) => isMedicationCurrent(m));
   const withSchedules = [];
   for (const med of activeMeds) {
-    withSchedules.push({ med, schedules: await getSchedulesByMedication(med.id) });
+    withSchedules.push({
+      med,
+      schedules: await getSchedulesByMedication(med.id),
+    });
   }
+  if (!profile || getActiveProfileId() !== profileId)
+    throw new Error(t("uxHealth.profileChanged"));
 
   const bundle = buildFhirBundle(
     profile,
@@ -133,10 +160,14 @@ export async function generateAndShareFhirBundle(): Promise<void> {
     new Date().toISOString()
   );
 
-  const date = new Date().toISOString().slice(0, 10);
-  const file = new File(Paths.cache, `pilloclock-fhir-${date}.json`);
+  const date = toDateString(new Date());
+  const person =
+    displayName.replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 40) || "profile";
+  const file = new File(Paths.cache, `pilloclock-fhir-${person}-${date}.json`);
   try {
     file.write(JSON.stringify(bundle, null, 2));
+    if (getActiveProfileId() !== profileId)
+      throw new Error(t("uxHealth.profileChanged"));
     await Sharing.shareAsync(file.uri, {
       mimeType: "application/fhir+json",
       dialogTitle: t("fhir.shareTitle"),

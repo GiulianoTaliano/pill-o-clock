@@ -1,116 +1,177 @@
-import React from "react";
-import Svg, { Polyline, Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
-
-// ─── Types ─────────────────────────────────────────────────────────────────
+import React, { useMemo, useState } from "react";
+import { View, Text } from "react-native";
+import Svg, { Polyline, Circle, Line } from "react-native-svg";
+import { format } from "date-fns";
+import { useTranslation, getDateLocale } from "../src/i18n";
+import { useAppTheme } from "../src/hooks/useAppTheme";
 
 interface SimpleLineChartProps {
-  /** Primary data series */
   data: number[];
-  /** Secondary series — used for diastolic BP */
   data2?: number[];
+  timestamps?: string[];
   color?: string;
   color2?: string;
   width: number;
   height: number;
-  /** When true: no labels, thinner lines, no end dot */
   mini?: boolean;
+  unit?: string;
 }
-
-// ─── Component ─────────────────────────────────────────────────────────────
+/** Coordinates use elapsed time when supplied, never observation index. */
+export function chartCoordinates(
+  data: number[],
+  data2: number[] | undefined,
+  timestamps: string[] | undefined,
+  width: number,
+  height: number,
+  pad = 28
+) {
+  const values = [...data, ...(data2 ?? [])].filter(Number.isFinite);
+  const low = Math.min(...values),
+    high = Math.max(...values);
+  const margin = (high - low || Math.max(Math.abs(high) * 0.02, 1)) * 0.1;
+  const min = low - margin,
+    max = high + margin;
+  const rawTimes = timestamps?.map((s) => new Date(s).getTime());
+  const times =
+    rawTimes?.length === data.length && rawTimes.every(Number.isFinite)
+      ? rawTimes
+      : data.map((_, i) => i);
+  const start = Math.min(...times),
+    end = Math.max(...times);
+  const x = (i: number) =>
+    pad +
+    ((times[i] - start) / (end - start || 1)) * Math.max(1, width - pad * 2);
+  const y = (value: number) =>
+    pad +
+    (1 - (value - min) / (max - min || 1)) * Math.max(1, height - pad * 2);
+  return {
+    low,
+    high,
+    primary: data.map((v, i) => ({ x: x(i), y: y(v), value: v })),
+    secondary: data2?.map((v, i) => ({ x: x(i), y: y(v), value: v })),
+  };
+}
 
 export function SimpleLineChart({
   data,
   data2,
-  color = "#4f9cff",
-  color2 = "#f97316",
+  timestamps,
+  color,
+  color2,
   width,
   height,
   mini = false,
+  unit = "",
 }: SimpleLineChartProps) {
-  const pad = mini ? 2 : 20;
-  const w = width - pad * 2;
-  const h = height - pad * 2;
-
-  if (data.length === 0) return null;
-
-  const allValues = [...data, ...(data2 ?? [])];
-  const rawMin = Math.min(...allValues);
-  const rawMax = Math.max(...allValues);
-  const range = rawMax - rawMin || 1;
-
-  // Add 10% margin so the line doesn't touch the very top/bottom
-  const margin = range * 0.1;
-  const min = rawMin - margin;
-  const max = rawMax + margin;
-  const span = max - min;
-
-  const toX = (i: number, total: number) =>
-    pad + (i / Math.max(total - 1, 1)) * w;
-
-  const toY = (v: number) =>
-    pad + h - ((v - min) / span) * h;
-
-  // Build points strings
-  const pts1 = data.map((v, i) => `${toX(i, data.length)},${toY(v)}`).join(" ");
-  const pts2 = data2?.map((v, i) => `${toX(i, data2.length)},${toY(v)}`).join(" ");
-
-  // Fill gradient path (under data1 line)
-  const firstX = toX(0, data.length);
-  const lastX = toX(data.length - 1, data.length);
-  const baseY = pad + h;
-  const fillPath =
-    `M${firstX},${baseY} ` +
-    data.map((v, i) => `L${toX(i, data.length)},${toY(v)}`).join(" ") +
-    ` L${lastX},${baseY} Z`;
-
-  const lastDotX = toX(data.length - 1, data.length);
-  const lastDotY = toY(data[data.length - 1]);
-  const gradId = `g${Math.round(color.replace("#", "").slice(0, 4).split("").reduce((a, c) => a + c.charCodeAt(0), 0))}`;
-
+  const theme = useAppTheme();
+  const { t } = useTranslation();
+  const [selected, setSelected] = useState<number | null>(null);
+  const coords = useMemo(
+    () =>
+      chartCoordinates(data, data2, timestamps, width, height, mini ? 3 : 28),
+    [data, data2, timestamps, width, height, mini]
+  );
+  if (!data.length) return null;
+  const primary = color ?? theme.primary,
+    secondary = color2 ?? theme.muted;
+  const summary = t("uxHealth.chartSummary", {
+    count: data.length,
+    min: coords.low,
+    max: coords.high,
+    unit,
+  });
+  const selectedIndex =
+    selected == null ? data.length - 1 : Math.min(selected, data.length - 1);
+  const dateAt = (i: number) =>
+    timestamps?.[i]
+      ? format(new Date(timestamps[i]), "Pp", { locale: getDateLocale() })
+      : "";
   return (
-    <Svg width={width} height={height}>
-      <Defs>
-        <LinearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity={0.3} />
-          <Stop offset="1" stopColor={color} stopOpacity={0} />
-        </LinearGradient>
-      </Defs>
-
-      {/* Gradient fill */}
-      <Path d={fillPath} fill={`url(#${gradId})`} />
-
-      {/* Secondary line (diastolic) */}
-      {pts2 && data2 && data2.length > 1 && (
-        <Polyline
-          points={pts2}
-          fill="none"
-          stroke={color2}
-          strokeWidth={mini ? 1.5 : 2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={mini ? undefined : "5,3"}
-        />
+    <View
+      accessible={!mini}
+      accessibilityRole="image"
+      accessibilityLabel={mini ? undefined : summary}
+    >
+      {!mini && (
+        <View className="flex-row justify-between mb-1">
+          <Text className="text-xs text-muted">
+            {coords.high} {unit}
+          </Text>
+          <Text className="text-xs text-muted">
+            {coords.low}–{coords.high} {unit}
+          </Text>
+        </View>
       )}
-
-      {/* Primary line */}
-      {data.length > 1 && (
+      <Svg width={Math.max(1, width)} height={height} accessible={false}>
+        {!mini && (
+          <Line
+            x1={28}
+            y1={height - 28}
+            x2={width - 28}
+            y2={height - 28}
+            stroke={theme.muted}
+            strokeOpacity={0.3}
+          />
+        )}
+        {coords.secondary && (
+          <Polyline
+            points={coords.secondary.map((p) => `${p.x},${p.y}`).join(" ")}
+            fill="none"
+            stroke={secondary}
+            strokeWidth={2}
+            strokeDasharray="5,4"
+          />
+        )}
         <Polyline
-          points={pts1}
+          points={coords.primary.map((p) => `${p.x},${p.y}`).join(" ")}
           fill="none"
-          stroke={color}
-          strokeWidth={mini ? 1.5 : 2.5}
-          strokeLinecap="round"
+          stroke={primary}
+          strokeWidth={mini ? 1.8 : 2.5}
           strokeLinejoin="round"
         />
-      )}
-
-      {/* End dot */}
+        {!mini &&
+          coords.primary.map((p, i) => (
+            <React.Fragment key={i}>
+              <Circle
+                cx={p.x}
+                cy={p.y}
+                r={i === selectedIndex ? 5 : 3}
+                fill={primary}
+              />
+              <Circle
+                cx={p.x}
+                cy={p.y}
+                r={16}
+                fill="transparent"
+                onPress={() => setSelected(i)}
+              />
+            </React.Fragment>
+          ))}
+      </Svg>
       {!mini && (
         <>
-          <Circle cx={lastDotX} cy={lastDotY} r={5} fill={color} />
-          <Circle cx={lastDotX} cy={lastDotY} r={3} fill="#fff" />
+          <View className="flex-row justify-between">
+            <Text className="text-xs text-muted">
+              {timestamps?.[0]
+                ? format(new Date(timestamps[0]), "d MMM", {
+                    locale: getDateLocale(),
+                  })
+                : ""}
+            </Text>
+            <Text className="text-xs text-muted">
+              {timestamps?.at(-1)
+                ? format(new Date(timestamps.at(-1)!), "d MMM", {
+                    locale: getDateLocale(),
+                  })
+                : ""}
+            </Text>
+          </View>
+          <Text className="text-sm text-text mt-2">
+            {dateAt(selectedIndex)} · {data[selectedIndex]}
+            {data2 ? `/${data2[selectedIndex]}` : ""} {unit}
+          </Text>
         </>
       )}
-    </Svg>
+    </View>
   );
 }

@@ -2,7 +2,7 @@
 <!--
   Widget provider metadata.
   targetCellWidth/Height (API 31+) and minWidth/Height (older devices).
-  updatePeriodMillis=0 → the app controls updates via ExpoWidgetModule.updateWidget().
+  Periodic updates invalidate stale plans after the day changes.
 -->
 <appwidget-provider
   xmlns:android="http://schemas.android.com/apk/res/android"
@@ -10,7 +10,7 @@
   android:minHeight="40dp"
   android:targetCellWidth="2"
   android:targetCellHeight="1"
-  android:updatePeriodMillis="0"
+  android:updatePeriodMillis="1800000"
   android:initialLayout="@layout/pill_widget"
-  android:resizeMode="horizontal"
+  android:resizeMode="horizontal|vertical"
   android:widgetCategory="home_screen" />

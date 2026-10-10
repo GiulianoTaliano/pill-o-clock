@@ -47,6 +47,16 @@ export async function stopAlarm(): Promise<void> {
 }
 
 /**
+ * Silence the ringing alarm WITHOUT resolving the dose: posts a quiet reminder
+ * and re-arms the next auto-reminder (same as swiping the notification away).
+ * Use when the alarm screen is closed with the dose still pending.
+ */
+export async function dismissAlarm(): Promise<void> {
+  if (!isAvailable) return;
+  return ExpoAlarmNativeModule!.dismissAlarm();
+}
+
+/**
  * Returns whether the app can show full-screen intents.
  * Always true below Android 14 (API 34). On API 34+, the user must grant
  * "Display over other apps (full screen intent)" in Settings.
@@ -115,10 +125,7 @@ export async function stopSoundPreview(): Promise<void> {
  * Persist the user's alarm sound choice.
  * Empty uri/title = revert to bundled default.
  */
-export async function setAlarmSound(
-  uri: string,
-  title: string,
-): Promise<void> {
+export async function setAlarmSound(uri: string, title: string): Promise<void> {
   if (!isAvailable) return;
   return ExpoAlarmNativeModule!.setAlarmSound(uri, title);
 }
@@ -132,4 +139,18 @@ export async function getAlarmSound(): Promise<
 > {
   if (!isAvailable) return { uri: "", title: "" };
   return ExpoAlarmNativeModule!.getAlarmSound();
+}
+
+/** Cancel every persisted native alarm, including alarms orphaned from SQLite. */
+export async function cancelAllAlarms(): Promise<void> {
+  if (!isAvailable || !ExpoAlarmNativeModule?.cancelAllAlarms) return;
+  return ExpoAlarmNativeModule.cancelAllAlarms();
+}
+
+/** Whether Android permits exact alarms. Other platforms do not use this API. */
+export async function checkExactAlarmPermission(): Promise<boolean> {
+  if (Platform.OS !== "android") return true;
+  if (!isAvailable || !ExpoAlarmNativeModule?.checkExactAlarmPermission)
+    return false;
+  return ExpoAlarmNativeModule.checkExactAlarmPermission();
 }

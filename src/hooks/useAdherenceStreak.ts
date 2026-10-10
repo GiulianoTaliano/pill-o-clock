@@ -29,19 +29,28 @@ export function useAdherenceStreak(): number {
 
       // Group by date, excluding PRN doses (scheduleId prefixed "prn-"): they
       // are as-needed and must not count toward or mask scheduled adherence (M7).
-      const byDate = new Map<string, { hasTaken: boolean; hasSkipped: boolean; hasMissed: boolean }>();
+      const byDate = new Map<
+        string,
+        { hasTaken: boolean; hasSkipped: boolean; hasMissed: boolean }
+      >();
       for (const log of logs) {
         if (log.scheduleId.startsWith("prn-")) continue;
-        const entry = byDate.get(log.scheduledDate) ?? { hasTaken: false, hasSkipped: false, hasMissed: false };
-        if (log.status === "taken")   entry.hasTaken   = true;
+        const entry = byDate.get(log.scheduledDate) ?? {
+          hasTaken: false,
+          hasSkipped: false,
+          hasMissed: false,
+        };
+        if (log.status === "taken") entry.hasTaken = true;
         if (log.status === "skipped") entry.hasSkipped = true;
-        if (log.status === "missed")  entry.hasMissed  = true;
+        if (log.status === "missed") entry.hasMissed = true;
         byDate.set(log.scheduledDate, entry);
       }
 
       const isCompliant = (dateStr: string): boolean => {
         const entry = byDate.get(dateStr);
-        return !!entry && entry.hasTaken && !entry.hasSkipped && !entry.hasMissed;
+        return (
+          !!entry && entry.hasTaken && !entry.hasSkipped && !entry.hasMissed
+        );
       };
 
       // Count consecutive compliant days ending YESTERDAY (completed days).
@@ -61,7 +70,6 @@ export function useAdherenceStreak(): number {
     };
 
     compute();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getHistoryLogs, todayLogs]);
 
   return streak;

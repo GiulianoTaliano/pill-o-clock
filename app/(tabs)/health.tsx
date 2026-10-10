@@ -1,878 +1,904 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput, Modal,
-  Alert, Platform, KeyboardAvoidingView, useWindowDimensions, PanResponder, Pressable,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
+  useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useFocusEffect } from "expo-router";
-import { format } from "date-fns";
-import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import { format, subDays } from "date-fns";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import * as Notifications from "expo-notifications";
 import { useAppStore } from "../../src/store";
-import { HealthMeasurement, MeasurementType, DailyCheckin } from "../../src/types";
+import type {
+  HealthMeasurement,
+  MeasurementType,
+  DailyCheckin,
+} from "../../src/types";
 import { useTranslation, getDateLocale } from "../../src/i18n";
-import i18n from "../../src/i18n";
 import { SimpleLineChart } from "../../components/SimpleLineChart";
 import { CheckinModal } from "../../components/CheckinModal";
 import { AdBanner } from "../../components/AdBanner";
 import { EmptyState } from "../../components/EmptyState";
+import { ProfileChip } from "../../components/ProfileChip";
 import { useToast } from "../../src/context/ToastContext";
 import { today, formatTimeForDisplay } from "../../src/utils";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
+import { parseMeasurementInput } from "../../src/services/carePlan";
+import { updateHealthMeasurement } from "../../src/db/database";
+import { getActiveProfileId } from "../../src/services/profileStore";
 import {
   scheduleHealthReminder,
   cancelHealthReminder,
   getHealthReminderTime,
 } from "../../src/services/notifications";
-import { FlashList } from "@shopify/flash-list";
 
-// ─── Metric config ─────────────────────────────────────────────────────────
-
-type MetricMeta = {
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  color: string;
-  bg: string;
-  dual: boolean; // blood pressure has two fields
-};
-
-const METRIC_META: Record<MeasurementType, MetricMeta> = {
-  blood_pressure: { icon: "heart",         color: "#ef4444", bg: "#fee2e2", dual: true  },
-  glucose:        { icon: "water-outline", color: "#3b82f6", bg: "#dbeafe", dual: false },
-  weight:         { icon: "barbell-outline",color:"#8b5cf6", bg: "#ede9fe", dual: false },
-  spo2:           { icon: "pulse-outline", color: "#06b6d4", bg: "#cffafe", dual: false },
-  heart_rate:     { icon: "pulse",         color: "#f97316", bg: "#ffedd5", dual: false },
-};
-
-const METRIC_TYPES: MeasurementType[] = [
-  "blood_pressure", "glucose", "weight", "spo2", "heart_rate",
+const TYPES: MeasurementType[] = [
+  "blood_pressure",
+  "glucose",
+  "weight",
+  "spo2",
+  "heart_rate",
 ];
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
-function tDyn(key: string, opts?: object): string {
-  const val = (i18n.t as (k: string, o?: object) => string)(key, opts);
-  if (val !== key) return val;
-  // Missing translation: i18next returns the key itself. Humanize the token so
-  // the user never sees a raw key like "checkin.symptom_dolor_cabeza" — this is
-  // how legacy/seed symptom tokens rendered as raw keys (audit UX I8 / M29).
-  const leaf = key.split(".").pop() ?? key;
-  const parts = leaf.split("_");
-  const words = parts.length > 1 ? parts.slice(1) : parts; // drop the category prefix (symptom_/mood_)
-  const humanized = words.join(" ").trim();
-  return humanized ? humanized.charAt(0).toUpperCase() + humanized.slice(1) : val;
-}
-
-function typeName(type: MeasurementType): string {
-  return tDyn(`health.${type}_name`);
-}
-
-function typeUnit(type: MeasurementType): string {
-  return tDyn(`health.${type}_unit`);
-}
-
-function formatValue(m: HealthMeasurement): string {
-  if (m.type === "blood_pressure" && m.value2 != null) {
-    return `${m.value1}/${m.value2}`;
-  }
-  return `${m.value1}`;
-}
-
-function formatMeasuredAt(iso: string): string {
-  try {
-    return format(new Date(iso), "Pp", { locale: getDateLocale() });
-  } catch {
-    return iso;
-  }
-}
-
-const MOOD_EMOJIS: Record<number, string> = { 1: "😞", 2: "😕", 3: "😐", 4: "🙂", 5: "😄" };
-
-// ─── Add measurement form state ────────────────────────────────────────────
-
-interface AddForm {
-  value1Str: string;
-  value2Str: string; // only for blood_pressure
-  measuredAt: Date;
-  notes: string;
-  showDatePicker: boolean;
-  showTimePicker: boolean;
-}
-
-function defaultAddForm(): AddForm {
-  return {
-    value1Str: "",
-    value2Str: "",
-    measuredAt: new Date(),
-    notes: "",
-    showDatePicker: false,
-    showTimePicker: false,
-  };
-}
-
-// ─── Sub-components ─────────────────────────────────────────────────────────────────
-
-// Isolating list items in their own components prevents react-native-css-interop's
-// upgrade-warning serializer from crawling through the parent closure and
-// accidentally triggering React Navigation's context getter (which throws when
-// accessed outside its own NavigationContainer scope).
-
-function MeasurementListItem({
-  m,
-  meta,
-  onDelete,
-}: {
-  m: HealthMeasurement;
-  meta: MetricMeta;
-  onDelete: () => void;
-}) {
-  return (
-    <View className="bg-card rounded-2xl border border-border p-4 mb-3 flex-row items-center gap-3">
-      <View
-        className="w-10 h-10 rounded-full items-center justify-center"
-        style={{ backgroundColor: meta.bg }}
-      >
-        <Ionicons name={meta.icon} size={18} color={meta.color} />
-      </View>
-      <View className="flex-1">
-        <Text className="text-lg font-black text-text">
-          {formatValue(m)}
-          <Text className="text-sm font-normal text-muted"> {typeUnit(m.type)}</Text>
-        </Text>
-        <Text className="text-xs text-muted mt-0.5">{formatMeasuredAt(m.measuredAt)}</Text>
-        {m.notes ? (
-          <Text className="text-xs text-muted italic mt-1">{m.notes}</Text>
-        ) : null}
-      </View>
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={`${tDyn('common.delete')} ${formatValue(m)} ${typeUnit(m.type)}`}
-        onPress={onDelete}
-        className="p-2"
-      >
-        <Ionicons name="trash-outline" size={16} color="#ef4444" />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function CheckinListItem({
-  checkin,
-  onPress,
-}: {
-  checkin: DailyCheckin;
-  onPress: () => void;
-}) {
-  const dateFmt = format(new Date(checkin.date + "T12:00"), "PPP", { locale: getDateLocale() });
-  const dateCap = dateFmt.charAt(0).toUpperCase() + dateFmt.slice(1);
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="bg-card rounded-2xl border border-border p-4 mb-3 flex-row items-center gap-3"
-    >
-      <Text className="text-2xl">{MOOD_EMOJIS[checkin.mood]}</Text>
-      <View className="flex-1">
-        <Text className="text-sm font-bold text-text">{dateCap}</Text>
-        <Text className="text-xs text-muted mt-0.5">
-          {tDyn(`checkin.mood_${checkin.mood}`)}
-          {checkin.symptoms.length > 0
-            ? ` · ${checkin.symptoms.map((s) => tDyn(`checkin.symptom_${s}`)).join(", ")}`
-            : ""}
-        </Text>
-        {checkin.notes ? (
-          <Text className="text-xs text-muted italic mt-1" numberOfLines={1}>{checkin.notes}</Text>
-        ) : null}
-      </View>
-      <Ionicons name="chevron-forward" size={14} color="#cbd5e1" />
-    </TouchableOpacity>
-  );
-}
-
-function SubTabButton({
-  active,
-  label,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  // Use style instead of className for all conditional appearance so
-  // react-native-css-interop never sees a new CSS feature after initial
-  // render (avoids printUpgradeWarning → navigation-context crash).
-  const theme = useAppTheme();
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="flex-1 py-3 rounded-xl items-center"
-      style={
-        active
-          ? {
-              backgroundColor: theme.card,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.06,
-              shadowRadius: 2,
-              elevation: 1,
-            }
-          : undefined
-      }
-    >
-      <Text
-        className="text-sm font-bold"
-        style={{ color: active ? (theme.isDark ? "#f8fafc" : "#1e293b") : theme.muted }}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-function MetricOverviewCard({
-  type,
-  latest,
-  miniData,
-  onPress,
-}: {
-  type: MeasurementType;
-  latest: HealthMeasurement | undefined;
-  miniData: number[];
-  onPress: () => void;
-}) {
-  const { t } = useTranslation();
-  const meta = METRIC_META[type];
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="bg-card rounded-2xl border border-border p-4 mb-3 flex-row items-center gap-3"
-    >
-      <View
-        className="w-12 h-12 rounded-2xl items-center justify-center"
-        style={{ backgroundColor: meta.bg }}
-      >
-        <Ionicons name={meta.icon} size={22} color={meta.color} />
-      </View>
-      <View className="flex-1">
-        <Text className="text-sm font-bold text-text">{typeName(type)}</Text>
-        {latest ? (
-          <Text className="text-lg font-black mt-0.5" style={{ color: meta.color }}>
-            {formatValue(latest)}
-            <Text className="text-xs font-normal text-muted"> {typeUnit(type)}</Text>
-          </Text>
-        ) : (
-          <Text className="text-xs text-muted mt-1 italic">{t("health.noMeasurements")}</Text>
-        )}
-      </View>
-      {miniData.length > 1 && (
-        <SimpleLineChart
-          data={miniData}
-          color={meta.color}
-          width={64}
-          height={36}
-          mini
-        />
-      )}
-      <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
-    </TouchableOpacity>
-  );
-}
-
-function TodayCheckinCard({
-  checkin,
-  onPress,
-}: {
-  checkin: DailyCheckin | undefined;
-  onPress: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View className="bg-card rounded-2xl border border-border p-4 mb-4">
-      <View className="flex-row items-center gap-3">
-        <Text className="text-3xl">{checkin ? MOOD_EMOJIS[checkin.mood] : "🌡"}</Text>
-        <View className="flex-1">
-          <Text className="text-sm font-bold text-text">
-            {checkin ? t("checkin.alreadyDone") : t("checkin.homePromptTitle")}
-          </Text>
-          <Text className="text-xs text-muted">
-            {checkin
-              ? checkin.symptoms.map((s) => tDyn(`checkin.symptom_${s}`)).join(", ") ||
-                checkin.notes ||
-                tDyn(`checkin.mood_${checkin.mood}`)
-              : t("checkin.homePromptSubtitle")}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={onPress}
-          className="bg-primary/10 border border-primary/30 rounded-xl px-3 py-2"
-        >
-          <Text className="text-primary text-xs font-bold">
-            {checkin ? t("checkin.editToday") : t("checkin.saveButton")}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-function ReminderActiveRow({
-  reminderTime,
-  onCancel,
-}: {
-  reminderTime: string;
-  onCancel: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View className="flex-row items-center gap-2">
-      <View className="flex-1 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl px-3 py-2">
-        <Text className="text-sm font-bold text-green-700 dark:text-green-400">
-          {t("health.reminderActive", { time: formatTimeForDisplay(reminderTime) })}
-        </Text>
-      </View>
-      <TouchableOpacity
-        onPress={onCancel}
-        className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl"
-      >
-        <Ionicons name="close" size={16} color="#64748b" />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Screen ────────────────────────────────────────────────────────────────
+const ICONS: Record<
+  MeasurementType,
+  React.ComponentProps<typeof Ionicons>["name"]
+> = {
+  blood_pressure: "heart-outline",
+  glucose: "water-outline",
+  weight: "barbell-outline",
+  spo2: "pulse-outline",
+  heart_rate: "pulse",
+};
+const MOODS = ["", "😞", "😕", "😐", "🙂", "😄"];
+const newForm = () => ({
+  value1: "",
+  value2: "",
+  measuredAt: new Date(),
+  notes: "",
+});
 
 export default function HealthScreen() {
   const { t } = useTranslation();
-  const { showToast } = useToast();
-  const { width } = useWindowDimensions();
   const theme = useAppTheme();
+  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-
-  const healthMeasurements = useAppStore((s) => s.healthMeasurements);
-  const loadHealthMeasurements = useAppStore((s) => s.loadHealthMeasurements);
-  const addHealthMeasurement = useAppStore((s) => s.addHealthMeasurement);
-  const deleteHealthMeasurement = useAppStore((s) => s.deleteHealthMeasurement);
-  const dailyCheckins = useAppStore((s) => s.dailyCheckins);
-  const loadDailyCheckins = useAppStore((s) => s.loadDailyCheckins);
-
+  const { showToast } = useToast();
+  const measurements = useAppStore((s) => s.healthMeasurements);
+  const loadMeasurements = useAppStore((s) => s.loadHealthMeasurements);
+  const addMeasurement = useAppStore((s) => s.addHealthMeasurement);
+  const deleteMeasurement = useAppStore((s) => s.deleteHealthMeasurement);
+  const checkins = useAppStore((s) => s.dailyCheckins);
+  const loadCheckins = useAppStore((s) => s.loadDailyCheckins);
+  const activeProfileId = useAppStore((s) => s.activeProfileId);
   const [tab, setTab] = useState<"measurements" | "diary">("measurements");
-  const [selectedType, setSelectedType] = useState<MeasurementType | null>(null);
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [addForm, setAddForm] = useState<AddForm>(defaultAddForm());
+  const [type, setType] = useState<MeasurementType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<HealthMeasurement | null>(null);
+  const [form, setForm] = useState(newForm);
+  const baseline = useRef("");
+  const saveGuard = useRef(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [datePicker, setDatePicker] = useState<"date" | "time" | null>(null);
   const [checkinVisible, setCheckinVisible] = useState(false);
-  const [editCheckin, setEditCheckin] = useState<DailyCheckin | undefined>(undefined);
-  const [reminderTime, setReminderTime] = useState<string | null>(null);
-  const [showReminderPicker, setShowReminderPicker] = useState(false);
-
-  // Load data on focus; close reminder picker when leaving the screen
+  const [editCheckin, setEditCheckin] = useState<DailyCheckin | undefined>();
+  const [limit, setLimit] = useState(20);
+  const [range, setRange] = useState<7 | 30 | 90 | null>(30);
+  const [reminder, setReminder] = useState<string | null>(null);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderPicker, setReminderPicker] = useState(false);
+  const [reminderDraft, setReminderDraft] = useState(new Date());
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const load = useCallback(async () => {
+    if (getActiveProfileId() !== activeProfileId) return;
+    setLoading(true);
+    setLoadError(false);
+    try {
+      await Promise.all([
+        loadMeasurements(),
+        loadCheckins(),
+        getHealthReminderTime().then(setReminder),
+      ]);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadMeasurements, loadCheckins, activeProfileId]);
   useFocusEffect(
     useCallback(() => {
-      loadHealthMeasurements();
-      loadDailyCheckins();
-      getHealthReminderTime().then(setReminderTime);
+      void load();
       return () => {
-        setShowReminderPicker(false);
+        setReminderOpen(false);
+        setReminderPicker(false);
       };
-    }, [loadHealthMeasurements, loadDailyCheckins])
+    }, [load])
   );
-
-  // ── Filtered measurements for selected type ──────────────────────────────
-
-  const typeItems = selectedType
-    ? healthMeasurements.filter((m) => m.type === selectedType)
+  const sorted = useMemo(
+    () =>
+      [...measurements].sort((a, b) =>
+        b.measuredAt.localeCompare(a.measuredAt)
+      ),
+    [measurements]
+  );
+  const cutoff = range == null ? null : subDays(new Date(), range).getTime();
+  const items = type
+    ? sorted.filter(
+        (m) =>
+          m.type === type &&
+          (cutoff == null || new Date(m.measuredAt).getTime() >= cutoff)
+      )
     : [];
-
-  const chartData1 = [...typeItems].reverse().map((m) => m.value1);
-  const chartData2 =
-    selectedType === "blood_pressure"
-      ? [...typeItems].reverse().map((m) => m.value2 ?? 0)
-      : undefined;
-
-  // ── Measurements helper ───────────────────────────────────────────────────
-
-  function getLatest(type: MeasurementType): HealthMeasurement | undefined {
-    return healthMeasurements.find((m) => m.type === type);
-  }
-
-  function getMiniData(type: MeasurementType): number[] {
-    return healthMeasurements
-      .filter((m) => m.type === type)
-      .slice(0, 10)
-      .reverse()
-      .map((m) => m.value1);
-  }
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
-  const handleDeleteMeasurement = (m: HealthMeasurement) => {
+  const chronological = [...items].reverse();
+  const todayCheckin = checkins.find((c) => c.date === today());
+  const pastCheckins = checkins.filter((c) => c.date !== today());
+  const stamp = (iso: string) =>
+    format(new Date(iso), "Pp", { locale: getDateLocale() });
+  const value = (m: HealthMeasurement) =>
+    `${m.value1}${m.value2 != null ? `/${m.value2}` : ""} ${t(
+      `health.${m.type}_unit`
+    )}`;
+  const open = (m?: HealthMeasurement) => {
+    const next = m
+      ? {
+          value1: String(m.value1),
+          value2: m.value2 == null ? "" : String(m.value2),
+          measuredAt: new Date(m.measuredAt),
+          notes: m.notes ?? "",
+        }
+      : newForm();
+    setForm(next);
+    baseline.current = JSON.stringify(next);
+    setEditing(m ?? null);
+    setFieldError(null);
+    setModal(true);
+  };
+  const dismiss = () => {
+    if (saving) return;
+    const close = () => {
+      setModal(false);
+      setDatePicker(null);
+    };
+    if (JSON.stringify(form) !== baseline.current)
+      Alert.alert(t("uxHealth.discardTitle"), t("uxHealth.discardBody"), [
+        { text: t("uxHealth.keepEditing"), style: "cancel" },
+        { text: t("uxHealth.discard"), style: "destructive", onPress: close },
+      ]);
+    else close();
+  };
+  const save = async () => {
+    if (!type || saveGuard.current) return;
+    const v1 = parseMeasurementInput(form.value1, type);
+    const v2 =
+      type === "blood_pressure"
+        ? parseMeasurementInput(form.value2, type)
+        : undefined;
+    if (v1 == null || v2 === null) {
+      setFieldError(
+        t(type === "spo2" ? "uxHealth.invalidSpo2" : "uxHealth.invalidValue")
+      );
+      return;
+    }
+    if (form.measuredAt.getTime() > Date.now() + 60_000) {
+      setFieldError(t("uxHealth.measurementFuture"));
+      return;
+    }
+    saveGuard.current = true;
+    setSaving(true);
+    setFieldError(null);
+    try {
+      const data = {
+        type,
+        value1: v1,
+        value2: v2,
+        measuredAt: form.measuredAt.toISOString(),
+        notes: form.notes.trim() || undefined,
+        profileId: activeProfileId,
+      };
+      if (editing) {
+        await updateHealthMeasurement({ ...editing, ...data });
+        await loadMeasurements();
+      } else await addMeasurement(data);
+      setModal(false);
+      setDatePicker(null);
+      showToast(t("uxHealth.saved"), "success");
+    } catch {
+      setFieldError(t("uxHealth.saveError"));
+    } finally {
+      saveGuard.current = false;
+      setSaving(false);
+    }
+  };
+  const remove = (m: HealthMeasurement) =>
     Alert.alert(
       t("health.deleteTitle"),
-      t("health.deleteMessage"),
+      `${value(m)} · ${stamp(m.measuredAt)}`,
       [
         { text: t("common.cancel"), style: "cancel" },
         {
           text: t("common.delete"),
           style: "destructive",
-          onPress: () => deleteHealthMeasurement(m.id),
+          onPress: async () => {
+            setBusyId(m.id);
+            try {
+              await deleteMeasurement(m.id);
+              showToast(t("uxHealth.deleted"), "info");
+            } catch {
+              Alert.alert(t("common.error"), t("uxHealth.deleteError"));
+            } finally {
+              setBusyId(null);
+            }
+          },
         },
       ]
     );
+  const openReminder = () => {
+    const d = new Date();
+    if (reminder) {
+      const [h, m] = reminder.split(":").map(Number);
+      d.setHours(h, m, 0, 0);
+    }
+    setReminderDraft(d);
+    setReminderOpen(true);
+    setReminderPicker(true);
   };
-
-  const openAddModal = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setAddForm(defaultAddForm());
-    setAddModalVisible(true);
-  };
-
-  const handleSaveMeasurement = async () => {
-    const v1 = parseFloat(addForm.value1Str);
-    if (isNaN(v1)) {
-      Alert.alert(t("common.error"), t("health.errorRequired"));
+  const saveReminder = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert(t("common.error"), t("uxHealth.reminderUnavailable"));
       return;
     }
-    if (selectedType === "blood_pressure") {
-      const v2 = parseFloat(addForm.value2Str);
-      if (isNaN(v2)) {
-        Alert.alert(t("common.error"), t("health.errorInvalid"));
+    setReminderBusy(true);
+    try {
+      let permission = await Notifications.getPermissionsAsync();
+      if (!permission.granted)
+        permission = await Notifications.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(t("common.error"), t("uxHealth.permissionNeeded"));
         return;
       }
-      await addHealthMeasurement({
-        type: selectedType,
-        value1: v1,
-        value2: v2,
-        measuredAt: addForm.measuredAt.toISOString(),
-        notes: addForm.notes.trim() || undefined,
-      });
-    } else {
-      await addHealthMeasurement({
-        type: selectedType!,
-        value1: v1,
-        measuredAt: addForm.measuredAt.toISOString(),
-        notes: addForm.notes.trim() || undefined,
-      });
+      const time = format(reminderDraft, "HH:mm");
+      await scheduleHealthReminder(time);
+      setReminder(time);
+      setReminderOpen(false);
+      setReminderPicker(false);
+      showToast(t("health.reminderSaved"), "success");
+    } catch {
+      Alert.alert(t("common.error"), t("uxHealth.saveError"));
+    } finally {
+      setReminderBusy(false);
     }
-    setAddModalVisible(false);
-    showToast(t("health.saveButton"), "success");
   };
-
-  const handleDateChange = (_: DateTimePickerEvent, date?: Date) => {
-    setAddForm((f) => ({
-      ...f,
-      measuredAt: date ?? f.measuredAt,
-      showDatePicker: Platform.OS === "ios",
-    }));
+  const checkin = (existing?: DailyCheckin) => {
+    setEditCheckin(existing ?? todayCheckin);
+    setCheckinVisible(true);
   };
-
-  const handleTimeChange = (_: DateTimePickerEvent, date?: Date) => {
-    setAddForm((f) => ({
-      ...f,
-      measuredAt: date ?? f.measuredAt,
-      showTimePicker: Platform.OS === "ios",
-    }));
-  };
-
-  const measurementPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setAddModalVisible(false); },
-    })
-  ).current;
-
-  const handleReminderChange = async (_: DateTimePickerEvent, date?: Date) => {
-    setShowReminderPicker(Platform.OS === "ios");
-    if (!date) return;
-    const time = format(date, "HH:mm");
-    await scheduleHealthReminder(time);
-    setReminderTime(time);
-    showToast(t("health.reminderSaved"), "success");
-  };
-
-  const handleCancelReminder = async () => {
-    await cancelHealthReminder();
-    setReminderTime(null);
-    showToast(t("health.reminderCancelled"), "info");
-  };
-
-  // ── Today's check-in ──────────────────────────────────────────────────────
-
-  const todayStr = today();
-  const todayCheckin = dailyCheckins.find((c) => c.date === todayStr);
-  const recentCheckins = dailyCheckins.slice(0, 10);
-
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  const meta = selectedType ? METRIC_META[selectedType] : null;
-
+  const button =
+    "min-h-[48px] min-w-[48px] rounded-2xl items-center justify-center px-4 py-3";
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* Header */}
-      <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
+      <View className="px-5 pt-4 pb-3">
         <View className="flex-row items-center gap-2">
-          {selectedType && tab === "measurements" ? (
-            <TouchableOpacity onPress={() => setSelectedType(null)} className="mr-1">
-              <Ionicons name="arrow-back" size={22} color="#4f9cff" />
-            </TouchableOpacity>
-          ) : null}
-          <Text className="text-2xl font-black text-text">
-            {selectedType && tab === "measurements" ? typeName(selectedType) : t("health.title")}
-          </Text>
+          <View className="flex-1">
+            <Text className="text-xs uppercase tracking-widest text-muted">
+              {t("health.title")}
+            </Text>
+            <Text className="text-2xl font-bold text-text mt-1">
+              {type
+                ? t(`health.${type}_name`)
+                : t(
+                    tab === "diary"
+                      ? "health.tabDiary"
+                      : "health.tabMeasurements"
+                  )}
+            </Text>
+          </View>
+          <ProfileChip />
         </View>
-
-        {/* Reminder bell / Add button */}
-        {tab === "measurements" && selectedType && (
-          <TouchableOpacity
-            onPress={openAddModal}
-            className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
-        )}
-        {tab === "diary" && (
-          <TouchableOpacity
-            onPress={() => { setEditCheckin(undefined); setCheckinVisible(true); }}
-            className="bg-primary w-10 h-10 rounded-full items-center justify-center shadow-sm"
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
-        )}
       </View>
-
-      {/* Sub-tabs */}
-      {!selectedType && (
-        <View className="flex-row mx-5 mb-3 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1">
-          {([
-            { key: "measurements" as const, label: t("health.tabMeasurements") },
-            { key: "diary" as const,        label: t("health.tabDiary") },
-          ]).map(({ key, label }) => (
-            <SubTabButton
+      {type ? (
+        <View className="flex-row px-5 gap-3 mb-3">
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("common.back")}
+            onPress={() => {
+              setType(null);
+              setLimit(20);
+            }}
+            className={`${button} bg-card border border-border`}
+          >
+            <Ionicons name="arrow-back" size={20} color={theme.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => open()}
+            className={`${button} flex-1 bg-action`}
+          >
+            <Text className="text-white font-bold">
+              {t("health.addButton", { defaultValue: t("health.saveButton") })}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View className="flex-row mx-5 mb-4 rounded-2xl bg-card border border-border p-1">
+          {(["measurements", "diary"] as const).map((key) => (
+            <TouchableOpacity
               key={key}
-              active={tab === key}
-              label={label}
-              onPress={() => setTab(key)}
-            />
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === key }}
+              onPress={() => {
+                setTab(key);
+                setLimit(20);
+              }}
+              className={`${button} flex-1 ${tab === key ? "bg-action" : ""}`}
+            >
+              <Text
+                className={`font-semibold ${
+                  tab === key ? "text-white" : "text-muted"
+                }`}
+              >
+                {t(
+                  key === "diary" ? "health.tabDiary" : "health.tabMeasurements"
+                )}
+              </Text>
+            </TouchableOpacity>
           ))}
         </View>
       )}
-
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
-
-        {/* ── MEASUREMENTS TAB ──────────────────────────────────────────── */}
-        {tab === "measurements" && (
-          <>
-            {selectedType ? (
-              /* ── DETAIL VIEW ── */
-              <>
-                {/* Chart card */}
-                {typeItems.length > 1 && (
-                  <View className="rounded-2xl border border-border p-4 mb-4" style={{ backgroundColor: theme.card }}>
-                    <Text className="text-xs font-semibold text-muted mb-3 uppercase tracking-wide">
-                      {t("health.chart")}
+      <ScrollView
+        className="flex-1 px-5"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        {loading ? (
+          <View className="py-10 items-center">
+            <ActivityIndicator color={theme.primary} />
+            <Text className="text-muted mt-3">{t("uxHealth.loading")}</Text>
+          </View>
+        ) : loadError ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title={t("uxHealth.loadError")}
+            actionLabel={t("uxHealth.retry")}
+            onAction={() => void load()}
+          />
+        ) : tab === "measurements" ? (
+          type ? (
+            <>
+              <View className="flex-row flex-wrap gap-2 mb-4">
+                {([7, 30, 90, null] as const).map((days) => (
+                  <TouchableOpacity
+                    key={days ?? "all"}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: range === days }}
+                    onPress={() => {
+                      setRange(days);
+                      setLimit(20);
+                    }}
+                    className={`min-h-[48px] px-3 rounded-xl justify-center border ${
+                      range === days
+                        ? "bg-action border-primary"
+                        : "bg-card border-border"
+                    }`}
+                  >
+                    <Text
+                      className={
+                        range === days
+                          ? "text-white font-semibold"
+                          : "text-muted"
+                      }
+                    >
+                      {days == null ? t("uxHealth.allRecords") : `${days} d`}
                     </Text>
-                    <SimpleLineChart
-                      data={chartData1}
-                      data2={chartData2}
-                      color={meta!.color}
-                      color2={theme.muted}
-                      width={width - 72}
-                      height={120}
-                    />
-                    {selectedType === "blood_pressure" && (
-                      <View className="flex-row gap-4 mt-2">
-                        <View className="flex-row items-center gap-1.5">
-                          <View className="w-3 h-0.5 rounded" style={{ backgroundColor: meta!.color }} />
-                          <Text className="text-xs text-muted">{tDyn("health.blood_pressure_field1")}</Text>
-                        </View>
-                        <View className="flex-row items-center gap-1.5">
-                          <View className="w-3 h-0.5 rounded border border-dashed border-slate-400" />
-                          <Text className="text-xs text-muted">{tDyn("health.blood_pressure_field2")}</Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Measurements list */}
-                {typeItems.length === 0 ? (
-                  <EmptyState
-                    icon={meta!.icon}
-                    title={t("health.noMeasurements")}
-                    subtitle={t("health.noMeasurementsSubtitle")}
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {items.length > 1 && (
+                <View className="bg-card border border-border rounded-2xl p-4 mb-5">
+                  <Text className="text-base font-semibold text-text mb-2">
+                    {t("health.chart")}
+                  </Text>
+                  <SimpleLineChart
+                    data={chronological.map((m) => m.value1)}
+                    data2={
+                      type === "blood_pressure"
+                        ? chronological.map((m) => m.value2 ?? m.value1)
+                        : undefined
+                    }
+                    timestamps={chronological.map((m) => m.measuredAt)}
+                    unit={t(`health.${type}_unit`)}
+                    width={Math.max(160, width - 72)}
+                    height={160}
                   />
-                ) : (
-                  <FlashList
-                    data={typeItems}
-                    renderItem={({ item: m }) => (
-                      <MeasurementListItem
-                        key={m.id}
-                        m={m}
-                        meta={meta!}
-                        onDelete={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                          handleDeleteMeasurement(m);
+                  {type === "blood_pressure" && (
+                    <Text className="text-xs text-muted mt-3">
+                      {t("health.blood_pressure_field1")} ━ ·{" "}
+                      {t("health.blood_pressure_field2")} ┄
+                    </Text>
+                  )}
+                </View>
+              )}
+              <Text
+                accessibilityRole="header"
+                className="font-semibold text-text mb-3"
+              >
+                {t("uxHealth.chartTable")} · {items.length}
+              </Text>
+              {!items.length && (
+                <EmptyState
+                  icon={ICONS[type]}
+                  title={t("uxHealth.noResults")}
+                  actionLabel={t("health.addButton", {
+                    defaultValue: t("health.saveButton"),
+                  })}
+                  onAction={() => open()}
+                />
+              )}
+              {items.slice(0, limit).map((m) => (
+                <View
+                  key={m.id}
+                  className="bg-card border border-border rounded-2xl p-4 mb-3"
+                >
+                  <View className="flex-row items-center gap-2">
+                    <View className="flex-1">
+                      <Text className="text-xl font-bold text-text">
+                        {value(m)}
+                      </Text>
+                      <Text className="text-sm text-muted mt-1">
+                        {stamp(m.measuredAt)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={t("uxHealth.editMeasurement")}
+                      onPress={() => open(m)}
+                      className="min-h-[48px] min-w-[48px] items-center justify-center"
+                    >
+                      <Ionicons
+                        name="pencil-outline"
+                        size={20}
+                        color={theme.primary}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={t("uxHealth.deleteNamed", {
+                        name: `${value(m)}, ${stamp(m.measuredAt)}`,
+                      })}
+                      disabled={busyId === m.id}
+                      onPress={() => remove(m)}
+                      className="min-h-[48px] min-w-[48px] items-center justify-center"
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={20}
+                        color={theme.danger}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  {m.notes && (
+                    <Text className="text-sm text-muted mt-3">{m.notes}</Text>
+                  )}
+                </View>
+              ))}
+              {items.length > limit && (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={() => setLimit((n) => n + 20)}
+                  className={`${button} bg-card border border-border`}
+                >
+                  <Text className="text-primary font-semibold">
+                    {t("uxHealth.showing", {
+                      shown: limit,
+                      total: items.length,
+                    })}{" "}
+                    · {t("uxHealth.showMore")}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <>
+              {TYPES.map((metric) => {
+                const latest = sorted.find((m) => m.type === metric);
+                const mini = sorted
+                  .filter((m) => m.type === metric)
+                  .slice(0, 10)
+                  .reverse();
+                return (
+                  <TouchableOpacity
+                    key={metric}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t(`health.${metric}_name`)}, ${
+                      latest
+                        ? `${value(latest)}, ${stamp(latest.measuredAt)}`
+                        : t("uxHealth.noMeasurementsYet")
+                    }`}
+                    onPress={() => {
+                      setType(metric);
+                      setLimit(20);
+                    }}
+                    className="bg-card border border-border rounded-2xl p-4 mb-3 flex-row items-center gap-3"
+                  >
+                    <View className="w-12 h-12 rounded-2xl bg-primary/10 items-center justify-center">
+                      <Ionicons
+                        name={ICONS[metric]}
+                        size={24}
+                        color={theme.primary}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="font-semibold text-text">
+                        {t(`health.${metric}_name`)}
+                      </Text>
+                      <Text className="text-xl font-bold text-text mt-1">
+                        {latest ? value(latest) : "—"}
+                      </Text>
+                      <Text className="text-xs text-muted mt-1">
+                        {latest
+                          ? stamp(latest.measuredAt)
+                          : t("uxHealth.noMeasurementsYet")}
+                      </Text>
+                    </View>
+                    {mini.length > 1 && (
+                      <SimpleLineChart
+                        data={mini.map((m) => m.value1)}
+                        timestamps={mini.map((m) => m.measuredAt)}
+                        width={56}
+                        height={36}
+                        mini
+                      />
+                    )}
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={theme.muted}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+              <View className="bg-card border border-border rounded-2xl p-4 mt-3">
+                <Text className="font-semibold text-text">
+                  {t("health.reminderSection")}
+                </Text>
+                <Text className="text-sm text-muted mt-1 mb-3">
+                  {reminder
+                    ? `${t("uxHealth.dailyReminder")} · ${formatTimeForDisplay(
+                        reminder
+                      )}`
+                    : t("health.reminderNone")}
+                </Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={openReminder}
+                  className={`${button} bg-primary/10`}
+                >
+                  <Text className="text-primary font-semibold">
+                    {t("uxHealth.editReminder")}
+                  </Text>
+                </TouchableOpacity>
+                {reminder && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    disabled={reminderBusy}
+                    onPress={async () => {
+                      setReminderBusy(true);
+                      try {
+                        await cancelHealthReminder();
+                        setReminder(null);
+                        showToast(t("health.reminderCancelled"), "info");
+                      } catch {
+                        Alert.alert(t("common.error"), t("uxHealth.saveError"));
+                      } finally {
+                        setReminderBusy(false);
+                      }
+                    }}
+                    className={button}
+                  >
+                    <Text className="text-muted">
+                      {t("uxHealth.noNotifications")}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {reminderOpen && (
+                  <View className="mt-3">
+                    <Text className="text-text font-semibold">
+                      {formatTimeForDisplay(format(reminderDraft, "HH:mm"))}
+                    </Text>
+                    {reminderPicker && (
+                      <DateTimePicker
+                        value={reminderDraft}
+                        mode="time"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={(event, date) => {
+                          if (Platform.OS !== "ios") setReminderPicker(false);
+                          if (event.type === "set" && date)
+                            setReminderDraft(date);
                         }}
                       />
                     )}
-                    keyExtractor={(item) => item.id}
-                  />
-                )}
-              </>
-            ) : (
-              /* ── OVERVIEW CARDS ── */
-              <>
-                {METRIC_TYPES.map((type) => (
-                  <MetricOverviewCard
-                    key={type}
-                    type={type}
-                    latest={getLatest(type)}
-                    miniData={getMiniData(type)}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedType(type);
-                    }}
-                  />
-                ))}
-
-                {/* Daily reminder section */}
-                <View className="bg-card rounded-2xl border border-border p-4 mt-2 mb-4">
-                  <View className="flex-row items-center gap-3 mb-3">
-                    <View className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 items-center justify-center">
-                      <Ionicons name="notifications-outline" size={18} color="#22c55e" />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-sm font-bold text-text">{t("health.reminderSection")}</Text>
-                      <Text className="text-xs text-muted">{t("health.reminderSubtitle")}</Text>
+                    <View className="flex-row gap-2 mt-3">
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        onPress={() => {
+                          setReminderOpen(false);
+                          setReminderPicker(false);
+                        }}
+                        className={`${button} flex-1 bg-card border border-border`}
+                      >
+                        <Text className="text-muted">{t("common.cancel")}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        disabled={reminderBusy}
+                        onPress={() => void saveReminder()}
+                        className={`${button} flex-1 bg-action`}
+                      >
+                        <Text className="text-white font-semibold">
+                          {t("common.save")}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
-
-                  {reminderTime ? (
-                    <ReminderActiveRow
-                      reminderTime={reminderTime}
-                      onCancel={handleCancelReminder}
-                    />
-                  ) : (
-                    <TouchableOpacity
-                      onPress={() => setShowReminderPicker(true)}
-                      className="flex-row items-center gap-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3"
-                    >
-                      <Ionicons name="time-outline" size={16} color={theme.muted} />
-                      <Text className="text-sm text-muted">{t("health.reminderNone")} · {t("health.reminderTapToConfigure")}</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {showReminderPicker && (
-                    <DateTimePicker
-                      value={(() => {
-                        if (reminderTime) {
-                          const [h, m] = reminderTime.split(":").map(Number);
-                          const d = new Date();
-                          d.setHours(h, m, 0, 0);
-                          return d;
-                        }
-                        return new Date();
-                      })()}
-                      mode="time"
-                      display={Platform.OS === "ios" ? "spinner" : "default"}
-                      onChange={handleReminderChange}
-                    />
-                  )}
-                </View>
-              </>
-            )}
-          </>
-        )}
-
-        {/* ── DIARY TAB ─────────────────────────────────────────────────── */}
-        {tab === "diary" && (
-          <>
-            {/* Today's check-in card */}
-            <TodayCheckinCard
-              checkin={todayCheckin}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setEditCheckin(todayCheckin);
-                setCheckinVisible(true);
-              }}
-            />
-
-            {/* Past check-ins */}
-            {recentCheckins.length === 0 ? (
-              <EmptyState
-                icon="happy-outline"
-                title={t("checkin.noCheckins")}
-                subtitle={t("checkin.noCheckinsSubtitle")}
-              />
-            ) : (
-              <FlashList
-                data={recentCheckins.filter((c) => c.date !== todayStr)}
-                renderItem={({ item: checkin }) => (
-                  <CheckinListItem
-                    key={checkin.id}
-                    checkin={checkin}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setEditCheckin(checkin);
-                      setCheckinVisible(true);
-                    }}
-                  />
                 )}
-                keyExtractor={(item) => item.id}
-              />
+              </View>
+            </>
+          )
+        ) : (
+          <>
+            <View className="bg-card border border-border rounded-2xl p-5 mb-5">
+              <Text className="text-xl font-bold text-text">
+                {todayCheckin
+                  ? `${MOODS[todayCheckin.mood]} ${t("checkin.alreadyDone")}`
+                  : t("checkin.homePromptTitle")}
+              </Text>
+              <Text className="text-sm text-muted mt-2">
+                {todayCheckin
+                  ? t(`checkin.mood_${todayCheckin.mood}`)
+                  : t("checkin.homePromptSubtitle")}
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => checkin()}
+                className={`${button} bg-action mt-4`}
+              >
+                <Text className="text-white font-bold">
+                  {t(todayCheckin ? "checkin.editToday" : "checkin.saveButton")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text
+              accessibilityRole="header"
+              className="font-semibold text-text mb-3"
+            >
+              {t("uxHealth.allRecords")}
+            </Text>
+            {!pastCheckins.length && (
+              <Text className="text-sm text-muted py-4">
+                {t("uxHealth.emptyDiary")}
+              </Text>
+            )}
+            {pastCheckins.slice(0, limit).map((c) => (
+              <TouchableOpacity
+                key={c.id}
+                accessibilityRole="button"
+                onPress={() => checkin(c)}
+                className="bg-card border border-border rounded-2xl p-4 mb-3"
+              >
+                <Text className="text-base font-semibold text-text">
+                  {MOODS[c.mood]}{" "}
+                  {format(new Date(c.date + "T12:00"), "PPP", {
+                    locale: getDateLocale(),
+                  })}
+                </Text>
+                <Text className="text-sm text-muted mt-2">
+                  {t(`checkin.mood_${c.mood}`)} ·{" "}
+                  {c.symptoms
+                    .map((s) =>
+                      t(`checkin.symptom_${s}`, {
+                        defaultValue: s.replace(/_/g, " "),
+                      })
+                    )
+                    .join(", ") || t("uxHealth.noSymptoms")}
+                </Text>
+                {c.notes && (
+                  <Text className="text-sm text-muted mt-2">{c.notes}</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+            {pastCheckins.length > limit && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setLimit((n) => n + 20)}
+                className={`${button} bg-card border border-border`}
+              >
+                <Text className="text-primary">
+                  {t("uxHealth.showing", {
+                    shown: limit,
+                    total: pastCheckins.length,
+                  })}{" "}
+                  · {t("uxHealth.showMore")}
+                </Text>
+              </TouchableOpacity>
             )}
           </>
         )}
-
-        <View className="h-6" />
       </ScrollView>
-
-      {/* ── ADD MEASUREMENT MODAL ──────────────────────────────────────── */}
       <Modal
-        visible={addModalVisible}
+        visible={modal}
         transparent
         animationType="slide"
-        onRequestClose={() => setAddModalVisible(false)}
+        onRequestClose={dismiss}
       >
         <KeyboardAvoidingView
-          className="flex-1"
+          className="flex-1 justify-end bg-black/50"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <Pressable className="flex-1 justify-end bg-black/50" onPress={() => setAddModalVisible(false)}>
-          <Pressable onPress={() => {}} className="bg-background rounded-t-3xl max-h-[90%]">
-              <View className="items-center pt-3 pb-1" {...measurementPan.panHandlers}>
-                <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
-              </View>
-              <ScrollView
-                className="px-5"
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+          <View
+            accessibilityViewIsModal
+            className="bg-background rounded-t-3xl max-h-[90%]"
+          >
+            <ScrollView
+              className="px-5"
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{
+                paddingTop: 24,
+                paddingBottom: Math.max(insets.bottom, 16) + 16,
+              }}
+            >
+              <Text
+                accessibilityRole="header"
+                className="text-xl font-bold text-text mb-5"
               >
-                <Text className="text-lg font-black text-text mt-3 mb-4">
-                  {selectedType ? typeName(selectedType) : t("health.addButton")}
+                {editing
+                  ? t("uxHealth.editMeasurement")
+                  : type
+                  ? t(`health.${type}_name`)
+                  : ""}
+              </Text>
+              <Text className="text-sm text-muted mb-3">
+                {t("uxHealth.unit")}: {type ? t(`health.${type}_unit`) : ""}
+              </Text>
+              <Text className="text-sm text-text font-semibold mb-2">
+                {type === "blood_pressure"
+                  ? t("health.blood_pressure_field1")
+                  : t("health.latestValue")}
+              </Text>
+              <TextInput
+                accessibilityLabel={
+                  type ? t(`health.${type}_field1`) : t("health.latestValue")
+                }
+                autoFocus
+                keyboardType="decimal-pad"
+                value={form.value1}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, value1: v }));
+                  setFieldError(null);
+                }}
+                className="bg-card border border-border rounded-2xl px-4 py-3 text-text text-lg mb-4"
+              />
+              {type === "blood_pressure" && (
+                <>
+                  <Text className="text-sm text-text font-semibold mb-2">
+                    {t("health.blood_pressure_field2")}
+                  </Text>
+                  <TextInput
+                    accessibilityLabel={t("health.blood_pressure_field2")}
+                    keyboardType="decimal-pad"
+                    value={form.value2}
+                    onChangeText={(v) => {
+                      setForm((f) => ({ ...f, value2: v }));
+                      setFieldError(null);
+                    }}
+                    className="bg-card border border-border rounded-2xl px-4 py-3 text-text text-lg mb-4"
+                  />
+                </>
+              )}
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setDatePicker("date")}
+                className={`${button} bg-card border border-border mb-2`}
+              >
+                <Text className="text-text">
+                  {format(form.measuredAt, "PPP", { locale: getDateLocale() })}
                 </Text>
-
-                {/* Value field(s) */}
-                {selectedType === "blood_pressure" ? (
-                  <View className="flex-row gap-3 mb-4">
-                    <View className="flex-1">
-                      <Text className="text-sm font-semibold text-text mb-1.5">{tDyn("health.blood_pressure_field1")}</Text>
-                      <TextInput
-                        value={addForm.value1Str}
-                        onChangeText={(v) => setAddForm((f) => ({ ...f, value1Str: v }))}
-                        placeholder="120"
-                        placeholderTextColor={theme.muted}
-                        keyboardType="numeric"
-                        className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card"
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-sm font-semibold text-text mb-1.5">{tDyn("health.blood_pressure_field2")}</Text>
-                      <TextInput
-                        value={addForm.value2Str}
-                        onChangeText={(v) => setAddForm((f) => ({ ...f, value2Str: v }))}
-                        placeholder="80"
-                        placeholderTextColor={theme.muted}
-                        keyboardType="numeric"
-                        className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card"
-                      />
-                    </View>
-                  </View>
-                ) : (
-                  <>
-                    <Text className="text-sm font-semibold text-text mb-1.5">
-                      {selectedType ? tDyn(`health.${selectedType}_field1`) : t("health.fieldNotes")}
-                      {selectedType ? ` (${typeUnit(selectedType!)})` : ""}
-                    </Text>
-                    <TextInput
-                      value={addForm.value1Str}
-                      onChangeText={(v) => setAddForm((f) => ({ ...f, value1Str: v }))}
-                      placeholder={selectedType === "weight" ? "70.5" : selectedType === "spo2" ? "98" : "100"}
-                      placeholderTextColor={theme.muted}
-                      keyboardType="numeric"
-                      className="border border-border rounded-2xl px-4 py-3 text-text text-base bg-card mb-4"
-                    />
-                  </>
-                )}
-
-                {/* Date */}
-                <Text className="text-sm font-semibold text-text mb-1.5">{t("health.fieldDate")}</Text>
-                <TouchableOpacity
-                  onPress={() => setAddForm((f) => ({ ...f, showDatePicker: true }))}
-                  className="flex-row items-center gap-2 border border-border rounded-2xl px-4 py-3 bg-card mb-1"
-                >
-                  <Ionicons name="calendar-outline" size={16} color="#4f9cff" />
-                  <Text className="text-text font-semibold">
-                    {format(addForm.measuredAt, "PPP", { locale: getDateLocale() })}
-                  </Text>
-                </TouchableOpacity>
-                {addForm.showDatePicker && (
-                  <DateTimePicker
-                    value={addForm.measuredAt}
-                    mode="date"
-                    display={Platform.OS === "ios" ? "spinner" : "default"}
-                    onChange={handleDateChange}
-                  />
-                )}
-
-                {/* Time */}
-                <Text className="text-sm font-semibold text-text mb-1.5 mt-3">{t("health.fieldTime")}</Text>
-                <TouchableOpacity
-                  onPress={() => setAddForm((f) => ({ ...f, showTimePicker: true }))}
-                  className="flex-row items-center gap-2 border border-border rounded-2xl px-4 py-3 bg-card mb-1"
-                >
-                  <Ionicons name="time-outline" size={16} color="#4f9cff" />
-                  <Text className="text-text font-semibold">
-                    {formatTimeForDisplay(format(addForm.measuredAt, "HH:mm"))}
-                  </Text>
-                </TouchableOpacity>
-                {addForm.showTimePicker && (
-                  <DateTimePicker
-                    value={addForm.measuredAt}
-                    mode="time"
-                    display={Platform.OS === "ios" ? "spinner" : "default"}
-                    onChange={handleTimeChange}
-                  />
-                )}
-
-                {/* Notes */}
-                <Text className="text-sm font-semibold text-text mb-1.5 mt-3">{t("health.fieldNotes")}</Text>
-                <TextInput
-                  value={addForm.notes}
-                  onChangeText={(v) => setAddForm((f) => ({ ...f, notes: v }))}
-                  placeholder={t("health.fieldNotesPlaceholder")}
-                  placeholderTextColor={theme.muted}
-                  className="border border-border rounded-2xl px-4 py-3 text-text text-sm bg-card mb-4"
-                  multiline
-                  numberOfLines={2}
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setDatePicker("time")}
+                className={`${button} bg-card border border-border mb-4`}
+              >
+                <Text className="text-text">
+                  {formatTimeForDisplay(format(form.measuredAt, "HH:mm"))}
+                </Text>
+              </TouchableOpacity>
+              {datePicker && (
+                <DateTimePicker
+                  value={form.measuredAt}
+                  mode={datePicker}
+                  maximumDate={new Date()}
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={(event, date) => {
+                    if (Platform.OS !== "ios") setDatePicker(null);
+                    if (event.type === "set" && date)
+                      setForm((f) => {
+                        const d = new Date(f.measuredAt);
+                        if (datePicker === "date")
+                          d.setFullYear(
+                            date.getFullYear(),
+                            date.getMonth(),
+                            date.getDate()
+                          );
+                        else d.setHours(date.getHours(), date.getMinutes());
+                        return { ...f, measuredAt: d };
+                      });
+                  }}
                 />
-
-                {/* Actions */}
-                <View className="flex-row gap-3" style={{ marginBottom: Math.max(insets.bottom, 16) + 12 }}>
-                  <TouchableOpacity
-                    onPress={() => setAddModalVisible(false)}
-                    className="flex-1 py-3.5 border border-border rounded-2xl items-center"
-                  >
-                    <Text className="font-semibold text-muted">{t("common.cancel")}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSaveMeasurement(); }}
-                    className="flex-1 flex-2 py-3.5 rounded-2xl items-center bg-primary"
-                  >
-                    <Text className="font-bold text-white">{t("health.saveButton")}</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </Pressable>
-          </Pressable>
+              )}
+              <Text className="text-sm text-text font-semibold mb-2">
+                {t("health.fieldNotes")}
+              </Text>
+              <TextInput
+                accessibilityLabel={t("health.fieldNotes")}
+                multiline
+                value={form.notes}
+                onChangeText={(v) => setForm((f) => ({ ...f, notes: v }))}
+                className="bg-card border border-border rounded-2xl px-4 py-3 text-text text-base min-h-[80px] mb-4"
+              />
+              {fieldError && (
+                <Text
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite"
+                  className="text-danger text-sm mb-4"
+                >
+                  {fieldError}
+                </Text>
+              )}
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  disabled={saving}
+                  onPress={dismiss}
+                  className={`${button} flex-1 bg-card border border-border`}
+                >
+                  <Text className="text-muted">{t("common.cancel")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={{ busy: saving, disabled: saving }}
+                  disabled={saving}
+                  onPress={() => void save()}
+                  className={`${button} flex-1 bg-action`}
+                >
+                  <Text className="text-white font-bold">
+                    {t(saving ? "common.saving" : "common.save")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
-
-      {/* ── CHECK-IN MODAL ───────────────────────────────────────────────── */}
       <CheckinModal
         visible={checkinVisible}
-        onClose={() => setCheckinVisible(false)}
         existing={editCheckin}
+        onClose={() => setCheckinVisible(false)}
       />
-      {/* Monetization slot (renders null while ads are disabled — see ads.ts) */}
       <AdBanner screen="health" />
     </SafeAreaView>
   );

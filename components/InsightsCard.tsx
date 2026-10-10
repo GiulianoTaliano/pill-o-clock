@@ -4,20 +4,31 @@
  * src/services/insights.ts and hides itself entirely when there is nothing
  * meaningful to say (see the honesty thresholds in the service).
  */
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { useState, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { useAppStore } from "../src/store";
-import { getDoseLogsByDateRange, getActiveDailyCheckins } from "../src/db/database";
+import {
+  getDoseLogsByDateRange,
+  getActiveDailyCheckins,
+} from "../src/db/database";
 import { computeInsights, AdherenceInsights } from "../src/services/insights";
 import { toDateString } from "../src/utils";
 
 const DAYS = 30;
 
-function InsightRow({ icon, color, text }: { icon: React.ComponentProps<typeof Ionicons>["name"]; color: string; text: string }) {
+function InsightRow({
+  icon,
+  color,
+  text,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  color: string;
+  text: string;
+}) {
   return (
     <View className="flex-row items-start gap-2.5 py-1.5">
       <Ionicons name={icon} size={16} color={color} style={{ marginTop: 1 }} />
@@ -26,38 +37,72 @@ function InsightRow({ icon, color, text }: { icon: React.ComponentProps<typeof I
   );
 }
 
-export function InsightsCard() {
+export function InsightsCard({
+  onViewRecords,
+}: {
+  onViewRecords?: () => void;
+}) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const medications = useAppStore((s) => s.medications);
   const [insights, setInsights] = useState<AdherenceInsights | null>(null);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const profileId = useAppStore((s) => s.activeProfileId);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      setInsights(null);
+      setError(false);
       (async () => {
         try {
           const to = toDateString(new Date());
-          const from = toDateString(new Date(Date.now() - DAYS * 86_400_000));
+          const start = new Date();
+          start.setDate(start.getDate() - DAYS + 1);
+          const from = toDateString(start);
           const [allLogs, checkins] = await Promise.all([
             getDoseLogsByDateRange(from, to),
-            getActiveDailyCheckins(from, to),
+            getActiveDailyCheckins(from, to, 0),
           ]);
           // Scope logs to the active profile via its meds (F2 multi-profile).
           const medIds = new Set(medications.map((m) => m.id));
           const logs = allLogs.filter((l) => medIds.has(l.medicationId));
-          if (!cancelled) setInsights(computeInsights(logs, medications, checkins));
+          if (!cancelled)
+            setInsights(computeInsights(logs, medications, checkins));
         } catch {
-          if (!cancelled) setInsights(null);
+          if (!cancelled) setError(true);
         }
       })();
-      return () => { cancelled = true; };
-    }, [medications])
+      return () => {
+        cancelled = true;
+      };
+      // Profile changes and explicit retries must refresh this focused screen.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [medications, profileId, retry])
   );
+
+  if (error)
+    return (
+      <View className="mx-5 mb-4 rounded-2xl bg-card border border-border p-4">
+        <Text className="text-muted">{t("uxHealth.loadError")}</Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => setRetry((n) => n + 1)}
+          className="min-h-[48px] justify-center"
+        >
+          <Text className="text-primary">{t("uxHealth.retry")}</Text>
+        </TouchableOpacity>
+      </View>
+    );
 
   if (!insights || insights.overallRate == null) return null;
 
-  const rows: { icon: React.ComponentProps<typeof Ionicons>["name"]; color: string; text: string }[] = [];
+  const rows: {
+    icon: React.ComponentProps<typeof Ionicons>["name"];
+    color: string;
+    text: string;
+  }[] = [];
 
   if (insights.worstBand) {
     rows.push({
@@ -83,7 +128,12 @@ export function InsightsCard() {
     rows.push({
       icon: "medkit-outline",
       color: theme.danger,
-      text: t("insights.lowMed", { name: med.name, rate: Math.round(med.rate * 100), taken: med.taken, total: med.total }),
+      text: t("insights.lowMed", {
+        name: med.name,
+        rate: Math.round(med.rate * 100),
+        taken: med.taken,
+        total: med.total,
+      }),
     });
   }
   if (insights.mood) {
@@ -103,12 +153,30 @@ export function InsightsCard() {
     <View className="mx-5 mb-4 rounded-2xl bg-card border border-border p-4">
       <View className="flex-row items-center gap-2 mb-1">
         <Ionicons name="bulb-outline" size={16} color={theme.primary} />
-        <Text className="text-sm font-bold text-text">{t("insights.title", { days: DAYS })}</Text>
+        <Text className="text-sm font-bold text-text">
+          {t("insights.title", { days: DAYS })}
+        </Text>
       </View>
       {rows.map((r, i) => (
         <InsightRow key={i} icon={r.icon} color={r.color} text={r.text} />
       ))}
-      <Text className="text-[10px] text-muted mt-1.5">{t("insights.disclaimer")}</Text>
+      <Text className="text-sm text-muted mt-2">
+        {t("uxHealth.insightsWindow")}
+      </Text>
+      <Text className="text-xs text-muted mt-1.5">
+        {t("insights.disclaimer")}
+      </Text>
+      {onViewRecords && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={onViewRecords}
+          className="min-h-[48px] justify-center"
+        >
+          <Text className="text-primary font-semibold">
+            {t("uxHealth.showAll")}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
