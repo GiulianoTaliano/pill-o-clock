@@ -35,6 +35,36 @@ function parseErrors(data: unknown) {
 // ─── Happy path ────────────────────────────────────────────────────────────
 
 describe("medicationFormSchema", () => {
+  it('serializes only the visible alarm after switching several alarms to once', () => {
+    const result = medicationFormSchema.parse(validData({ repeatMode: 'once', onceDate: '2026-10-12', schedules: [
+      { id: 'first', time: '08:00', days: [1] }, { id: 'hidden', time: '20:00', days: [1] },
+    ] }));
+    expect(result.schedules).toEqual([{ id: 'first', time: '08:00', days: [1] }]);
+  });
+
+  it.each(['12abc', 'Infinity', '-3', '2.5'])('rejects malformed or fractional stock %s', (stockQtyStr) => {
+    expect(parseErrors(validData({ stockQtyStr }))).toContainEqual(expect.objectContaining({ path: 'stockQtyStr' }));
+  });
+
+  it('accepts zero stock, and fractional hours for a positive PRN interval', () => {
+    expect(medicationFormSchema.safeParse(validData({ repeatMode: 'prn', schedules: [], stockQtyStr: '0', prnIntervalHoursStr: '0,5' })).success).toBe(true);
+  });
+
+  it('rejects overlapping duplicate alarm times and permits separate weekdays', () => {
+    const schedules = [{ id: 'a', time: '08:00', days: [1, 3] }, { id: 'b', time: '08:00', days: [3, 5] }];
+    expect(parseErrors(validData({ schedules }))).toContainEqual(expect.objectContaining({ message: 'uxMedication.duplicateSchedule' }));
+    schedules[1].days = [2, 4];
+    expect(medicationFormSchema.safeParse(validData({ schedules })).success).toBe(true);
+  });
+
+  it('rejects an empty weekday selection rather than converting it to daily', () => {
+    expect(parseErrors(validData({ schedules: [{ id: 'a', time: '08:00', days: [] }] }))).toContainEqual(expect.objectContaining({ message: 'form.errorNoDaysMsg' }));
+  });
+
+  it('rejects an overflowing interval rather than serializing an invalid regimen', () => {
+    expect(parseErrors(validData({ regimenType: 'everyN', regimenNStr: '9'.repeat(400) }))).toContainEqual(expect.objectContaining({ path: 'regimenNStr' }));
+  });
+
   it("accepts valid repeat-mode data", () => {
     const result = medicationFormSchema.safeParse(validData());
     expect(result.success).toBe(true);

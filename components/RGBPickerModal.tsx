@@ -149,7 +149,13 @@ interface SliderRowProps {
   theme: ReturnType<typeof useAppTheme>;
 }
 
-function SliderRow({ label, value, onValueChange, color, theme }: SliderRowProps) {
+function SliderRow({
+  label,
+  value,
+  onValueChange,
+  color,
+  theme,
+}: SliderRowProps) {
   return (
     <View className="flex-row items-center gap-3 mb-2">
       <Text style={{ color }} className="w-5 text-sm font-bold text-center">

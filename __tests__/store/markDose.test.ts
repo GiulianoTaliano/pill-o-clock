@@ -16,7 +16,9 @@ import { makeMedication, makeSchedule, makeTodayDose, makeDoseLog } from "../fac
 // ─── Mock external dependencies ────────────────────────────────────────────
 
 jest.mock("../../src/db/database", () => ({
-  upsertDoseLog: jest.fn().mockResolvedValue(undefined),
+  saveDoseLogWithStock: jest.fn().mockResolvedValue(undefined),
+  removeDoseLogWithStock: jest.fn().mockResolvedValue(undefined),
+  saveMedicationWithSchedules: jest.fn().mockResolvedValue(undefined),
   deleteDoseLog: jest.fn().mockResolvedValue(undefined),
   getDoseLogByScheduleAndDate: jest.fn().mockResolvedValue(null),
   getMedications: jest.fn().mockResolvedValue([]),
@@ -85,6 +87,8 @@ function makeTestStore(initialMedications: ReturnType<typeof makeMedication>[] =
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(db.saveDoseLogWithStock).mockResolvedValue(undefined);
+  jest.mocked(db.getDoseLogByScheduleAndDate).mockResolvedValue(null);
   mockLoadTodayLogs.mockResolvedValue(undefined);
   jest.mocked(db.getMedications).mockResolvedValue([]);
   jest.mocked(db.getDoseLogsByDate).mockResolvedValue([]);
@@ -98,8 +102,8 @@ describe("markDose — taken", () => {
     const store = makeTestStore();
     await store.getState().markDose(makeTodayDose(), "taken");
 
-    expect(jest.mocked(db.upsertDoseLog)).toHaveBeenCalledTimes(1);
-    const log = jest.mocked(db.upsertDoseLog).mock.calls[0][0];
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledTimes(1);
+    const log = jest.mocked(db.saveDoseLogWithStock).mock.calls[0][0];
     expect(log.status).toBe("taken");
     expect(log.medicationId).toBe("med-1");
     expect(log.scheduleId).toBe("sch-1");
@@ -113,7 +117,7 @@ describe("markDose — taken", () => {
     const dose = makeTodayDose({ snoozedUntil: "08:30" });
     await store.getState().markDose(dose, "taken");
 
-    const log = jest.mocked(db.upsertDoseLog).mock.calls[0][0];
+    const log = jest.mocked(db.saveDoseLogWithStock).mock.calls[0][0];
     expect(log.scheduledTime).toBe("08:30");
   });
 
@@ -138,6 +142,14 @@ describe("markDose — taken", () => {
     expect(store.getState().snoozedTimes).toHaveProperty("other");
   });
 
+  it('retains the original-day link when an overnight dose is completed', async () => {
+    const store = makeTestStore();
+    const postponed = new Date(2025, 5, 17, 0, 10).toISOString();
+    store.setState({ snoozedTimes: { 'sch-1-2025-06-16': postponed } });
+    await store.getState().markDose(makeTodayDose({ snoozedUntil: postponed }), 'taken');
+    expect(store.getState().snoozedTimes['sch-1-2025-06-16']).toBe(postponed);
+  });
+
   it("calls loadTodayLogs after persisting", async () => {
     const store = makeTestStore();
     await store.getState().markDose(makeTodayDose(), "taken");
@@ -149,7 +161,7 @@ describe("markDose — taken", () => {
     const store = makeTestStore([makeMedication({ stockQuantity: undefined })]);
     await store.getState().markDose(makeTodayDose(), "taken");
 
-    expect(jest.mocked(db.updateMedicationStock)).not.toHaveBeenCalled();
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledWith(expect.objectContaining({ stockDelta: 0 }), undefined);
   });
 
   it("decrements stock by 1 when stockQuantity is set", async () => {
@@ -159,7 +171,7 @@ describe("markDose — taken", () => {
 
     await store.getState().markDose(makeTodayDose({ medication: med }), "taken");
 
-    expect(jest.mocked(db.updateMedicationStock)).toHaveBeenCalledWith("med-1", 9);
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledWith(expect.objectContaining({ stockDelta: 1 }), 9);
   });
 
   it("does NOT decrement stock when stockQuantity is 0", async () => {
@@ -169,7 +181,7 @@ describe("markDose — taken", () => {
 
     await store.getState().markDose(makeTodayDose({ medication: med }), "taken");
 
-    expect(jest.mocked(db.updateMedicationStock)).not.toHaveBeenCalled();
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledWith(expect.objectContaining({ stockDelta: 0 }), 0);
   });
 
   it("fires stockAlert when stock drops below threshold", async () => {
@@ -204,7 +216,7 @@ describe("markDose — skipped", () => {
     const store = makeTestStore();
     await store.getState().markDose(makeTodayDose(), "skipped", undefined, "forgot");
 
-    const log = jest.mocked(db.upsertDoseLog).mock.calls[0][0];
+    const log = jest.mocked(db.saveDoseLogWithStock).mock.calls[0][0];
     expect(log.status).toBe("skipped");
     expect(log.skipReason).toBe("forgot");
     expect(log.takenAt).toBeUndefined();
@@ -215,7 +227,7 @@ describe("markDose — skipped", () => {
     for (const reason of skipReasons) {
       const store = makeTestStore();
       await store.getState().markDose(makeTodayDose(), "skipped", undefined, reason);
-      const log = jest.mocked(db.upsertDoseLog).mock.calls[0][0];
+      const log = jest.mocked(db.saveDoseLogWithStock).mock.calls[0][0];
       expect(log.skipReason).toBe(reason);
       jest.clearAllMocks();
     }
@@ -226,13 +238,41 @@ describe("markDose — skipped", () => {
     const store = makeTestStore([med]);
     await store.getState().markDose(makeTodayDose({ medication: med }), "skipped");
 
-    expect(jest.mocked(db.updateMedicationStock)).not.toHaveBeenCalled();
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledWith(expect.objectContaining({ status: 'skipped', stockDelta: 0 }), 5);
   });
 });
 
 // ─── Stock reconciliation (audit H16) ───────────────────────────────────────
 
 describe("markDose — stock reconciliation (H16)", () => {
+  it('never invents stock when undoing a dose registered at zero stock', async () => {
+    const med = makeMedication({ stockQuantity: 0 });
+    jest.mocked(db.getDoseLogByScheduleAndDate).mockResolvedValue(makeDoseLog({ status: 'taken', stockDelta: 0 }));
+    const store = makeTestStore([med]);
+    await store.getState().revertDose(makeTodayDose({ medication: med }));
+    expect(db.removeDoseLogWithStock).toHaveBeenCalledWith('sch-1', '2025-06-16', 'med-1', 0);
+  });
+
+  it('does not publish success or cancel an alarm when the atomic save fails', async () => {
+    jest.mocked(db.saveDoseLogWithStock).mockRejectedValueOnce(new Error('disk full'));
+    const med = makeMedication({ stockQuantity: 2 });
+    const store = makeTestStore([med]);
+    await expect(store.getState().markDose(makeTodayDose({ medication: med }), 'taken')).rejects.toThrow('disk full');
+    expect(notifs.cancelDoseNotifications).not.toHaveBeenCalled();
+    expect(mockLoadTodayLogs).not.toHaveBeenCalled();
+    expect(store.getState().medications[0].stockQuantity).toBe(2);
+  });
+
+  it('serializes simultaneous registrations and writes only one stock decrement', async () => {
+    let saved: ReturnType<typeof makeDoseLog> | null = null;
+    jest.mocked(db.getDoseLogByScheduleAndDate).mockImplementation(async () => saved);
+    jest.mocked(db.saveDoseLogWithStock).mockImplementationOnce(async (log) => { saved = log; });
+    const med = makeMedication({ stockQuantity: 2 });
+    const store = makeTestStore([med]);
+    const dose = makeTodayDose({ medication: med });
+    await Promise.all([store.getState().markDose(dose, 'taken'), store.getState().markDose(dose, 'taken')]);
+    expect(db.saveDoseLogWithStock).toHaveBeenCalledTimes(1);
+  });
   it("restores stock (+1) when a previously-taken dose is changed to skipped", async () => {
     const med = makeMedication({ stockQuantity: 9 });
     jest.mocked(db.getMedications).mockResolvedValue([med]);
@@ -242,7 +282,7 @@ describe("markDose — stock reconciliation (H16)", () => {
     await store.getState().markDose(makeTodayDose({ medication: med }), "skipped");
 
     // taken → skipped gives the pill back: 9 + 1 = 10
-    expect(jest.mocked(db.updateMedicationStock)).toHaveBeenCalledWith("med-1", 10);
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledWith(expect.objectContaining({ status: 'skipped', stockDelta: 0 }), 10);
   });
 
   it("does NOT decrement again when re-marking an already-taken dose as taken", async () => {
@@ -254,7 +294,9 @@ describe("markDose — stock reconciliation (H16)", () => {
     await store.getState().markDose(makeTodayDose({ medication: med }), "taken");
 
     // Already taken → no stock change (prevents double-decrement)
-    expect(jest.mocked(db.updateMedicationStock)).not.toHaveBeenCalled();
+    expect(jest.mocked(db.saveDoseLogWithStock)).not.toHaveBeenCalled();
+    // ...but any reminder still armed for the dose is silenced.
+    expect(notifs.cancelDoseNotifications).toHaveBeenCalledWith("sch-1", "2025-06-16");
   });
 
   it("does NOT restore stock on skip when there was no prior taken log", async () => {
@@ -265,18 +307,37 @@ describe("markDose — stock reconciliation (H16)", () => {
 
     await store.getState().markDose(makeTodayDose({ medication: med }), "skipped");
 
-    expect(jest.mocked(db.updateMedicationStock)).not.toHaveBeenCalled();
+    expect(jest.mocked(db.saveDoseLogWithStock)).toHaveBeenCalledWith(expect.objectContaining({ stockDelta: 0 }), 9);
   });
 });
 
 // ─── revertDose ────────────────────────────────────────────────────────────
 
 describe("revertDose", () => {
+  beforeEach(() => {
+    jest.mocked(db.getDoseLogByScheduleAndDate).mockResolvedValue(makeDoseLog({ status: 'taken' }));
+  });
+  it('does not rearm any alarm while undoing a historical dose', async () => {
+    const store = makeTestStore();
+    await store.getState().revertDose(makeTodayDose({ scheduledDate: '2020-01-01' }));
+    expect(notifs.scheduleDoseChain).not.toHaveBeenCalled();
+  });
+
+  it('does not rearm a paused treatment when its future dose is undone', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2025, 5, 16, 7));
+    try {
+      const med = makeMedication({ isActive: false });
+      const store = makeTestStore([med]);
+      await store.getState().revertDose(makeTodayDose({ medication: med }));
+      expect(notifs.scheduleDoseChain).not.toHaveBeenCalled();
+    } finally { jest.useRealTimers(); }
+  });
   it("deletes the dose log from the database", async () => {
     const store = makeTestStore();
     await store.getState().revertDose(makeTodayDose({ status: "taken" }));
 
-    expect(jest.mocked(db.deleteDoseLog)).toHaveBeenCalledWith("sch-1", "2025-06-16");
+    expect(jest.mocked(db.removeDoseLogWithStock)).toHaveBeenCalledWith("sch-1", "2025-06-16", "med-1", undefined);
   });
 
   it("restores stock (+1) when the reverted dose had been taken (H16)", async () => {
@@ -287,7 +348,7 @@ describe("revertDose", () => {
 
     await store.getState().revertDose(makeTodayDose({ medication: med, status: "taken" }));
 
-    expect(jest.mocked(db.updateMedicationStock)).toHaveBeenCalledWith("med-1", 10);
+    expect(jest.mocked(db.removeDoseLogWithStock)).toHaveBeenCalledWith("sch-1", "2025-06-16", "med-1", 10);
   });
 
   it("does NOT restore stock when the reverted dose was not taken (H16)", async () => {
@@ -298,7 +359,7 @@ describe("revertDose", () => {
 
     await store.getState().revertDose(makeTodayDose({ medication: med, status: "skipped" }));
 
-    expect(jest.mocked(db.updateMedicationStock)).not.toHaveBeenCalled();
+    expect(jest.mocked(db.removeDoseLogWithStock)).toHaveBeenCalledWith("sch-1", "2025-06-16", "med-1", 9);
   });
 
   it("calls loadTodayLogs after reverting", async () => {
@@ -340,6 +401,13 @@ describe("snoozeDose", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+  it('persists the date as well as time when a postponement crosses midnight', async () => {
+    jest.setSystemTime(new Date(2025, 5, 16, 23, 55));
+    const store = makeTestStore();
+    await store.getState().snoozeDose(makeTodayDose({ schedule: makeSchedule({ time: '23:50' }) }), 15);
+    const saved = store.getState().snoozedTimes['sch-1-2025-06-16'];
+    expect(new Date(saved)).toEqual(new Date(2025, 5, 17, 0, 10));
   });
 
   it("updates snoozedTimes when dose is snoozed before its scheduled time", async () => {

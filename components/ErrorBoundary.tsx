@@ -1,95 +1,90 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sentry from "@sentry/react-native";
+import { useTranslation } from "../src/i18n";
+import { useAppTheme } from "../src/hooks/useAppTheme";
+import { AppPressable } from "./AppPressable";
 
-interface Props {
-  children: React.ReactNode;
+export function ErrorRecovery({
+  onRetry,
+  loading = false,
+}: {
+  onRetry: () => void;
+  loading?: boolean;
+}) {
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 32,
+        backgroundColor: theme.background,
+        gap: 16,
+      }}
+    >
+      <Ionicons name="alert-circle-outline" size={48} color={theme.danger} />
+      <Text
+        accessibilityRole="header"
+        style={{
+          fontSize: 24,
+          fontWeight: "700",
+          color: theme.text,
+          textAlign: "center",
+        }}
+      >
+        {t("ux.errorTitle")}
+      </Text>
+      <Text
+        style={{
+          fontSize: 16,
+          lineHeight: 24,
+          color: theme.muted,
+          textAlign: "center",
+        }}
+      >
+        {t("ux.errorBody")}
+      </Text>
+      <AppPressable
+        disabled={loading}
+        onPress={onRetry}
+        style={{
+          backgroundColor: theme.actionFill,
+          paddingHorizontal: 24,
+          paddingVertical: 14,
+          borderRadius: 16,
+        }}
+      >
+        <Text
+          style={{ color: theme.onAction, fontSize: 17, fontWeight: "600" }}
+        >
+          {t("ux.retry")}
+        </Text>
+      </AppPressable>
+    </View>
+  );
 }
-
-interface State {
-  hasError: boolean;
-  error?: Error;
-}
-
-/**
- * React class-based Error Boundary.
- * Wraps the entire app in _layout.tsx so unexpected render errors show a
- * controlled fallback instead of a blank / crashed screen.
- *
- * Note: hooks (useTranslation, etc.) cannot be used inside class components,
- * so the fallback text is bilingual to cover both supported languages.
- */
-export class ErrorBoundary extends React.Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false };
+export class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
   }
-
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[ErrorBoundary] Uncaught error:", error, info.componentStack);
-    Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
+    Sentry.captureException(error, {
+      extra: { componentStack: info.componentStack },
+    });
   }
-
-  private handleRetry = () => {
-    this.setState({ hasError: false, error: undefined });
-  };
-
   render() {
-    if (this.state.hasError) {
+    if (this.state.hasError)
       return (
-        <View style={styles.container}>
-          <Ionicons name="alert-circle-outline" size={56} color="#dc2626" />
-          <Text style={styles.title}>
-            Algo salió mal · Something went wrong
-          </Text>
-          <Text style={styles.detail} numberOfLines={4}>
-            {this.state.error?.message ?? "Unknown error"}
-          </Text>
-          <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
-            <Text style={styles.buttonText}>Reintentar · Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorRecovery onRetry={() => this.setState({ hasError: false })} />
       );
-    }
     return this.props.children;
   }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
-    backgroundColor: "#fff",
-    gap: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    textAlign: "center",
-    color: "#0f172a",
-  },
-  detail: {
-    fontSize: 13,
-    color: "#64748b",
-    textAlign: "center",
-  },
-  button: {
-    marginTop: 8,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    backgroundColor: "#4f9cff",
-    borderRadius: 12,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-});

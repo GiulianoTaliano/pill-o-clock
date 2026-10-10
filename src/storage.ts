@@ -25,6 +25,8 @@ function createStorage() {
   if (isExpoGo) {
     return createFallbackStorage();
   }
+  // Keep the native module out of Expo Go, where NitroModules is unavailable.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createMMKV } = require("react-native-mmkv");
   return createMMKV({ id: "pilloclock" });
 }

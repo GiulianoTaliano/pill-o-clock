@@ -2,6 +2,35 @@ import "../global.css";
 import * as Sentry from "@sentry/react-native";
 import { useEffect, useRef, useState } from "react";
 
+import { SplashScreen, Stack, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { AppState, Linking, LogBox } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { storage } from "../src/storage";
+import { STORAGE_KEYS } from "../src/config";
+import { initDatabase } from "../src/db/database";
+import { refreshSimCountry } from "../src/services/deviceCountry";
+import {
+  setupNotifications,
+  rescheduleAllNotifications,
+} from "../src/services/notifications";
+// Side-effect import (registers TaskManager.defineTask) + named imports from same module.
+import {
+  registerBackgroundFetch,
+  closeMissedDoses,
+} from "../src/services/backgroundTask";
+import { useAppStore } from "../src/store";
+import { useAppTheme } from "../src/hooks/useAppTheme";
+import { useCareWidget } from "../src/hooks/useCareWidget";
+import { useNotificationResponseHandler } from "../src/hooks/useNotificationResponse";
+import { initI18n, useTranslation } from "../src/i18n";
+import { ToastProvider } from "../src/context/ToastContext";
+import { ErrorBoundary, ErrorRecovery } from "../components/ErrorBoundary";
+import { AppLockGate } from "../components/AppLockGate";
+import { migrateAppLock } from "../src/services/appLock";
+import { CopilotProvider } from "react-native-copilot";
+import { CopilotTooltip } from "../components/CopilotTooltip";
+
 // Initialise Sentry as early as possible (before any other imports render).
 // Replace the DSN with your own from https://sentry.io — set it in EAS secrets
 // as SENTRY_DSN and read it via expo-constants extra for production.
@@ -11,33 +40,6 @@ Sentry.init({
   enabled: process.env.NODE_ENV === "production",
   tracesSampleRate: 0.2,
 });
-import { SplashScreen, Stack, useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { Alert, AppState, Linking, View, Text, LogBox, Platform, UIManager } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { storage } from "../src/storage";
-import { STORAGE_KEYS } from "../src/config";
-import { initDatabase } from "../src/db/database";
-import { refreshSimCountry } from "../src/services/deviceCountry";
-import { setupNotifications, openExactAlarmSettings, rescheduleAllNotifications } from "../src/services/notifications";
-import { checkFullScreenIntentPermission, requestFullScreenIntentPermission } from "expo-alarm";
-// Side-effect import (registers TaskManager.defineTask) + named imports from same module.
-import { registerBackgroundFetch, closeMissedDoses } from "../src/services/backgroundTask";
-import { useAppStore } from "../src/store";
-import { useAppTheme } from "../src/hooks/useAppTheme";
-import { useNotificationResponseHandler } from "../src/hooks/useNotificationResponse";
-import { initI18n, useTranslation } from "../src/i18n";
-import { ToastProvider } from "../src/context/ToastContext";
-import { ErrorBoundary } from "../components/ErrorBoundary";
-import { AppLockGate } from "../components/AppLockGate";
-import { migrateAppLock } from "../src/services/appLock";
-import { CopilotProvider } from "react-native-copilot";
-import { CopilotTooltip } from "../components/CopilotTooltip";
-
-// Enable LayoutAnimation on Android (must be called before any render).
-if (Platform.OS === "android") {
-  UIManager.setLayoutAnimationEnabledExperimental?.(true);
-}
 
 const ONBOARDING_DONE_KEY = STORAGE_KEYS.ONBOARDING_DONE;
 
@@ -48,12 +50,14 @@ LogBox.ignoreLogs([
   "expo-notifications: Android Push notifications",
   "`expo-notifications` functionality is not fully supported in Expo Go",
   "SafeAreaView has been deprecated",
+  "expo-background-fetch: This library is deprecated",
 ]);
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
+  const [initAttempt, setInitAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { t } = useTranslation();
@@ -62,6 +66,7 @@ export default function RootLayout() {
   const loadTodayLogs = useAppStore((s) => s.loadTodayLogs);
   const loadThemeMode = useAppStore((s) => s.loadThemeMode);
   const router = useRouter();
+  useCareWidget(ready && !error);
 
   // Navigate to onboarding exactly once after the layout is ready.
   // Using a one-shot effect (rather than a persistent <Redirect> component)
@@ -76,7 +81,7 @@ export default function RootLayout() {
     router.replace("/onboarding");
   }, [ready, showOnboarding, router]);
 
-  useNotificationResponseHandler();
+  useNotificationResponseHandler(ready && !error);
 
   useEffect(() => {
     (async () => {
@@ -99,14 +104,17 @@ export default function RootLayout() {
         const initialUrl = await Linking.getInitialURL();
         const isAlarmColdStart =
           !!initialUrl &&
-          (initialUrl.includes("pilloclock://alarm") || initialUrl.includes("/alarm?"));
+          (initialUrl.includes("pilloclock://alarm") ||
+            initialUrl.includes("/alarm?"));
 
         if (onboardingDone || isAlarmColdStart) {
           // Normal launch: setup notifications and reschedule if needed.
           // Wipe the legacy in-app PIN (superseded by OS authentication) and
           // drop the lock if the device has no screen lock to authenticate with.
           migrateAppLock().catch(() => {});
-          const { needsExactAlarmPermission } = await setupNotifications();
+          await setupNotifications({ requestPermissions: false }).catch((e) =>
+            Sentry.captureException(e)
+          );
           await loadAll();
           await registerBackgroundFetch();
           // Close missed doses from previous days so history is accurate.
@@ -115,50 +123,6 @@ export default function RootLayout() {
             Sentry.captureException(e, { tags: { task: "closeMissedDoses" } });
           });
 
-          if (needsExactAlarmPermission) {
-            const alreadyPrompted = storage.getString(
-              STORAGE_KEYS.EXACT_ALARM_PROMPTED
-            );
-            if (!alreadyPrompted) {
-              storage.set(STORAGE_KEYS.EXACT_ALARM_PROMPTED, "1");
-              Alert.alert(
-                t('permissions.exactAlarmTitle'),
-                t('permissions.exactAlarmMessage'),
-                [
-                  { text: t('permissions.exactAlarmLater'), style: "cancel" },
-                  {
-                    text: t('permissions.exactAlarmOpen'),
-                    onPress: openExactAlarmSettings,
-                  },
-                ]
-              );
-            }
-          }
-
-          // Android 14+ (API 34): check USE_FULL_SCREEN_INTENT permission.
-          // Without it the alarm screen won’t appear above the lock screen.
-          if (Platform.OS === "android") {
-            const hasFullScreen = await checkFullScreenIntentPermission();
-            if (!hasFullScreen) {
-              const alreadyPrompted = storage.getString(
-                STORAGE_KEYS.FULLSCREEN_INTENT_PROMPTED
-              );
-              if (!alreadyPrompted) {
-                storage.set(STORAGE_KEYS.FULLSCREEN_INTENT_PROMPTED, "1");
-                Alert.alert(
-                  t('permissions.fullScreenTitle'),
-                  t('permissions.fullScreenMessage'),
-                  [
-                    { text: t('permissions.exactAlarmLater'), style: "cancel" },
-                    {
-                      text: t('permissions.exactAlarmOpen'),
-                      onPress: () => requestFullScreenIntentPermission().catch(() => {}),
-                    },
-                  ]
-                );
-              }
-            }
-          }
           // alarm cold-start: data + notifications are set up; onboarding is
           // NOT forced here to avoid redirect loops. If the user has never
           // completed onboarding they will see it on the next regular launch.
@@ -176,30 +140,42 @@ export default function RootLayout() {
         await SplashScreen.hideAsync();
       }
     })();
-  // loadAll and t are intentionally omitted: re-running the init effect when
-  // the language changes would re-initialize the database and notifications.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // loadAll and t are intentionally omitted: re-running the init effect when
+    // the language changes would re-initialize the database and notifications.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initAttempt]);
 
   // Refresh today's logs and reschedule notifications whenever the app
   // comes back to the foreground.
   useEffect(() => {
+    if (!ready || error) return;
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
-        loadTodayLogs();
+        loadTodayLogs().catch((e) => Sentry.captureException(e));
         rescheduleAllNotifications().catch(() => {});
       }
     });
-    return () => subscription.remove();
-  }, [loadTodayLogs]);
+    const timer = setInterval(() => {
+      if (AppState.currentState === "active")
+        loadTodayLogs().catch((e) => Sentry.captureException(e));
+    }, 60_000);
+    return () => {
+      subscription.remove();
+      clearInterval(timer);
+    };
+  }, [ready, error, loadTodayLogs]);
 
   if (!ready) return null;
 
   if (error) {
     return (
-      <View className="flex-1 items-center justify-center bg-background p-6">
-        <Text className="text-danger text-base text-center">{error}</Text>
-      </View>
+      <ErrorRecovery
+        onRetry={() => {
+          setError(null);
+          setReady(false);
+          setInitAttempt((value) => value + 1);
+        }}
+      />
     );
   }
 
@@ -217,49 +193,52 @@ export default function RootLayout() {
           verticalOffset={0}
           androidStatusBarVisible
         >
-        <ToastProvider>
-        <StatusBar style="auto" />
-        {/* AppLockGate covers everything below with an unlock overlay when the
+          <ToastProvider>
+            <StatusBar style="auto" />
+            {/* AppLockGate covers everything below with an unlock overlay when the
             lock is engaged — except the /alarm route (see component docs). */}
-        <AppLockGate>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="onboarding" options={{ headerShown: false, animation: "fade" }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="medication/new"
-            options={{
-              headerShown: true,
-              title: t('form.newTitle'),
-              presentation: "modal",
-              // Theme-aware so the modal header isn't a bright light bar over a
-              // dark app in dark mode (audit H7).
-              headerStyle: { backgroundColor: theme.card },
-              headerTintColor: theme.isDark ? "#f1f5f9" : "#1e293b",
-            }}
-          />
-          <Stack.Screen
-            name="medication/[id]"
-            options={{
-              headerShown: true,
-              title: t('form.editTitle'),
-              presentation: "modal",
-              headerStyle: { backgroundColor: theme.card },
-              headerTintColor: theme.isDark ? "#f1f5f9" : "#1e293b",
-            }}
-          />
-          <Stack.Screen
-            name="alarm"
-            options={{
-              headerShown: false,
-              presentation: "fullScreenModal",
-              gestureEnabled: false,
-            }}
-          />
-        </Stack>
-        </AppLockGate>
-          {/* <Redirect> removed — onboarding navigation is handled by the
+            <AppLockGate>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen
+                  name="onboarding"
+                  options={{ headerShown: false, animation: "fade" }}
+                />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="medication/new"
+                  options={{
+                    headerShown: true,
+                    title: t("form.newTitle"),
+                    presentation: "modal",
+                    // Theme-aware so the modal header isn't a bright light bar over a
+                    // dark app in dark mode (audit H7).
+                    headerStyle: { backgroundColor: theme.card },
+                    headerTintColor: theme.isDark ? "#f1f5f9" : "#1e293b",
+                  }}
+                />
+                <Stack.Screen
+                  name="medication/[id]"
+                  options={{
+                    headerShown: true,
+                    title: t("form.editTitle"),
+                    presentation: "modal",
+                    headerStyle: { backgroundColor: theme.card },
+                    headerTintColor: theme.isDark ? "#f1f5f9" : "#1e293b",
+                  }}
+                />
+                <Stack.Screen
+                  name="alarm"
+                  options={{
+                    headerShown: false,
+                    presentation: "fullScreenModal",
+                    gestureEnabled: false,
+                  }}
+                />
+              </Stack>
+            </AppLockGate>
+            {/* <Redirect> removed — onboarding navigation is handled by the
               one-shot useEffect above, which avoids re-render loops. */}
-        </ToastProvider>
+          </ToastProvider>
         </CopilotProvider>
       </SafeAreaProvider>
     </ErrorBoundary>

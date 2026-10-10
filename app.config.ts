@@ -14,6 +14,8 @@ const mapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
+  name: config.name ?? "Pill O-Clock",
+  slug: config.slug ?? "pill-o-clock",
   ios: {
     ...config.ios,
     config: {

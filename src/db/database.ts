@@ -5,7 +5,11 @@ import { File } from "expo-file-system";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { eq, ne, and, gte, lte, desc, asc } from "drizzle-orm";
 import * as schema from "./schema";
-import { getActiveProfileId, DEFAULT_PROFILE_ID } from "../services/profileStore";
+import {
+  getActiveProfileId,
+  setActiveProfileId,
+  DEFAULT_PROFILE_ID,
+} from "../services/profileStore";
 import type {
   Medication,
   Schedule,
@@ -77,7 +81,11 @@ function openSecureDatabase(): SQLite.SQLiteDatabase {
     handle.getFirstSync("PRAGMA user_version;");
     return handle;
   } catch {
-    try { handle.closeSync(); } catch { /* already closed */ }
+    try {
+      handle.closeSync();
+    } catch {
+      /* already closed */
+    }
   }
 
   // Legacy plaintext database → one-time migration via sqlcipher_export.
@@ -126,7 +134,9 @@ function openSecureDatabase(): SQLite.SQLiteDatabase {
       require("@sentry/react-native").captureException(e, {
         tags: { task: "sqlcipherMigration" },
       });
-    } catch { /* sentry unavailable */ }
+    } catch {
+      /* sentry unavailable */
+    }
     return SQLite.openDatabaseSync(DB_NAME);
   }
 }
@@ -134,6 +144,19 @@ function openSecureDatabase(): SQLite.SQLiteDatabase {
 const expoDb = openSecureDatabase();
 expoDb.execSync("PRAGMA journal_mode=WAL;");
 expoDb.execSync("PRAGMA foreign_keys = ON;");
+
+// Every async transaction (dose + stock, form save, restore, notification map)
+// shares this one connection. Two overlapping withTransactionAsync calls make
+// the second BEGIN fail, and its ROLLBACK then undoes the first one's writes —
+// so they are queued and never overlap. A queued task must never start another
+// async transaction itself: it would wait on its own queue slot.
+const runTransactionAsync = expoDb.withTransactionAsync.bind(expoDb);
+let transactionQueue: Promise<void> = Promise.resolve();
+expoDb.withTransactionAsync = (task) => {
+  const run = transactionQueue.then(() => runTransactionAsync(task));
+  transactionQueue = run.catch(() => {});
+  return run;
+};
 
 export const db = drizzle(expoDb, { schema });
 
@@ -205,10 +228,13 @@ function toDoseLog(row: typeof schema.doseLogs.$inferSelect): DoseLog {
     notes: row.notes ?? undefined,
     skipReason: (row.skipReason as SkipReason) ?? undefined,
     injectionSite: row.injectionSite ?? undefined,
+    stockDelta: row.stockDelta ?? undefined,
   };
 }
 
-function toAppointment(row: typeof schema.appointments.$inferSelect): Appointment {
+function toAppointment(
+  row: typeof schema.appointments.$inferSelect
+): Appointment {
   return {
     id: row.id,
     title: row.title,
@@ -228,7 +254,9 @@ function toAppointment(row: typeof schema.appointments.$inferSelect): Appointmen
   };
 }
 
-function toAppointmentDocument(row: typeof schema.appointmentDocuments.$inferSelect): AppointmentDocument {
+function toAppointmentDocument(
+  row: typeof schema.appointmentDocuments.$inferSelect
+): AppointmentDocument {
   return {
     id: row.id,
     appointmentId: row.appointmentId,
@@ -240,7 +268,9 @@ function toAppointmentDocument(row: typeof schema.appointmentDocuments.$inferSel
   };
 }
 
-function toHealthMeasurement(row: typeof schema.healthMeasurements.$inferSelect): HealthMeasurement {
+function toHealthMeasurement(
+  row: typeof schema.healthMeasurements.$inferSelect
+): HealthMeasurement {
   return {
     id: row.id,
     type: row.type as MeasurementType,
@@ -253,7 +283,9 @@ function toHealthMeasurement(row: typeof schema.healthMeasurements.$inferSelect)
   };
 }
 
-function toDailyCheckin(row: typeof schema.dailyCheckins.$inferSelect): DailyCheckin {
+function toDailyCheckin(
+  row: typeof schema.dailyCheckins.$inferSelect
+): DailyCheckin {
   let symptoms: string[] = [];
   try {
     symptoms = JSON.parse(row.symptoms) as string[];
@@ -405,7 +437,11 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE medications ADD COLUMN dosage_unit TEXT NOT NULL DEFAULT 'comprimidos'",
       "ALTER TABLE medications ADD COLUMN category TEXT NOT NULL DEFAULT 'otro'",
     ]) {
-      try { expoDb.execSync(s); } catch { /* already exists */ }
+      try {
+        expoDb.execSync(s);
+      } catch {
+        /* already exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 2");
   }
@@ -415,13 +451,21 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE medications ADD COLUMN stock_quantity INTEGER",
       "ALTER TABLE medications ADD COLUMN stock_alert_threshold INTEGER",
     ]) {
-      try { expoDb.execSync(s); } catch { /* already exists */ }
+      try {
+        expoDb.execSync(s);
+      } catch {
+        /* already exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 3");
   }
 
   if (user_version < 4) {
-    try { expoDb.execSync("ALTER TABLE dose_logs ADD COLUMN notes TEXT"); } catch { /* exists */ }
+    try {
+      expoDb.execSync("ALTER TABLE dose_logs ADD COLUMN notes TEXT");
+    } catch {
+      /* exists */
+    }
     expoDb.execSync("PRAGMA user_version = 4");
   }
 
@@ -430,13 +474,21 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE appointments ADD COLUMN location_lat REAL",
       "ALTER TABLE appointments ADD COLUMN location_lng REAL",
     ]) {
-      try { expoDb.execSync(s); } catch { /* exists */ }
+      try {
+        expoDb.execSync(s);
+      } catch {
+        /* exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 5");
   }
 
   if (user_version < 6) {
-    try { expoDb.execSync("ALTER TABLE dose_logs ADD COLUMN skip_reason TEXT"); } catch { /* exists */ }
+    try {
+      expoDb.execSync("ALTER TABLE dose_logs ADD COLUMN skip_reason TEXT");
+    } catch {
+      /* exists */
+    }
     expoDb.execSync("PRAGMA user_version = 6");
   }
 
@@ -445,7 +497,11 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE medications ADD COLUMN photo_uri TEXT",
       "ALTER TABLE medications ADD COLUMN is_prn INTEGER NOT NULL DEFAULT 0",
     ]) {
-      try { expoDb.execSync(s); } catch { /* exists */ }
+      try {
+        expoDb.execSync(s);
+      } catch {
+        /* exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 7");
   }
@@ -511,7 +567,11 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE medications ADD COLUMN renewal_date TEXT",
       "ALTER TABLE medications ADD COLUMN renewal_notif_ids TEXT",
     ]) {
-      try { expoDb.execSync(s); } catch { /* exists */ }
+      try {
+        expoDb.execSync(s);
+      } catch {
+        /* exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 11");
   }
@@ -522,7 +582,11 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE medications ADD COLUMN prn_max_per_day INTEGER",
       "ALTER TABLE medications ADD COLUMN prn_min_interval_minutes INTEGER",
     ]) {
-      try { expoDb.execSync(s); } catch { /* exists */ }
+      try {
+        expoDb.execSync(s);
+      } catch {
+        /* exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 12");
   }
@@ -530,7 +594,11 @@ export async function initDatabase(): Promise<void> {
   if (user_version < 13) {
     // F2: RxNorm SXDG id captured from the autocomplete — powers the
     // duplicate-therapy checker.
-    try { expoDb.execSync("ALTER TABLE medications ADD COLUMN rxcui TEXT"); } catch { /* exists */ }
+    try {
+      expoDb.execSync("ALTER TABLE medications ADD COLUMN rxcui TEXT");
+    } catch {
+      /* exists */
+    }
     expoDb.execSync("PRAGMA user_version = 13");
   }
 
@@ -551,12 +619,18 @@ export async function initDatabase(): Promise<void> {
       `INSERT OR IGNORE INTO profiles (id, name, color, created_at)
        VALUES ('default', '', 'blue', '${new Date().toISOString()}');`
     );
-    for (const table of ["medications", "appointments", "health_measurements"]) {
+    for (const table of [
+      "medications",
+      "appointments",
+      "health_measurements",
+    ]) {
       try {
         expoDb.execSync(
           `ALTER TABLE ${table} ADD COLUMN profile_id TEXT NOT NULL DEFAULT 'default'`
         );
-      } catch { /* exists */ }
+      } catch {
+        /* exists */
+      }
     }
     // daily_checkins had UNIQUE(date); per-profile it must be
     // UNIQUE(profile_id, date) — SQLite requires a table rebuild. Guarded on
@@ -591,7 +665,11 @@ export async function initDatabase(): Promise<void> {
 
   if (user_version < 15) {
     // F3: complex regimens (everyN / cycle / taper) as nullable JSON.
-    try { expoDb.execSync("ALTER TABLE medications ADD COLUMN regimen TEXT"); } catch { /* exists */ }
+    try {
+      expoDb.execSync("ALTER TABLE medications ADD COLUMN regimen TEXT");
+    } catch {
+      /* exists */
+    }
     expoDb.execSync("PRAGMA user_version = 15");
   }
 
@@ -601,7 +679,11 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE medications ADD COLUMN is_injectable INTEGER NOT NULL DEFAULT 0",
       "ALTER TABLE dose_logs ADD COLUMN injection_site TEXT",
     ]) {
-      try { expoDb.execSync(stmt); } catch { /* exists */ }
+      try {
+        expoDb.execSync(stmt);
+      } catch {
+        /* exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 16");
   }
@@ -622,7 +704,11 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE profiles ADD COLUMN emergency_contact_name TEXT",
       "ALTER TABLE profiles ADD COLUMN emergency_contact_phone TEXT",
     ]) {
-      try { expoDb.execSync(stmt); } catch { /* exists */ }
+      try {
+        expoDb.execSync(stmt);
+      } catch {
+        /* exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 17");
   }
@@ -633,12 +719,24 @@ export async function initDatabase(): Promise<void> {
       "ALTER TABLE medications ADD COLUMN archived_at TEXT",
       "ALTER TABLE medications ADD COLUMN archive_reason TEXT",
     ]) {
-      try { expoDb.execSync(stmt); } catch { /* exists */ }
+      try {
+        expoDb.execSync(stmt);
+      } catch {
+        /* exists */
+      }
     }
     expoDb.execSync("PRAGMA user_version = 18");
   }
+  if (user_version < 19) {
+    // Null preserves the fact that historical consumption was not recorded.
+    try {
+      expoDb.execSync("ALTER TABLE dose_logs ADD COLUMN stock_delta REAL");
+    } catch {
+      /* already added */
+    }
+    expoDb.execSync("PRAGMA user_version = 19");
+  }
 }
-
 
 // ─── Profiles (F2 multi-profile) ───────────────────────────────────────────
 // The 'default' profile always exists. UI lists use the getActive* getters
@@ -646,7 +744,11 @@ export async function initDatabase(): Promise<void> {
 // profile's doses keep ringing regardless of who is on screen.
 
 export async function getProfiles(): Promise<Profile[]> {
-  const rows = db.select().from(schema.profiles).orderBy(asc(schema.profiles.createdAt)).all();
+  const rows = db
+    .select()
+    .from(schema.profiles)
+    .orderBy(asc(schema.profiles.createdAt))
+    .all();
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -658,11 +760,13 @@ export async function getProfiles(): Promise<Profile[]> {
 }
 
 export async function insertProfile(profile: Profile): Promise<void> {
-  db.insert(schema.profiles).values({
-    ...profile,
-    emergencyContactName: profile.emergencyContactName ?? null,
-    emergencyContactPhone: profile.emergencyContactPhone ?? null,
-  }).run();
+  db.insert(schema.profiles)
+    .values({
+      ...profile,
+      emergencyContactName: profile.emergencyContactName ?? null,
+      emergencyContactPhone: profile.emergencyContactPhone ?? null,
+    })
+    .run();
 }
 
 export async function updateProfile(profile: Profile): Promise<void> {
@@ -687,17 +791,27 @@ export async function deleteProfileData(profileId: string): Promise<void> {
   if (profileId === DEFAULT_PROFILE_ID) {
     throw new Error("The default profile cannot be deleted");
   }
-  db.delete(schema.allergies).where(eq(schema.allergies.profileId, profileId)).run();
-  db.delete(schema.appointments).where(eq(schema.appointments.profileId, profileId)).run();
-  db.delete(schema.healthMeasurements).where(eq(schema.healthMeasurements.profileId, profileId)).run();
-  db.delete(schema.dailyCheckins).where(eq(schema.dailyCheckins.profileId, profileId)).run();
+  db.delete(schema.allergies)
+    .where(eq(schema.allergies.profileId, profileId))
+    .run();
+  db.delete(schema.appointments)
+    .where(eq(schema.appointments.profileId, profileId))
+    .run();
+  db.delete(schema.healthMeasurements)
+    .where(eq(schema.healthMeasurements.profileId, profileId))
+    .run();
+  db.delete(schema.dailyCheckins)
+    .where(eq(schema.dailyCheckins.profileId, profileId))
+    .run();
   db.delete(schema.profiles).where(eq(schema.profiles.id, profileId)).run();
 }
 
 // ─── Allergies (F3) ────────────────────────────────────────────────────────────────
 
 export async function getActiveAllergies(): Promise<Allergy[]> {
-  const rows = db.select().from(schema.allergies)
+  const rows = db
+    .select()
+    .from(schema.allergies)
     .where(eq(schema.allergies.profileId, getActiveProfileId()))
     .orderBy(asc(schema.allergies.name))
     .all();
@@ -711,18 +825,24 @@ export async function getActiveAllergies(): Promise<Allergy[]> {
 }
 
 export async function insertAllergy(allergy: Allergy): Promise<void> {
-  db.insert(schema.allergies).values({
-    id: allergy.id,
-    profileId: allergy.profileId ?? getActiveProfileId(),
-    name: allergy.name,
-    ingRxcui: allergy.ingRxcui ?? null,
-    createdAt: allergy.createdAt,
-  }).run();
+  db.insert(schema.allergies)
+    .values({
+      id: allergy.id,
+      profileId: allergy.profileId ?? getActiveProfileId(),
+      name: allergy.name,
+      ingRxcui: allergy.ingRxcui ?? null,
+      createdAt: allergy.createdAt,
+    })
+    .run();
 }
 
 /** Every profile's allergies — backup export only. */
 export async function getAllAllergies(): Promise<Allergy[]> {
-  const rows = db.select().from(schema.allergies).orderBy(asc(schema.allergies.createdAt)).all();
+  const rows = db
+    .select()
+    .from(schema.allergies)
+    .orderBy(asc(schema.allergies.createdAt))
+    .all();
   return rows.map((r) => ({
     id: r.id,
     profileId: r.profileId,
@@ -736,84 +856,113 @@ export async function deleteAllergy(id: string): Promise<void> {
   db.delete(schema.allergies).where(eq(schema.allergies.id, id)).run();
 }
 
+export async function updateAllergy(allergy: Allergy): Promise<void> {
+  db.update(schema.allergies)
+    .set({ name: allergy.name, ingRxcui: allergy.ingRxcui ?? null })
+    .where(
+      and(
+        eq(schema.allergies.id, allergy.id),
+        eq(schema.allergies.profileId, getActiveProfileId())
+      )
+    )
+    .run();
+}
+
 // ─── Medications ───────────────────────────────────────────────────────────
 
 export async function getMedications(): Promise<Medication[]> {
-  const rows = db.select().from(schema.medications).orderBy(desc(schema.medications.createdAt)).all();
+  const rows = db
+    .select()
+    .from(schema.medications)
+    .orderBy(desc(schema.medications.createdAt))
+    .all();
   return rows.map(toMedication);
 }
 
 /** Medications of the active profile only — UI lists. Alarms use getMedications(). */
 export async function getActiveMedications(): Promise<Medication[]> {
-  const rows = db.select().from(schema.medications)
+  const rows = db
+    .select()
+    .from(schema.medications)
     .where(eq(schema.medications.profileId, getActiveProfileId()))
     .orderBy(desc(schema.medications.createdAt))
     .all();
   return rows.map(toMedication);
 }
 
-export async function getMedicationById(id: string): Promise<Medication | null> {
-  const row = db.select().from(schema.medications).where(eq(schema.medications.id, id)).get();
+export async function getMedicationById(
+  id: string
+): Promise<Medication | null> {
+  const row = db
+    .select()
+    .from(schema.medications)
+    .where(eq(schema.medications.id, id))
+    .get();
   return row ? toMedication(row) : null;
 }
 
 export async function insertMedication(med: Medication): Promise<void> {
-  db.insert(schema.medications).values({
-    id: med.id,
-    name: med.name,
-    dosage: med.dosage,
-    dosageAmount: med.dosageAmount,
-    dosageUnit: med.dosageUnit,
-    category: med.category,
-    notes: med.notes ?? null,
-    color: med.color,
-    startDate: med.startDate ?? null,
-    endDate: med.endDate ?? null,
-    isActive: med.isActive,
-    createdAt: med.createdAt,
-    stockQuantity: med.stockQuantity ?? null,
-    stockAlertThreshold: med.stockAlertThreshold ?? null,
-    photoUri: med.photoUri ?? null,
-    isPRN: med.isPRN ?? false,
-    renewalDate: med.renewalDate ?? null,
-    renewalNotifIds: med.renewalNotifIds ?? null,
-    prnMaxPerDay: med.prnMaxPerDay ?? null,
-    prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
-    rxcui: med.rxcui ?? null,
-    profileId: med.profileId ?? getActiveProfileId(),
-    regimen: med.regimen ?? null,
-    isInjectable: med.isInjectable ?? false,
-    archivedAt: med.archivedAt ?? null,
-    archiveReason: med.archiveReason ?? null,
-  }).run();
+  db.insert(schema.medications)
+    .values({
+      id: med.id,
+      name: med.name,
+      dosage: med.dosage,
+      dosageAmount: med.dosageAmount,
+      dosageUnit: med.dosageUnit,
+      category: med.category,
+      notes: med.notes ?? null,
+      color: med.color,
+      startDate: med.startDate ?? null,
+      endDate: med.endDate ?? null,
+      isActive: med.isActive,
+      createdAt: med.createdAt,
+      stockQuantity: med.stockQuantity ?? null,
+      stockAlertThreshold: med.stockAlertThreshold ?? null,
+      photoUri: med.photoUri ?? null,
+      isPRN: med.isPRN ?? false,
+      renewalDate: med.renewalDate ?? null,
+      renewalNotifIds: med.renewalNotifIds ?? null,
+      prnMaxPerDay: med.prnMaxPerDay ?? null,
+      prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
+      rxcui: med.rxcui ?? null,
+      profileId: med.profileId ?? getActiveProfileId(),
+      regimen: med.regimen ?? null,
+      isInjectable: med.isInjectable ?? false,
+      archivedAt: med.archivedAt ?? null,
+      archiveReason: med.archiveReason ?? null,
+    })
+    .run();
 }
 
 export async function updateMedication(med: Medication): Promise<void> {
-  db.update(schema.medications).set({
-    name: med.name,
-    dosage: med.dosage,
-    dosageAmount: med.dosageAmount,
-    dosageUnit: med.dosageUnit,
-    category: med.category,
-    notes: med.notes ?? null,
-    color: med.color,
-    startDate: med.startDate ?? null,
-    endDate: med.endDate ?? null,
-    isActive: med.isActive,
-    stockQuantity: med.stockQuantity ?? null,
-    stockAlertThreshold: med.stockAlertThreshold ?? null,
-    photoUri: med.photoUri ?? null,
-    isPRN: med.isPRN ?? false,
-    renewalDate: med.renewalDate ?? null,
-    renewalNotifIds: med.renewalNotifIds ?? null,
-    prnMaxPerDay: med.prnMaxPerDay ?? null,
-    prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
-    rxcui: med.rxcui ?? null,
-    regimen: med.regimen ?? null,
-    isInjectable: med.isInjectable ?? false,
-    archivedAt: med.archivedAt ?? null,
-    archiveReason: med.archiveReason ?? null,
-  }).where(eq(schema.medications.id, med.id)).run();
+  db.update(schema.medications)
+    .set({
+      name: med.name,
+      dosage: med.dosage,
+      dosageAmount: med.dosageAmount,
+      dosageUnit: med.dosageUnit,
+      category: med.category,
+      notes: med.notes ?? null,
+      color: med.color,
+      startDate: med.startDate ?? null,
+      endDate: med.endDate ?? null,
+      isActive: med.isActive,
+      stockQuantity: med.stockQuantity ?? null,
+      stockAlertThreshold: med.stockAlertThreshold ?? null,
+      photoUri: med.photoUri ?? null,
+      isPRN: med.isPRN ?? false,
+      renewalDate: med.renewalDate ?? null,
+      renewalNotifIds: med.renewalNotifIds ?? null,
+      prnMaxPerDay: med.prnMaxPerDay ?? null,
+      prnMinIntervalMinutes: med.prnMinIntervalMinutes ?? null,
+      rxcui: med.rxcui ?? null,
+      regimen: med.regimen ?? null,
+      isInjectable: med.isInjectable ?? false,
+      archivedAt: med.archivedAt ?? null,
+      archiveReason: med.archiveReason ?? null,
+    })
+    .where(eq(schema.medications.id, med.id))
+    .run();
 }
 
 /** Persists only the renewal-reminder notification ids for a medication. */
@@ -833,8 +982,12 @@ export async function deleteMedication(id: string): Promise<void> {
 
 // ─── Schedules ─────────────────────────────────────────────────────────────
 
-export async function getSchedulesByMedication(medicationId: string): Promise<Schedule[]> {
-  const rows = db.select().from(schema.schedules)
+export async function getSchedulesByMedication(
+  medicationId: string
+): Promise<Schedule[]> {
+  const rows = db
+    .select()
+    .from(schema.schedules)
     .where(eq(schema.schedules.medicationId, medicationId))
     .orderBy(asc(schema.schedules.time))
     .all();
@@ -842,68 +995,108 @@ export async function getSchedulesByMedication(medicationId: string): Promise<Sc
 }
 
 export async function getAllActiveSchedules(): Promise<Schedule[]> {
-  const rows = db.select({ schedule: schema.schedules })
+  const rows = db
+    .select({ schedule: schema.schedules })
     .from(schema.schedules)
-    .innerJoin(schema.medications, eq(schema.medications.id, schema.schedules.medicationId))
-    .where(and(eq(schema.schedules.isActive, true), eq(schema.medications.isActive, true)))
+    .innerJoin(
+      schema.medications,
+      eq(schema.medications.id, schema.schedules.medicationId)
+    )
+    .where(
+      and(
+        eq(schema.schedules.isActive, true),
+        eq(schema.medications.isActive, true)
+      )
+    )
     .all();
   return rows.map((r) => toSchedule(r.schedule));
 }
 
 export async function getAllSchedules(): Promise<Schedule[]> {
-  const rows = db.select().from(schema.schedules)
+  const rows = db
+    .select()
+    .from(schema.schedules)
     .orderBy(asc(schema.schedules.medicationId), asc(schema.schedules.time))
     .all();
   return rows.map(toSchedule);
 }
 
 export async function insertSchedule(schedule: Schedule): Promise<void> {
-  db.insert(schema.schedules).values({
-    id: schedule.id,
-    medicationId: schedule.medicationId,
-    time: schedule.time,
-    days: JSON.stringify(schedule.days),
-    isActive: schedule.isActive,
-  }).run();
+  db.insert(schema.schedules)
+    .values({
+      id: schedule.id,
+      medicationId: schedule.medicationId,
+      time: schedule.time,
+      days: JSON.stringify(schedule.days),
+      isActive: schedule.isActive,
+    })
+    .run();
 }
 
 export async function updateSchedule(schedule: Schedule): Promise<void> {
-  db.update(schema.schedules).set({
-    time: schedule.time,
-    days: JSON.stringify(schedule.days),
-    isActive: schedule.isActive,
-  }).where(eq(schema.schedules.id, schedule.id)).run();
+  db.update(schema.schedules)
+    .set({
+      time: schedule.time,
+      days: JSON.stringify(schedule.days),
+      isActive: schedule.isActive,
+    })
+    .where(eq(schema.schedules.id, schedule.id))
+    .run();
 }
 
 export async function deleteSchedule(id: string): Promise<void> {
   db.delete(schema.schedules).where(eq(schema.schedules.id, id)).run();
 }
 
-export async function deleteSchedulesByMedication(medicationId: string): Promise<void> {
-  db.delete(schema.schedules).where(eq(schema.schedules.medicationId, medicationId)).run();
+export async function deleteSchedulesByMedication(
+  medicationId: string
+): Promise<void> {
+  db.delete(schema.schedules)
+    .where(eq(schema.schedules.medicationId, medicationId))
+    .run();
 }
 
 // ─── Dose Logs ─────────────────────────────────────────────────────────────
 
 export async function getAllDoseLogs(): Promise<DoseLog[]> {
-  const rows = db.select().from(schema.doseLogs)
-    .orderBy(desc(schema.doseLogs.scheduledDate), desc(schema.doseLogs.scheduledTime))
+  const rows = db
+    .select()
+    .from(schema.doseLogs)
+    .orderBy(
+      desc(schema.doseLogs.scheduledDate),
+      desc(schema.doseLogs.scheduledTime)
+    )
     .all();
   return rows.map(toDoseLog);
 }
 
 export async function getDoseLogsByDate(date: string): Promise<DoseLog[]> {
-  const rows = db.select().from(schema.doseLogs)
+  const rows = db
+    .select()
+    .from(schema.doseLogs)
     .where(eq(schema.doseLogs.scheduledDate, date))
     .orderBy(asc(schema.doseLogs.scheduledTime))
     .all();
   return rows.map(toDoseLog);
 }
 
-export async function getDoseLogsByDateRange(from: string, to: string): Promise<DoseLog[]> {
-  const rows = db.select().from(schema.doseLogs)
-    .where(and(gte(schema.doseLogs.scheduledDate, from), lte(schema.doseLogs.scheduledDate, to)))
-    .orderBy(desc(schema.doseLogs.scheduledDate), desc(schema.doseLogs.scheduledTime))
+export async function getDoseLogsByDateRange(
+  from: string,
+  to: string
+): Promise<DoseLog[]> {
+  const rows = db
+    .select()
+    .from(schema.doseLogs)
+    .where(
+      and(
+        gte(schema.doseLogs.scheduledDate, from),
+        lte(schema.doseLogs.scheduledDate, to)
+      )
+    )
+    .orderBy(
+      desc(schema.doseLogs.scheduledDate),
+      desc(schema.doseLogs.scheduledTime)
+    )
     .all();
   return rows.map(toDoseLog);
 }
@@ -912,8 +1105,15 @@ export async function getDoseLogByScheduleAndDate(
   scheduleId: string,
   date: string
 ): Promise<DoseLog | null> {
-  const row = db.select().from(schema.doseLogs)
-    .where(and(eq(schema.doseLogs.scheduleId, scheduleId), eq(schema.doseLogs.scheduledDate, date)))
+  const row = db
+    .select()
+    .from(schema.doseLogs)
+    .where(
+      and(
+        eq(schema.doseLogs.scheduleId, scheduleId),
+        eq(schema.doseLogs.scheduledDate, date)
+      )
+    )
     .get();
   return row ? toDoseLog(row) : null;
 }
@@ -922,21 +1122,30 @@ export async function upsertDoseLog(log: DoseLog): Promise<void> {
   // Wrapped in a transaction so that if the app crashes between the DELETE
   // and INSERT, the dose log is never left in a partially-written state.
   db.transaction((tx) => {
-    tx.delete(schema.doseLogs).where(
-      and(eq(schema.doseLogs.scheduleId, log.scheduleId), eq(schema.doseLogs.scheduledDate, log.scheduledDate))
-    ).run();
-    tx.insert(schema.doseLogs).values({
-      id: log.id,
-      medicationId: log.medicationId,
-      scheduleId: log.scheduleId,
-      scheduledDate: log.scheduledDate,
-      scheduledTime: log.scheduledTime,
-      status: log.status,
-      takenAt: log.takenAt ?? null,
-      createdAt: log.createdAt,
-      notes: log.notes ?? null,
-      skipReason: log.skipReason ?? null,
-    }).run();
+    tx.delete(schema.doseLogs)
+      .where(
+        and(
+          eq(schema.doseLogs.scheduleId, log.scheduleId),
+          eq(schema.doseLogs.scheduledDate, log.scheduledDate)
+        )
+      )
+      .run();
+    tx.insert(schema.doseLogs)
+      .values({
+        id: log.id,
+        medicationId: log.medicationId,
+        scheduleId: log.scheduleId,
+        scheduledDate: log.scheduledDate,
+        scheduledTime: log.scheduledTime,
+        status: log.status,
+        takenAt: log.takenAt ?? null,
+        createdAt: log.createdAt,
+        notes: log.notes ?? null,
+        skipReason: log.skipReason ?? null,
+        injectionSite: log.injectionSite ?? null,
+        stockDelta: log.stockDelta ?? null,
+      })
+      .run();
   });
 }
 
@@ -950,21 +1159,30 @@ export async function upsertDoseLog(log: DoseLog): Promise<void> {
  * user's adherence history (audit C1/C2).
  */
 export async function upsertDoseLogNoTx(log: DoseLog): Promise<void> {
-  db.delete(schema.doseLogs).where(
-    and(eq(schema.doseLogs.scheduleId, log.scheduleId), eq(schema.doseLogs.scheduledDate, log.scheduledDate))
-  ).run();
-  db.insert(schema.doseLogs).values({
-    id: log.id,
-    medicationId: log.medicationId,
-    scheduleId: log.scheduleId,
-    scheduledDate: log.scheduledDate,
-    scheduledTime: log.scheduledTime,
-    status: log.status,
-    takenAt: log.takenAt ?? null,
-    createdAt: log.createdAt,
-    notes: log.notes ?? null,
-    skipReason: log.skipReason ?? null,
-  }).run();
+  db.delete(schema.doseLogs)
+    .where(
+      and(
+        eq(schema.doseLogs.scheduleId, log.scheduleId),
+        eq(schema.doseLogs.scheduledDate, log.scheduledDate)
+      )
+    )
+    .run();
+  db.insert(schema.doseLogs)
+    .values({
+      id: log.id,
+      medicationId: log.medicationId,
+      scheduleId: log.scheduleId,
+      scheduledDate: log.scheduledDate,
+      scheduledTime: log.scheduledTime,
+      status: log.status,
+      takenAt: log.takenAt ?? null,
+      createdAt: log.createdAt,
+      notes: log.notes ?? null,
+      skipReason: log.skipReason ?? null,
+      injectionSite: log.injectionSite ?? null,
+      stockDelta: log.stockDelta ?? null,
+    })
+    .run();
 }
 
 /**
@@ -980,9 +1198,16 @@ export async function insertMissedDoseLogSafe(log: DoseLog): Promise<void> {
         status, taken_at, created_at, notes, skip_reason)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      log.id, log.medicationId, log.scheduleId, log.scheduledDate,
-      log.scheduledTime, log.status, log.takenAt ?? null, log.createdAt,
-      log.notes ?? null, log.skipReason ?? null,
+      log.id,
+      log.medicationId,
+      log.scheduleId,
+      log.scheduledDate,
+      log.scheduledTime,
+      log.status,
+      log.takenAt ?? null,
+      log.createdAt,
+      log.notes ?? null,
+      log.skipReason ?? null,
     ]
   );
 }
@@ -993,23 +1218,68 @@ export async function updateDoseLogStatus(
   status: DoseStatus,
   takenAt?: string
 ): Promise<void> {
-  db.update(schema.doseLogs).set({
-    status,
-    takenAt: takenAt ?? null,
-  }).where(
-    and(eq(schema.doseLogs.scheduleId, scheduleId), eq(schema.doseLogs.scheduledDate, scheduledDate))
-  ).run();
+  db.update(schema.doseLogs)
+    .set({
+      status,
+      takenAt: takenAt ?? null,
+    })
+    .where(
+      and(
+        eq(schema.doseLogs.scheduleId, scheduleId),
+        eq(schema.doseLogs.scheduledDate, scheduledDate)
+      )
+    )
+    .run();
 }
 
-export async function deleteDoseLog(scheduleId: string, scheduledDate: string): Promise<void> {
-  db.delete(schema.doseLogs).where(
-    and(eq(schema.doseLogs.scheduleId, scheduleId), eq(schema.doseLogs.scheduledDate, scheduledDate))
-  ).run();
+export async function deleteDoseLog(
+  scheduleId: string,
+  scheduledDate: string
+): Promise<void> {
+  db.delete(schema.doseLogs)
+    .where(
+      and(
+        eq(schema.doseLogs.scheduleId, scheduleId),
+        eq(schema.doseLogs.scheduledDate, scheduledDate)
+      )
+    )
+    .run();
+}
+
+/** Persist the recorded dose and its inventory effect as one unit. */
+export async function saveDoseLogWithStock(
+  log: DoseLog,
+  stockQuantity?: number
+): Promise<void> {
+  await expoDb.withTransactionAsync(async () => {
+    await upsertDoseLogNoTx(log);
+    if (stockQuantity !== undefined)
+      await updateMedicationStock(log.medicationId, stockQuantity);
+  });
+}
+
+/** Undo both the dose and the inventory effect, or neither. */
+export async function removeDoseLogWithStock(
+  scheduleId: string,
+  date: string,
+  medicationId: string,
+  stockQuantity?: number
+): Promise<void> {
+  await expoDb.withTransactionAsync(async () => {
+    await deleteDoseLog(scheduleId, date);
+    if (stockQuantity !== undefined)
+      await updateMedicationStock(medicationId, stockQuantity);
+  });
 }
 
 // ─── Dev / Reset ───────────────────────────────────────────────────────────
 
 export async function clearAllData(): Promise<void> {
+  await expoDb.withTransactionAsync(clearAllDataNoTx);
+}
+
+/** Use only inside a restore transaction; never start a nested transaction. */
+export async function clearAllDataNoTx(): Promise<void> {
   db.delete(schema.doseLogs).run();
   db.delete(schema.schedules).run();
   db.delete(schema.medications).run();
@@ -1019,13 +1289,37 @@ export async function clearAllData(): Promise<void> {
   db.delete(schema.dailyCheckins).run();
   db.delete(schema.allergies).run();
   // Extra profiles go too; the built-in 'default' row must survive.
-  db.delete(schema.profiles).where(ne(schema.profiles.id, DEFAULT_PROFILE_ID)).run();
+  db.delete(schema.profiles)
+    .where(ne(schema.profiles.id, DEFAULT_PROFILE_ID))
+    .run();
+  db.update(schema.profiles)
+    .set({
+      name: "",
+      color: "blue",
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+    })
+    .where(eq(schema.profiles.id, DEFAULT_PROFILE_ID))
+    .run();
+}
+
+/** Reconcile selection only after a successful reset/restore transaction. */
+export async function reconcileActiveProfile(): Promise<string> {
+  const profiles = await getProfiles();
+  const current = getActiveProfileId();
+  const id = profiles.some((p) => p.id === current)
+    ? current
+    : DEFAULT_PROFILE_ID;
+  setActiveProfileId(id);
+  return id;
 }
 
 // ─── Appointments ──────────────────────────────────────────────────────────
 
 export async function getAppointments(): Promise<Appointment[]> {
-  const rows = db.select().from(schema.appointments)
+  const rows = db
+    .select()
+    .from(schema.appointments)
     .orderBy(asc(schema.appointments.date), asc(schema.appointments.time))
     .all();
   return rows.map(toAppointment);
@@ -1033,7 +1327,9 @@ export async function getAppointments(): Promise<Appointment[]> {
 
 /** Appointments of the active profile only — UI lists. */
 export async function getActiveAppointments(): Promise<Appointment[]> {
-  const rows = db.select().from(schema.appointments)
+  const rows = db
+    .select()
+    .from(schema.appointments)
     .where(eq(schema.appointments.profileId, getActiveProfileId()))
     .orderBy(asc(schema.appointments.date), asc(schema.appointments.time))
     .all();
@@ -1041,36 +1337,41 @@ export async function getActiveAppointments(): Promise<Appointment[]> {
 }
 
 export async function insertAppointment(appt: Appointment): Promise<void> {
-  db.insert(schema.appointments).values({
-    id: appt.id,
-    title: appt.title,
-    doctor: appt.doctor ?? null,
-    location: appt.location ?? null,
-    locationLat: appt.locationCoords?.latitude ?? null,
-    locationLng: appt.locationCoords?.longitude ?? null,
-    notes: appt.notes ?? null,
-    date: appt.date,
-    time: appt.time ?? null,
-    reminderMinutes: appt.reminderMinutes ?? null,
-    notificationId: appt.notificationId ?? null,
-    createdAt: appt.createdAt,
-    profileId: appt.profileId ?? getActiveProfileId(),
-  }).run();
+  db.insert(schema.appointments)
+    .values({
+      id: appt.id,
+      title: appt.title,
+      doctor: appt.doctor ?? null,
+      location: appt.location ?? null,
+      locationLat: appt.locationCoords?.latitude ?? null,
+      locationLng: appt.locationCoords?.longitude ?? null,
+      notes: appt.notes ?? null,
+      date: appt.date,
+      time: appt.time ?? null,
+      reminderMinutes: appt.reminderMinutes ?? null,
+      notificationId: appt.notificationId ?? null,
+      createdAt: appt.createdAt,
+      profileId: appt.profileId ?? getActiveProfileId(),
+    })
+    .run();
 }
 
 export async function updateAppointment(appt: Appointment): Promise<void> {
-  db.update(schema.appointments).set({
-    title: appt.title,
-    doctor: appt.doctor ?? null,
-    location: appt.location ?? null,
-    locationLat: appt.locationCoords?.latitude ?? null,
-    locationLng: appt.locationCoords?.longitude ?? null,
-    notes: appt.notes ?? null,
-    date: appt.date,
-    time: appt.time ?? null,
-    reminderMinutes: appt.reminderMinutes ?? null,
-    notificationId: appt.notificationId ?? null,
-  }).where(eq(schema.appointments.id, appt.id)).run();
+  db.update(schema.appointments)
+    .set({
+      title: appt.title,
+      doctor: appt.doctor ?? null,
+      location: appt.location ?? null,
+      locationLat: appt.locationCoords?.latitude ?? null,
+      locationLng: appt.locationCoords?.longitude ?? null,
+      notes: appt.notes ?? null,
+      date: appt.date,
+      time: appt.time ?? null,
+      reminderMinutes: appt.reminderMinutes ?? null,
+      notificationId: appt.notificationId ?? null,
+    })
+    .where(eq(schema.appointments.id, appt.id))
+    .run();
 }
 
 export async function deleteAppointment(id: string): Promise<void> {
@@ -1079,40 +1380,74 @@ export async function deleteAppointment(id: string): Promise<void> {
 
 // ─── Appointment documents ─────────────────────────────────────────────────
 
-export async function getAppointmentDocuments(appointmentId: string): Promise<AppointmentDocument[]> {
-  const rows = db.select().from(schema.appointmentDocuments)
+export async function getAppointmentDocuments(
+  appointmentId: string
+): Promise<AppointmentDocument[]> {
+  const rows = db
+    .select()
+    .from(schema.appointmentDocuments)
     .where(eq(schema.appointmentDocuments.appointmentId, appointmentId))
     .orderBy(desc(schema.appointmentDocuments.createdAt))
     .all();
   return rows.map(toAppointmentDocument);
 }
 
-export async function getAllAppointmentDocuments(): Promise<AppointmentDocument[]> {
-  const rows = db.select().from(schema.appointmentDocuments)
+export async function getAllAppointmentDocuments(): Promise<
+  AppointmentDocument[]
+> {
+  const rows = db
+    .select()
+    .from(schema.appointmentDocuments)
     .orderBy(desc(schema.appointmentDocuments.createdAt))
     .all();
   return rows.map(toAppointmentDocument);
 }
 
-export async function insertAppointmentDocument(doc: AppointmentDocument): Promise<void> {
-  db.insert(schema.appointmentDocuments).values({
-    id: doc.id,
-    appointmentId: doc.appointmentId,
-    fileName: doc.fileName,
-    mimeType: doc.mimeType,
-    fileUri: doc.fileUri,
-    fileSize: doc.fileSize ?? null,
-    createdAt: doc.createdAt,
-  }).run();
+export async function insertAppointmentDocument(
+  doc: AppointmentDocument
+): Promise<void> {
+  db.insert(schema.appointmentDocuments)
+    .values({
+      id: doc.id,
+      appointmentId: doc.appointmentId,
+      fileName: doc.fileName,
+      mimeType: doc.mimeType,
+      fileUri: doc.fileUri,
+      fileSize: doc.fileSize ?? null,
+      createdAt: doc.createdAt,
+    })
+    .run();
 }
 
 export async function deleteAppointmentDocument(id: string): Promise<void> {
-  db.delete(schema.appointmentDocuments).where(eq(schema.appointmentDocuments.id, id)).run();
+  db.delete(schema.appointmentDocuments)
+    .where(eq(schema.appointmentDocuments.id, id))
+    .run();
 }
 
-export async function updateMedicationStock(id: string, newQuantity: number): Promise<void> {
-  db.update(schema.medications).set({ stockQuantity: newQuantity })
-    .where(eq(schema.medications.id, id)).run();
+export async function updateMedicationStock(
+  id: string,
+  newQuantity: number
+): Promise<void> {
+  db.update(schema.medications)
+    .set({ stockQuantity: newQuantity })
+    .where(eq(schema.medications.id, id))
+    .run();
+}
+
+/** A form save replaces the schedule list and medication atomically; historical logs survive. */
+export async function saveMedicationWithSchedules(
+  med: Medication,
+  schedules: Schedule[]
+): Promise<void> {
+  if (schedules.some((s) => s.medicationId !== med.id))
+    throw new Error("Schedule owner mismatch");
+  await expoDb.withTransactionAsync(async () => {
+    if (await getMedicationById(med.id)) await updateMedication(med);
+    else await insertMedication(med);
+    await deleteSchedulesByMedication(med.id);
+    for (const schedule of schedules) await insertSchedule(schedule);
+  });
 }
 
 /** Records the injection site on an already-logged dose (F3 injectables). */
@@ -1121,8 +1456,14 @@ export async function setDoseInjectionSite(
   scheduledDate: string,
   site: string
 ): Promise<void> {
-  db.update(schema.doseLogs).set({ injectionSite: site })
-    .where(and(eq(schema.doseLogs.scheduleId, scheduleId), eq(schema.doseLogs.scheduledDate, scheduledDate)))
+  db.update(schema.doseLogs)
+    .set({ injectionSite: site })
+    .where(
+      and(
+        eq(schema.doseLogs.scheduleId, scheduleId),
+        eq(schema.doseLogs.scheduledDate, scheduledDate)
+      )
+    )
     .run();
 }
 
@@ -1131,8 +1472,14 @@ export async function updateDoseLogNotes(
   scheduledDate: string,
   notes: string
 ): Promise<void> {
-  db.update(schema.doseLogs).set({ notes })
-    .where(and(eq(schema.doseLogs.scheduleId, scheduleId), eq(schema.doseLogs.scheduledDate, scheduledDate)))
+  db.update(schema.doseLogs)
+    .set({ notes })
+    .where(
+      and(
+        eq(schema.doseLogs.scheduleId, scheduleId),
+        eq(schema.doseLogs.scheduledDate, scheduledDate)
+      )
+    )
     .run();
 }
 
@@ -1144,12 +1491,32 @@ export async function getHealthMeasurements(
 ): Promise<HealthMeasurement[]> {
   const q = db.select().from(schema.healthMeasurements);
   const rows = type
-    ? q.where(eq(schema.healthMeasurements.type, type))
+    ? q
+        .where(eq(schema.healthMeasurements.type, type))
         .orderBy(desc(schema.healthMeasurements.measuredAt))
-        .limit(limit).all()
-    : q.orderBy(desc(schema.healthMeasurements.measuredAt))
-        .limit(limit).all();
+        .limit(limit)
+        .all()
+    : q.orderBy(desc(schema.healthMeasurements.measuredAt)).limit(limit).all();
   return rows.map(toHealthMeasurement);
+}
+
+/** Full cross-profile export, deliberately independent of UI pagination. */
+export async function getAllHealthMeasurements(): Promise<HealthMeasurement[]> {
+  return db
+    .select()
+    .from(schema.healthMeasurements)
+    .orderBy(desc(schema.healthMeasurements.measuredAt))
+    .all()
+    .map(toHealthMeasurement);
+}
+
+export async function getAllDailyCheckins(): Promise<DailyCheckin[]> {
+  return db
+    .select()
+    .from(schema.dailyCheckins)
+    .orderBy(desc(schema.dailyCheckins.date))
+    .all()
+    .map(toDailyCheckin);
 }
 
 /** Measurements of the active profile only — UI lists. */
@@ -1158,29 +1525,57 @@ export async function getActiveHealthMeasurements(
   limit = 60
 ): Promise<HealthMeasurement[]> {
   const scope = eq(schema.healthMeasurements.profileId, getActiveProfileId());
-  const rows = db.select().from(schema.healthMeasurements)
+  const query = db
+    .select()
+    .from(schema.healthMeasurements)
     .where(type ? and(scope, eq(schema.healthMeasurements.type, type)) : scope)
-    .orderBy(desc(schema.healthMeasurements.measuredAt))
-    .limit(limit)
-    .all();
+    .orderBy(desc(schema.healthMeasurements.measuredAt));
+  const rows = limit > 0 ? query.limit(limit).all() : query.all();
   return rows.map(toHealthMeasurement);
 }
 
-export async function insertHealthMeasurement(m: HealthMeasurement): Promise<void> {
-  db.insert(schema.healthMeasurements).values({
-    id: m.id,
-    type: m.type,
-    value1: m.value1,
-    value2: m.value2 ?? null,
-    measuredAt: m.measuredAt,
-    notes: m.notes ?? null,
-    createdAt: m.createdAt,
-    profileId: m.profileId ?? getActiveProfileId(),
-  }).run();
+export async function insertHealthMeasurement(
+  m: HealthMeasurement
+): Promise<void> {
+  db.insert(schema.healthMeasurements)
+    .values({
+      id: m.id,
+      type: m.type,
+      value1: m.value1,
+      value2: m.value2 ?? null,
+      measuredAt: m.measuredAt,
+      notes: m.notes ?? null,
+      createdAt: m.createdAt,
+      profileId: m.profileId ?? getActiveProfileId(),
+    })
+    .run();
 }
 
 export async function deleteHealthMeasurement(id: string): Promise<void> {
-  db.delete(schema.healthMeasurements).where(eq(schema.healthMeasurements.id, id)).run();
+  db.delete(schema.healthMeasurements)
+    .where(eq(schema.healthMeasurements.id, id))
+    .run();
+}
+
+/** Editing is local and may never change the owner or original creation time. */
+export async function updateHealthMeasurement(
+  m: HealthMeasurement
+): Promise<void> {
+  db.update(schema.healthMeasurements)
+    .set({
+      type: m.type,
+      value1: m.value1,
+      value2: m.value2 ?? null,
+      measuredAt: m.measuredAt,
+      notes: m.notes ?? null,
+    })
+    .where(
+      and(
+        eq(schema.healthMeasurements.id, m.id),
+        eq(schema.healthMeasurements.profileId, getActiveProfileId())
+      )
+    )
+    .run();
 }
 
 // ─── Daily check-ins ───────────────────────────────────────────────────────
@@ -1190,13 +1585,22 @@ export async function getDailyCheckins(
   toDate?: string
 ): Promise<DailyCheckin[]> {
   if (fromDate && toDate) {
-    const rows = db.select().from(schema.dailyCheckins)
-      .where(and(gte(schema.dailyCheckins.date, fromDate), lte(schema.dailyCheckins.date, toDate)))
+    const rows = db
+      .select()
+      .from(schema.dailyCheckins)
+      .where(
+        and(
+          gte(schema.dailyCheckins.date, fromDate),
+          lte(schema.dailyCheckins.date, toDate)
+        )
+      )
       .orderBy(desc(schema.dailyCheckins.date))
       .all();
     return rows.map(toDailyCheckin);
   }
-  const rows = db.select().from(schema.dailyCheckins)
+  const rows = db
+    .select()
+    .from(schema.dailyCheckins)
     .orderBy(desc(schema.dailyCheckins.date))
     .limit(90)
     .all();
@@ -1206,47 +1610,69 @@ export async function getDailyCheckins(
 /** Check-ins of the active profile only — UI lists. */
 export async function getActiveDailyCheckins(
   fromDate?: string,
-  toDate?: string
+  toDate?: string,
+  limit = 90
 ): Promise<DailyCheckin[]> {
   const scope = eq(schema.dailyCheckins.profileId, getActiveProfileId());
   if (fromDate && toDate) {
-    const rows = db.select().from(schema.dailyCheckins)
-      .where(and(scope, gte(schema.dailyCheckins.date, fromDate), lte(schema.dailyCheckins.date, toDate)))
+    const rows = db
+      .select()
+      .from(schema.dailyCheckins)
+      .where(
+        and(
+          scope,
+          gte(schema.dailyCheckins.date, fromDate),
+          lte(schema.dailyCheckins.date, toDate)
+        )
+      )
       .orderBy(desc(schema.dailyCheckins.date))
       .all();
     return rows.map(toDailyCheckin);
   }
-  const rows = db.select().from(schema.dailyCheckins)
+  const query = db
+    .select()
+    .from(schema.dailyCheckins)
     .where(scope)
-    .orderBy(desc(schema.dailyCheckins.date))
-    .limit(90)
-    .all();
+    .orderBy(desc(schema.dailyCheckins.date));
+  const rows = limit > 0 ? query.limit(limit).all() : query.all();
   return rows.map(toDailyCheckin);
 }
 
-export async function getDailyCheckinByDate(date: string): Promise<DailyCheckin | null> {
+export async function getDailyCheckinByDate(
+  date: string
+): Promise<DailyCheckin | null> {
   // One check-in per person per day — scoped to the active profile.
-  const row = db.select().from(schema.dailyCheckins)
-    .where(and(eq(schema.dailyCheckins.profileId, getActiveProfileId()), eq(schema.dailyCheckins.date, date)))
+  const row = db
+    .select()
+    .from(schema.dailyCheckins)
+    .where(
+      and(
+        eq(schema.dailyCheckins.profileId, getActiveProfileId()),
+        eq(schema.dailyCheckins.date, date)
+      )
+    )
     .get();
   return row ? toDailyCheckin(row) : null;
 }
 
 export async function upsertDailyCheckin(checkin: DailyCheckin): Promise<void> {
-  db.insert(schema.dailyCheckins).values({
-    id: checkin.id,
-    date: checkin.date,
-    mood: checkin.mood,
-    symptoms: JSON.stringify(checkin.symptoms),
-    notes: checkin.notes ?? null,
-    createdAt: checkin.createdAt,
-    profileId: checkin.profileId ?? getActiveProfileId(),
-  }).onConflictDoUpdate({
-    target: [schema.dailyCheckins.profileId, schema.dailyCheckins.date],
-    set: {
+  db.insert(schema.dailyCheckins)
+    .values({
+      id: checkin.id,
+      date: checkin.date,
       mood: checkin.mood,
       symptoms: JSON.stringify(checkin.symptoms),
       notes: checkin.notes ?? null,
-    },
-  }).run();
+      createdAt: checkin.createdAt,
+      profileId: checkin.profileId ?? getActiveProfileId(),
+    })
+    .onConflictDoUpdate({
+      target: [schema.dailyCheckins.profileId, schema.dailyCheckins.date],
+      set: {
+        mood: checkin.mood,
+        symptoms: JSON.stringify(checkin.symptoms),
+        notes: checkin.notes ?? null,
+      },
+    })
+    .run();
 }

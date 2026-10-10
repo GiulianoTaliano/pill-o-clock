@@ -20,7 +20,11 @@ jest.mock("expo-haptics", () => ({
   notificationAsync: jest.fn().mockResolvedValue(undefined),
   selectionAsync: jest.fn().mockResolvedValue(undefined),
   ImpactFeedbackStyle: { Light: "light", Medium: "medium", Heavy: "heavy" },
-  NotificationFeedbackType: { Success: "success", Warning: "warning", Error: "error" },
+  NotificationFeedbackType: {
+    Success: "success",
+    Warning: "warning",
+    Error: "error",
+  },
 }));
 
 // ─── expo-task-manager ─────────────────────────────────────────────────────
@@ -36,7 +40,11 @@ jest.mock("expo-background-fetch", () => ({
   getStatusAsync: jest.fn().mockResolvedValue(3),
   registerTaskAsync: jest.fn().mockResolvedValue(undefined),
   unregisterTaskAsync: jest.fn().mockResolvedValue(undefined),
-  BackgroundFetchResult: { NewData: "newData", Failed: "failed", NoData: "noData" },
+  BackgroundFetchResult: {
+    NewData: "newData",
+    Failed: "failed",
+    NoData: "noData",
+  },
   BackgroundFetchStatus: { Restricted: 1, Denied: 2, Available: 3 },
 }));
 
@@ -44,11 +52,17 @@ jest.mock("expo-background-fetch", () => ({
 jest.mock("expo-secure-store", () => {
   const store = new Map<string, string>();
   return {
-    setItemAsync: jest.fn(async (k: string, v: string) => { store.set(k, v); }),
+    setItemAsync: jest.fn(async (k: string, v: string) => {
+      store.set(k, v);
+    }),
     getItemAsync: jest.fn(async (k: string) => store.get(k) ?? null),
-    deleteItemAsync: jest.fn(async (k: string) => { store.delete(k); }),
+    deleteItemAsync: jest.fn(async (k: string) => {
+      store.delete(k);
+    }),
     // Sync variants (used by the SQLCipher key bootstrap in database.ts).
-    setItem: jest.fn((k: string, v: string) => { store.set(k, v); }),
+    setItem: jest.fn((k: string, v: string) => {
+      store.set(k, v);
+    }),
     getItem: jest.fn((k: string) => store.get(k) ?? null),
   };
 });
@@ -57,7 +71,9 @@ jest.mock("expo-secure-store", () => {
 jest.mock("expo-crypto", () => ({
   CryptoDigestAlgorithm: { SHA256: "SHA-256" },
   // Deterministic fake digest — good enough for hash-compare unit tests.
-  digestStringAsync: jest.fn(async (_alg: string, input: string) => `sha256(${input})`),
+  digestStringAsync: jest.fn(
+    async (_alg: string, input: string) => `sha256(${input})`
+  ),
   getRandomBytes: jest.fn((n: number) => new Uint8Array(n).fill(7)),
 }));
 
@@ -110,7 +126,9 @@ jest.mock("expo-notifications", () => ({
   setNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
   getPermissionsAsync: jest.fn().mockResolvedValue({ status: "granted" }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: "granted" }),
-  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   setNotificationHandler: jest.fn(),
   AndroidNotificationPriority: { HIGH: "high", MAX: "max", DEFAULT: "default" },
@@ -129,7 +147,10 @@ jest.mock("expo-alarm", () => ({
   isAvailable: true,
   scheduleAlarm: jest.fn().mockResolvedValue(undefined),
   cancelAlarm: jest.fn().mockResolvedValue(undefined),
+  cancelAllAlarms: jest.fn().mockResolvedValue(undefined),
   stopAlarm: jest.fn().mockResolvedValue(undefined),
+  dismissAlarm: jest.fn().mockResolvedValue(undefined),
+  checkExactAlarmPermission: jest.fn().mockResolvedValue(true),
   checkFullScreenIntentPermission: jest.fn().mockResolvedValue(true),
   requestFullScreenIntentPermission: jest.fn().mockResolvedValue(undefined),
   setAlarmWindowFlags: jest.fn().mockResolvedValue(undefined),

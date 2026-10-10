@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity } from "react-native";
-import { getDayNamesShort } from "../src/utils";
+import { getDayNamesShort, getDayNamesFull } from "../src/utils";
 import { useTranslation } from "../src/i18n";
 
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -12,6 +12,7 @@ interface DayToggleProps {
 export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
   const { t } = useTranslation();
   const dayNames = getDayNamesShort(t);
+  const fullDayNames = getDayNamesFull(t);
   const isAllSelected = selectedDays.length === 7;
 
   const toggleAll = () => {
@@ -37,18 +38,18 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
         <TouchableOpacity
           accessibilityRole="checkbox"
           accessibilityState={{ checked: isAllSelected }}
-          accessibilityLabel={t('form.dayToggleAll')}
+          accessibilityLabel={t("form.dayToggleAll")}
           onPress={toggleAll}
           className={`rounded-full px-3 min-h-[44px] min-w-[44px] items-center justify-center ${
-            isAllSelected ? "bg-primary" : "bg-slate-100 dark:bg-slate-700"
+            isAllSelected ? "bg-action" : "bg-slate-100 dark:bg-slate-700"
           }`}
         >
           <Text
-            className={`text-xs font-bold ${
+            className={`text-sm font-semibold ${
               isAllSelected ? "text-white" : "text-muted"
             }`}
           >
-            {t('form.dayToggleAll')}
+            {t("form.dayToggleAll")}
           </Text>
         </TouchableOpacity>
 
@@ -60,18 +61,18 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
               key={idx}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: active }}
-              accessibilityLabel={label}
+              accessibilityLabel={fullDayNames[idx]}
               onPress={() => toggle(idx)}
               className={`rounded-full px-3 min-h-[44px] min-w-[44px] items-center justify-center ${
-                active ? "bg-primary/20" : "bg-slate-100 dark:bg-slate-700"
+                active ? "bg-action" : "bg-slate-100 dark:bg-slate-700"
               }`}
             >
               <Text
-                className={`text-xs font-bold ${
-                  active ? "text-primary" : "text-muted"
+                className={`text-sm font-semibold ${
+                  active ? "text-white" : "text-muted"
                 }`}
               >
-                {label}
+                {active ? "✓ " + label : label}
               </Text>
             </TouchableOpacity>
           );
@@ -79,8 +80,8 @@ export function DayToggle({ selectedDays, onChange }: DayToggleProps) {
       </View>
       <Text className="text-xs text-muted mt-1">
         {isAllSelected
-          ? t('form.dayToggleEveryDay')
-          : t('form.dayToggleSelected', { count: selectedDays.length })}
+          ? t("form.dayToggleEveryDay")
+          : t("form.dayToggleSelected", { count: selectedDays.length })}
       </Text>
     </View>
   );

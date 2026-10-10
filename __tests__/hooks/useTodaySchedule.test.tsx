@@ -10,7 +10,7 @@
  *  - renderHook from @testing-library/react-native renders Hook in a React context.
  */
 
-import { renderHook } from "@testing-library/react-native";
+import { act, renderHook } from "@testing-library/react-native";
 import { useTodaySchedule } from "../../src/hooks/useTodaySchedule";
 import { makeMedication, makeSchedule, makeDoseLog } from "../factories";
 
@@ -39,7 +39,7 @@ function mockStore(state: Partial<StoreState>) {
     snoozedTimes: {},
     ...state,
   };
-  (useAppStore as jest.Mock).mockImplementation((selector: (s: StoreState) => unknown) =>
+  (useAppStore as unknown as jest.Mock).mockImplementation((selector: (s: StoreState) => unknown) =>
     selector(full)
   );
 }
@@ -59,6 +59,7 @@ afterAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.setSystemTime(FAKE_NOW);
 });
 
 // ─── Empty state ───────────────────────────────────────────────────────────
@@ -194,6 +195,34 @@ describe("status resolution — non-today dates", () => {
 // ─── Snoozed doses ─────────────────────────────────────────────────────────
 
 describe("snoozedUntil", () => {
+  it('keeps a postponed morning dose pending and orders it by its effective time', () => {
+    mockStore({ medications: [makeMedication()], schedules: [makeSchedule({ time: '08:00' }), makeSchedule({ id: 'second', time: '10:30' })],
+      snoozedTimes: { [`sch-1-${TODAY}`]: '11:00' } });
+    const { result } = renderHook(() => useTodaySchedule(TODAY));
+    expect(result.current.map((dose) => dose.schedule.id)).toEqual(['second', 'sch-1']);
+    expect(result.current[1].status).toBe('pending');
+    act(() => { jest.advanceTimersByTime(61 * 60 * 1000); });
+    expect(result.current[1].status).toBe('missed');
+  });
+
+  it('includes an overnight postponement under the original dose date', () => {
+    const postponed = new Date(2025, 5, 16, 11, 0).toISOString();
+    mockStore({ medications: [makeMedication({ startDate: '2025-06-15', endDate: '2025-06-15' })], schedules: [makeSchedule({ time: '23:50' })],
+      snoozedTimes: { 'sch-1-2025-06-15': postponed } });
+    const { result } = renderHook(() => useTodaySchedule(TODAY));
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0]).toMatchObject({ scheduledDate: '2025-06-15', status: 'pending', snoozedUntil: postponed });
+  });
+
+  it('keeps a completed overnight dose visible today with its original date', () => {
+    const postponed = new Date(2025, 5, 16, 0, 10).toISOString();
+    mockStore({ medications: [makeMedication({ startDate: '2025-06-15', endDate: '2025-06-15' })], schedules: [makeSchedule({ time: '23:50' })],
+      snoozedTimes: { 'sch-1-2025-06-15': postponed }, todayLogs: [makeDoseLog({ scheduledDate: '2025-06-15', status: 'taken' })] });
+    const { result } = renderHook(() => useTodaySchedule(TODAY));
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0]).toMatchObject({ scheduledDate: '2025-06-15', status: 'taken' });
+  });
+
   it("includes snoozedUntil for today's date when snoozed", () => {
     mockStore({
       medications: [makeMedication()],

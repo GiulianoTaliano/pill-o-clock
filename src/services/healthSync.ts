@@ -11,10 +11,12 @@ import { Platform } from "react-native";
 import { storage } from "../storage";
 import { STORAGE_KEYS } from "../config";
 import { HealthMeasurement } from "../types";
+import { DEFAULT_PROFILE_ID, getActiveProfileId } from "./profileStore";
 
 // Lazy require: the native module must not load unless the feature is used.
 type HC = typeof import("react-native-health-connect");
 function hc(): HC {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- avoid loading an Android-only native module on other platforms
   return require("react-native-health-connect") as HC;
 }
 
@@ -23,7 +25,10 @@ export function isHealthSyncSupported(): boolean {
 }
 
 export function isHealthSyncEnabled(): boolean {
-  return isHealthSyncSupported() && storage.getString(STORAGE_KEYS.HEALTH_SYNC) === "1";
+  return (
+    isHealthSyncSupported() &&
+    storage.getString(STORAGE_KEYS.HEALTH_SYNC) === "1"
+  );
 }
 
 const WRITE_PERMISSIONS = [
@@ -39,7 +44,8 @@ const WRITE_PERMISSIONS = [
  * Returns true (and persists the flag) when at least one was granted.
  */
 export async function enableHealthSync(): Promise<boolean> {
-  if (!isHealthSyncSupported()) return false;
+  if (!isHealthSyncSupported() || getActiveProfileId() !== DEFAULT_PROFILE_ID)
+    return false;
   try {
     const ok = await hc().initialize();
     if (!ok) return false;
@@ -62,7 +68,9 @@ export function disableHealthSync(): void {
  * Pure mapping: our measurement → a Health Connect record (null when the
  * type can't be represented). Exported for unit tests.
  */
-export function buildHealthConnectRecord(m: HealthMeasurement): Record<string, unknown> | null {
+export function buildHealthConnectRecord(
+  m: HealthMeasurement
+): Record<string, unknown> | null {
   const time = m.measuredAt;
   switch (m.type) {
     case "blood_pressure":
@@ -110,14 +118,50 @@ export function buildHealthConnectRecord(m: HealthMeasurement): Record<string, u
  * Fire-and-forget push of a saved measurement. Never throws — a sync failure
  * must not affect the local save.
  */
-export async function syncMeasurementToHealthConnect(m: HealthMeasurement): Promise<void> {
-  if (!isHealthSyncEnabled()) return;
+export async function syncMeasurementToHealthConnect(
+  m: HealthMeasurement
+): Promise<void> {
+  // Health Connect represents the phone owner. Require explicit ownership:
+  // a delayed push must not infer a different owner from today's active profile.
+  if (!isHealthSyncEnabled() || m.profileId !== DEFAULT_PROFILE_ID) return;
   const record = buildHealthConnectRecord(m);
   if (!record) return;
   try {
-    await hc().initialize();
+    if (!(await hc().initialize())) return;
+    const granted = await hc().getGrantedPermissions();
+    if (
+      !granted.some(
+        (p) => p.accessType === "write" && p.recordType === record.recordType
+      )
+    )
+      return;
     await hc().insertRecords([record as never]);
   } catch (e) {
     console.warn("[healthSync] insert failed", e);
+  }
+}
+
+/** Re-query external permissions; a stored opt-in is not proof of access. */
+export async function getHealthSyncPermissionStatus(): Promise<
+  "off" | "granted" | "partial" | "denied" | "error"
+> {
+  if (!isHealthSyncEnabled()) return "off";
+  try {
+    if (!(await hc().initialize())) return "denied";
+    const permissions = await hc().getGrantedPermissions();
+    const count = WRITE_PERMISSIONS.filter((required) =>
+      permissions.some(
+        (p) =>
+          p.accessType === required.accessType &&
+          p.recordType === required.recordType
+      )
+    ).length;
+    return count === WRITE_PERMISSIONS.length
+      ? "granted"
+      : count > 0
+      ? "partial"
+      : "denied";
+  } catch {
+    return "error";
   }
 }

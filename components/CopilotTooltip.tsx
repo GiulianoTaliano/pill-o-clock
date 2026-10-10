@@ -1,18 +1,15 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useCopilot, type TooltipProps } from "react-native-copilot";
+import { useAppTheme } from "../src/hooks/useAppTheme";
 import { useTranslation } from "../src/i18n";
 import * as Haptics from "expo-haptics";
 
 export function CopilotTooltip({ labels }: TooltipProps) {
   const { t } = useTranslation();
-  const {
-    goToNext,
-    stop,
-    currentStepNumber,
-    totalStepsNumber,
-    isLastStep,
-  } = useCopilot();
+  const theme = useAppTheme();
+  const { goToNext, stop, currentStepNumber, totalStepsNumber, isLastStep } =
+    useCopilot();
 
   const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -29,7 +26,7 @@ export function CopilotTooltip({ labels }: TooltipProps) {
   };
 
   return (
-    <View style={styles.tooltip}>
+    <View style={[styles.tooltip, { backgroundColor: theme.card }]}>
       {/* Progress row */}
       <View style={styles.progressRow}>
         <View style={styles.dotsContainer}>
@@ -47,7 +44,7 @@ export function CopilotTooltip({ labels }: TooltipProps) {
             />
           ))}
         </View>
-        <Text style={styles.counter}>
+        <Text style={[styles.counter, { color: theme.muted }]}>
           {currentStepNumber}/{totalStepsNumber}
         </Text>
       </View>
@@ -59,14 +56,18 @@ export function CopilotTooltip({ labels }: TooltipProps) {
       <View style={styles.actions}>
         <TouchableOpacity
           onPress={handleSkip}
-          style={styles.btnSkip}
+          accessibilityRole="button"
+          style={[styles.btnSkip, { borderColor: theme.border }]}
           activeOpacity={0.7}
         >
-          <Text style={styles.btnSkipText}>{t("tour.skip")}</Text>
+          <Text style={[styles.btnSkipText, { color: theme.muted }]}>
+            {t("tour.skip")}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleNext}
-          style={styles.btnNext}
+          accessibilityRole="button"
+          style={[styles.btnNext, { backgroundColor: theme.actionFill }]}
           activeOpacity={0.85}
         >
           <View style={styles.btnNextInner}>
@@ -87,6 +88,7 @@ export function CopilotTooltip({ labels }: TooltipProps) {
  *  translated title + description. */
 function StepText() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const { currentStep } = useCopilot();
 
   const text = currentStep?.text ?? "";
@@ -94,8 +96,12 @@ function StepText() {
 
   return (
     <>
-      <Text style={styles.title}>{titleKey ? t(titleKey) : ""}</Text>
-      <Text style={styles.desc}>{descKey ? t(descKey) : ""}</Text>
+      <Text style={[styles.title, { color: theme.text }]}>
+        {titleKey ? t(titleKey) : ""}
+      </Text>
+      <Text style={[styles.desc, { color: theme.muted }]}>
+        {descKey ? t(descKey) : ""}
+      </Text>
     </>
   );
 }
@@ -123,7 +129,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   counter: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#64748b",
     fontWeight: "600",
   },
@@ -134,7 +140,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   desc: {
-    fontSize: 14,
+    fontSize: 16,
     color: "#64748b",
     lineHeight: 22,
     marginBottom: 18,
@@ -153,7 +159,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   btnSkipText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
     color: "#64748b",
   },
@@ -171,7 +177,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   btnNextText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "700",
     color: "#ffffff",
   },

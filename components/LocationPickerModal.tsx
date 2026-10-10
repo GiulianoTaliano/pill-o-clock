@@ -1,5 +1,10 @@
 import React, {
-  useState, useRef, useEffect, useCallback, useMemo, Component,
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+  Component,
 } from "react";
 import {
   View,
@@ -20,6 +25,15 @@ import {
 //     so forcing it renders a blank map. Apple Maps needs no API key or extra SDK,
 //     at the cost of ignoring customMapStyle (see docs/ios-port.md §9).
 import MapView, { Region, PROVIDER_GOOGLE } from "react-native-maps";
+import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
+import i18n from "i18next";
+import { useTranslation } from "../src/i18n";
+import { useAppTheme } from "../src/hooks/useAppTheme";
+import { LocationCoords } from "../src/types";
+import { GOOGLE_MAPS_API_KEY } from "../src/config";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ─── Map error boundary ────────────────────────────────────────────────────
 // Catches native-bridge errors thrown by react-native-maps when the Google
@@ -39,14 +53,6 @@ class MapErrorBoundary extends Component<
     return this.state.hasError ? this.props.fallback : this.props.children;
   }
 }
-import { Ionicons } from "@expo/vector-icons";
-import * as Location from "expo-location";
-import * as Haptics from "expo-haptics";
-import i18n from "i18next";
-import { useTranslation } from "../src/i18n";
-import { useAppTheme } from "../src/hooks/useAppTheme";
-import { LocationCoords } from "../src/types";
-import { GOOGLE_MAPS_API_KEY } from "../src/config";
 
 // Dark-mode tile style for Google Maps (Android only). Apple Maps (used on iOS)
 // ignores customMapStyle and follows the system light/dark appearance instead.
@@ -54,14 +60,46 @@ const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#1d2c3f" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#1d2c3f" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#8ec3b9" }] },
-  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#344f6a" }] },
-  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#6ea6b0" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#243a52" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#a0b4c4" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#2e4e6e" }] },
-  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#223244" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0e1d2e" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4e729a" }] },
+  {
+    featureType: "administrative",
+    elementType: "geometry",
+    stylers: [{ color: "#344f6a" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#6ea6b0" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#243a52" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#a0b4c4" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#2e4e6e" }],
+  },
+  {
+    featureType: "transit",
+    elementType: "geometry",
+    stylers: [{ color: "#223244" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#0e1d2e" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#4e729a" }],
+  },
 ];
 
 // ─── Types & helpers ───────────────────────────────────────────────────────
@@ -77,7 +115,9 @@ function buildAddressFromGeocode(r: Location.LocationGeocodedAddress): string {
   const parts: string[] = [];
   if (r.name && !/^\d+$/.test(r.name)) parts.push(r.name);
   if (r.street) {
-    const streetFull = r.streetNumber ? `${r.street} ${r.streetNumber}` : r.street;
+    const streetFull = r.streetNumber
+      ? `${r.street} ${r.streetNumber}`
+      : r.street;
     if (!parts.includes(streetFull)) parts.push(streetFull);
   }
   if (r.city && r.city !== r.name) parts.push(r.city);
@@ -94,8 +134,9 @@ export interface RecentLocation {
 interface Props {
   visible: boolean;
   initial?: LocationCoords;
+  initialAddress?: string;
   recentLocations?: RecentLocation[];
-  onConfirm: (coords: LocationCoords, address?: string) => void;
+  onConfirm: (coords: LocationCoords | undefined, address?: string) => void;
   onClose: () => void;
 }
 
@@ -107,14 +148,25 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.08,
 };
 
-export function LocationPickerModal({ visible, initial, recentLocations = [], onConfirm, onClose }: Props) {
+export function LocationPickerModal({
+  visible,
+  initial,
+  initialAddress,
+  recentLocations = [],
+  onConfirm,
+  onClose,
+}: Props) {
   const { t } = useTranslation();
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
 
   // ── State ────────────────────────────────────────────────────────────────
   const [pin, setPin] = useState<LocationCoords>(
-    initial ?? { latitude: DEFAULT_REGION.latitude, longitude: DEFAULT_REGION.longitude }
+    initial ?? {
+      latitude: DEFAULT_REGION.latitude,
+      longitude: DEFAULT_REGION.longitude,
+    }
   );
   const [pinAddress, setPinAddress] = useState<string>("");
   const [searchText, setSearchText] = useState("");
@@ -122,6 +174,21 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
   const [searchLoading, setSearchLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [queryDirty, setQueryDirty] = useState(false);
+  const [pinChosen, setPinChosen] = useState(!!initial);
+  const autocompleteRequest = useRef(0);
+  const reverseRequest = useRef(0);
+  const resolutionRequest = useRef(0);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const lastPin = useRef(
+    initial ?? {
+      latitude: DEFAULT_REGION.latitude,
+      longitude: DEFAULT_REGION.longitude,
+    }
+  );
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -134,6 +201,8 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
     return () => {
       mounted.current = false;
       if (blurTimeout.current) clearTimeout(blurTimeout.current);
+      if (searchDebounce.current) clearTimeout(searchDebounce.current);
+      if (reverseDebounce.current) clearTimeout(reverseDebounce.current);
     };
   }, []);
   const [inputFocused, setInputFocused] = useState(false);
@@ -141,7 +210,9 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
     if (!recentLocations.length) return [];
     if (searchText.trim().length === 0) return recentLocations.slice(0, 5);
     const lower = searchText.toLowerCase();
-    return recentLocations.filter((r) => r.label.toLowerCase().includes(lower)).slice(0, 3);
+    return recentLocations
+      .filter((r) => r.label.toLowerCase().includes(lower))
+      .slice(0, 3);
   }, [recentLocations, searchText]);
 
   // ── Derived colours ───────────────────────────────────────────────────────
@@ -161,7 +232,20 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
   // ── Seed search text whenever the picker opens ────────────────────────────
   useEffect(() => {
     if (!visible) return;
-    const startCoords = initial ?? { latitude: DEFAULT_REGION.latitude, longitude: DEFAULT_REGION.longitude };
+    const autocompleteRequests = autocompleteRequest;
+    const reverseRequests = reverseRequest;
+    const resolutionRequests = resolutionRequest;
+    const startCoords = initial ?? {
+      latitude: DEFAULT_REGION.latitude,
+      longitude: DEFAULT_REGION.longitude,
+    };
+    lastPin.current = startCoords;
+    setPinChosen(!!initial);
+    setQueryDirty(false);
+    setResolving(false);
+    setLocationError(null);
+    setPinAddress(initialAddress ?? "");
+    setSearchText(initialAddress ?? "");
     setPin(startCoords);
     setSuggestions([]);
     setInputFocused(false);
@@ -169,84 +253,122 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
     if (initial) {
       Location.reverseGeocodeAsync(initial)
         .then((results) => {
-          if (!mounted.current) return;
+          if (!mounted.current || !visibleRef.current || userTyping.current)
+            return;
           const addr = results[0] ? buildAddressFromGeocode(results[0]) : "";
-          setPinAddress(addr);
-          setSearchText(addr);
+          setPinAddress(initialAddress || addr);
+          setSearchText(initialAddress || addr);
         })
         .catch(() => {});
     } else {
-      setPinAddress("");
-      setSearchText("");
+      setPinAddress(initialAddress ?? "");
+      setSearchText(initialAddress ?? "");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+    return () => {
+      autocompleteRequests.current++;
+      reverseRequests.current++;
+      resolutionRequests.current++;
+      if (searchDebounce.current) clearTimeout(searchDebounce.current);
+      if (reverseDebounce.current) clearTimeout(reverseDebounce.current);
+    };
+  }, [visible, initial, initialAddress]);
 
   // ── Google Places Autocomplete (with Geocoding fallback) ───────────────────
-  const fetchAutocomplete = useCallback(async (input: string) => {
-    if (input.trim().length < 2) {
-      setSuggestions([]);
-      return;
-    }
-    // Google Places/Geocoding autocomplete needs an API key. Without one
-    // (e.g. EXPO_PUBLIC_GOOGLE_MAPS_API_KEY unset in dev) skip the doomed
-    // requests — the user can still type a full address and press "search",
-    // which resolves via the OS geocoder (see handleSubmitSearch).
-    if (!GOOGLE_MAPS_API_KEY) {
-      setSuggestions([]);
-      return;
-    }
-    setSearchLoading(true);
-    const lang = i18n.language ?? "en";
-    let results: Prediction[] = [];
-
-    // 1) Try Google Places Autocomplete
-    try {
-      const bias = `&location=${pin.latitude},${pin.longitude}&radius=50000`;
-      const url =
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
-        `?input=${encodeURIComponent(input)}${bias}&language=${lang}&key=${GOOGLE_MAPS_API_KEY}`;
-      const res = await fetch(url);
-      const json = await res.json() as { status: string; predictions: Prediction[] };
-      if (json.status === "OK" && json.predictions.length > 0) {
-        results = json.predictions;
+  const fetchAutocomplete = useCallback(
+    async (input: string) => {
+      const token = ++autocompleteRequest.current;
+      if (input.trim().length < 2) {
+        setSuggestions([]);
+        return;
       }
-    } catch { /* fall through to geocoding fallback */ }
+      // Google Places/Geocoding autocomplete needs an API key. Without one
+      // (e.g. EXPO_PUBLIC_GOOGLE_MAPS_API_KEY unset in dev) skip the doomed
+      // requests — the user can still type a full address and press "search",
+      // which resolves via the OS geocoder (see handleSubmitSearch).
+      if (!GOOGLE_MAPS_API_KEY) {
+        setSuggestions([]);
+        return;
+      }
+      setSearchLoading(true);
+      const lang = i18n.language ?? "en";
+      let results: Prediction[] = [];
 
-    // 2) Fallback: Google Geocoding API (returns fewer results but works with
-    //    API keys that don't have the Places API enabled).
-    if (results.length === 0) {
+      // 1) Try Google Places Autocomplete
       try {
+        const bias = `&location=${pin.latitude},${pin.longitude}&radius=50000`;
         const url =
-          `https://maps.googleapis.com/maps/api/geocode/json` +
-          `?address=${encodeURIComponent(input)}&language=${lang}&key=${GOOGLE_MAPS_API_KEY}`;
+          `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
+          `?input=${encodeURIComponent(
+            input
+          )}${bias}&language=${lang}&key=${GOOGLE_MAPS_API_KEY}`;
         const res = await fetch(url);
-        const json = await res.json() as {
+        const json = (await res.json()) as {
           status: string;
-          results: Array<{
-            place_id: string;
-            formatted_address: string;
-            geometry: { location: { lat: number; lng: number } };
-          }>;
+          predictions: Prediction[];
         };
-        if (json.status === "OK") {
-          results = json.results.slice(0, 5).map((r) => ({
-            place_id: r.place_id,
-            description: r.formatted_address,
-            coords: { latitude: r.geometry.location.lat, longitude: r.geometry.location.lng },
-          }));
+        if (json.status === "OK" && json.predictions.length > 0) {
+          results = json.predictions;
         }
-      } catch { /* leave results empty */ }
-    }
+      } catch {
+        /* fall through to geocoding fallback */
+      }
 
-    if (mounted.current) {
-      setSuggestions(results);
-      setSearchLoading(false);
-    }
-  }, [pin]);
+      // 2) Fallback: Google Geocoding API (returns fewer results but works with
+      //    API keys that don't have the Places API enabled).
+      if (results.length === 0) {
+        try {
+          const url =
+            `https://maps.googleapis.com/maps/api/geocode/json` +
+            `?address=${encodeURIComponent(
+              input
+            )}&language=${lang}&key=${GOOGLE_MAPS_API_KEY}`;
+          const res = await fetch(url);
+          const json = (await res.json()) as {
+            status: string;
+            results: {
+              place_id: string;
+              formatted_address: string;
+              geometry: { location: { lat: number; lng: number } };
+            }[];
+          };
+          if (json.status === "OK") {
+            results = json.results.slice(0, 5).map((r) => ({
+              place_id: r.place_id,
+              description: r.formatted_address,
+              coords: {
+                latitude: r.geometry.location.lat,
+                longitude: r.geometry.location.lng,
+              },
+            }));
+          }
+        } catch {
+          /* leave results empty */
+        }
+      }
+
+      if (
+        mounted.current &&
+        visibleRef.current &&
+        token === autocompleteRequest.current
+      ) {
+        setSuggestions(results);
+        setSearchLoading(false);
+      }
+    },
+    [pin]
+  );
 
   const handleSearchChange = (text: string) => {
     userTyping.current = true;
+    autocompleteRequest.current++;
+    reverseRequest.current++;
+    resolutionRequest.current++;
+    setSearchLoading(false);
+    setResolving(false);
+    setReverseGeocoding(false);
+    setQueryDirty(true);
+    setLocationError(null);
+    setPinAddress("");
     setSearchText(text);
     setSuggestions([]);
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
@@ -258,31 +380,46 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
   // Animate the map to coords and drop the pin there. Reused by every path that
   // resolves an address to a point, so the map and the saved address never diverge.
   const moveMapTo = useCallback((coords: LocationCoords) => {
+    lastPin.current = coords;
+    setPinChosen(true);
+    setQueryDirty(false);
+    setLocationError(null);
     setPin(coords);
     mapRef.current?.animateToRegion(
-      { ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 400,
+      { ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+      400
     );
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   // OS-level forward geocoding (Apple Maps on iOS / Android geocoder). Needs no
   // API key, so it works even when EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is unset.
-  const geocodeWithOS = useCallback(async (address: string): Promise<LocationCoords | null> => {
-    try {
-      const results = await Location.geocodeAsync(address);
-      if (results[0]) {
-        return { latitude: results[0].latitude, longitude: results[0].longitude };
+  const geocodeWithOS = useCallback(
+    async (address: string): Promise<LocationCoords | null> => {
+      try {
+        const results = await Location.geocodeAsync(address);
+        if (results[0]) {
+          return {
+            latitude: results[0].latitude,
+            longitude: results[0].longitude,
+          };
+        }
+      } catch {
+        /* ignore */
       }
-    } catch { /* ignore */ }
-    return null;
-  }, []);
+      return null;
+    },
+    []
+  );
 
   const handleSelectSuggestion = async (pred: Prediction) => {
+    const token = ++resolutionRequest.current;
+    setResolving(true);
+    setLocationError(null);
     userTyping.current = false;
     setSuggestions([]);
     setInputFocused(false);
     setSearchText(pred.description);
-    setPinAddress(pred.description);
     Keyboard.dismiss();
 
     // Resolve coords for the chosen prediction, in order of preference:
@@ -299,7 +436,7 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
           `https://maps.googleapis.com/maps/api/place/details/json` +
           `?place_id=${pred.place_id}&fields=geometry&key=${GOOGLE_MAPS_API_KEY}`;
         const res = await fetch(url);
-        const json = await res.json() as {
+        const json = (await res.json()) as {
           status: string;
           result?: { geometry?: { location?: { lat: number; lng: number } } };
         };
@@ -307,12 +444,27 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
           const loc = json.result.geometry.location;
           coords = { latitude: loc.lat, longitude: loc.lng };
         }
-      } catch { /* fall through to OS geocoder */ }
+      } catch {
+        /* fall through to OS geocoder */
+      }
     }
 
     if (!coords) coords = await geocodeWithOS(pred.description);
 
-    if (coords && mounted.current) moveMapTo(coords);
+    if (
+      mounted.current &&
+      visibleRef.current &&
+      token === resolutionRequest.current
+    ) {
+      if (coords) {
+        moveMapTo(coords);
+        setPinAddress(pred.description);
+      } else {
+        setQueryDirty(true);
+        setLocationError(t("uxHealth.addressUnresolved"));
+      }
+      setResolving(false);
+    }
   };
 
   // Keyboard "search" / Enter: geocode the typed address with the OS geocoder and
@@ -321,18 +473,43 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
   const handleSubmitSearch = async () => {
     const query = searchText.trim();
     if (query.length < 3) return;
+    const token = ++resolutionRequest.current;
+    setResolving(true);
+    setLocationError(null);
     userTyping.current = false;
     setSuggestions([]);
     Keyboard.dismiss();
     const coords = await geocodeWithOS(query);
-    if (coords && mounted.current) {
+    if (
+      coords &&
+      mounted.current &&
+      visibleRef.current &&
+      token === resolutionRequest.current
+    ) {
       setPinAddress(query);
       moveMapTo(coords);
+    } else if (
+      mounted.current &&
+      visibleRef.current &&
+      token === resolutionRequest.current
+    ) {
+      setQueryDirty(true);
+      setLocationError(t("uxHealth.addressUnresolved"));
     }
+    if (mounted.current && token === resolutionRequest.current)
+      setResolving(false);
   };
 
   // ── Select a recent location ─────────────────────────────────────────────
   const handleSelectRecent = (recent: RecentLocation) => {
+    resolutionRequest.current++;
+    reverseRequest.current++;
+    setResolving(false);
+    setReverseGeocoding(false);
+    lastPin.current = recent.coords;
+    setPinChosen(true);
+    setQueryDirty(false);
+    setLocationError(null);
     userTyping.current = false;
     setSuggestions([]);
     setInputFocused(false);
@@ -341,7 +518,8 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
     setPin(recent.coords);
     Keyboard.dismiss();
     mapRef.current?.animateToRegion(
-      { ...recent.coords, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 400,
+      { ...recent.coords, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+      400
     );
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -362,7 +540,21 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
 
   // ── Reverse-geocode on map drag (debounced, 700ms) ────────────────────────
   const handleRegionChangeComplete = (region: Region) => {
-    const coords: LocationCoords = { latitude: region.latitude, longitude: region.longitude };
+    const coords: LocationCoords = {
+      latitude: region.latitude,
+      longitude: region.longitude,
+    };
+    if (
+      Math.abs(coords.latitude - lastPin.current.latitude) < 0.00001 &&
+      Math.abs(coords.longitude - lastPin.current.longitude) < 0.00001
+    )
+      return;
+    lastPin.current = coords;
+    setPinChosen(true);
+    setPinAddress("");
+    setQueryDirty(userTyping.current);
+    if (!userTyping.current) setSearchText("");
+    const token = ++reverseRequest.current;
     setPin(coords);
     if (reverseDebounce.current) clearTimeout(reverseDebounce.current);
     reverseDebounce.current = setTimeout(async () => {
@@ -370,12 +562,23 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
       setReverseGeocoding(true);
       try {
         const results = await Location.reverseGeocodeAsync(coords);
-        if (!mounted.current || userTyping.current) return;
+        if (
+          !mounted.current ||
+          !visibleRef.current ||
+          userTyping.current ||
+          token !== reverseRequest.current
+        )
+          return;
         const addr = results[0] ? buildAddressFromGeocode(results[0]) : "";
         setPinAddress(addr);
         setSearchText(addr);
-      } catch { /* leave text unchanged */ }
-      finally { if (mounted.current) setReverseGeocoding(false); }
+      } catch {
+        if (mounted.current && token === reverseRequest.current)
+          setLocationError(t("uxHealth.addressChanged"));
+      } finally {
+        if (mounted.current && token === reverseRequest.current)
+          setReverseGeocoding(false);
+      }
     }, 700);
   };
 
@@ -385,22 +588,48 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(t("appointments.locationPermTitle"), t("appointments.locationPermDenied"));
+        Alert.alert(
+          t("appointments.locationPermTitle"),
+          t("appointments.locationPermDenied")
+        );
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const coords: LocationCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const coords: LocationCoords = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      };
+      if (!mounted.current || !visibleRef.current) return;
+      lastPin.current = coords;
+      setPinChosen(true);
+      setQueryDirty(false);
+      setPinAddress("");
+      setSearchText("");
       setPin(coords);
-      mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 }, 500);
+      mapRef.current?.animateToRegion(
+        { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 },
+        500
+      );
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const results = await Location.reverseGeocodeAsync(coords);
-      if (mounted.current && results[0]) {
+      if (
+        mounted.current &&
+        visibleRef.current &&
+        !userTyping.current &&
+        results[0]
+      ) {
         const addr = buildAddressFromGeocode(results[0]);
         setPinAddress(addr);
         setSearchText(addr);
       }
     } catch {
-      Alert.alert(t("appointments.locationPermTitle"), t("appointments.locationPermDenied"));
+      if (mounted.current && visibleRef.current)
+        Alert.alert(
+          t("appointments.locationPickerTitle"),
+          t("uxHealth.locatingError")
+        );
     } finally {
       if (mounted.current) setLocating(false);
     }
@@ -408,8 +637,12 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
 
   // ── Confirm (fully synchronous — no async crash risk) ─────────────────────
   const handleConfirm = () => {
+    if (!pinChosen || queryDirty || resolving || reverseGeocoding || locating) {
+      setLocationError(t("uxHealth.addressPending"));
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const finalAddress = pinAddress.trim() || searchText.trim() || undefined;
+    const finalAddress = pinAddress.trim() || undefined;
     onConfirm(pin, finalAddress);
     onClose();
   };
@@ -424,11 +657,10 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
       onRequestClose={onClose}
     >
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-
         {/* ── Header ──────────────────────────────────────── */}
         <View
           style={{
-            paddingTop: Platform.OS === "ios" ? 56 : 48,
+            paddingTop: Math.max(insets.top, 16),
             paddingHorizontal: 16,
             paddingBottom: 10,
             backgroundColor: colors.background,
@@ -440,16 +672,30 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
           {/* Title row */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
               onPress={onClose}
               style={{
-                padding: 8, borderRadius: 12,
+                minWidth: 48,
+                minHeight: 48,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 12,
                 backgroundColor: colors.card,
-                borderWidth: 1, borderColor: colors.border,
+                borderWidth: 1,
+                borderColor: colors.border,
               }}
             >
               <Ionicons name="close" size={20} color={colors.text} />
             </TouchableOpacity>
-            <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16, flex: 1 }}>
+            <Text
+              style={{
+                color: colors.text,
+                fontWeight: "900",
+                fontSize: 16,
+                flex: 1,
+              }}
+            >
               {t("appointments.locationPickerTitle")}
             </Text>
           </View>
@@ -469,25 +715,46 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
           >
             <Ionicons name="search-outline" size={18} color={colors.muted} />
             <TextInput
+              accessibilityLabel={t("appointments.locationSearchPlaceholder")}
               value={searchText}
               onChangeText={handleSearchChange}
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
               placeholder={t("appointments.locationSearchPlaceholder")}
               placeholderTextColor={colors.muted}
-              style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 11 }}
+              style={{
+                flex: 1,
+                color: colors.text,
+                fontSize: 15,
+                paddingVertical: 11,
+              }}
               returnKeyType="search"
               onSubmitEditing={handleSubmitSearch}
               autoCorrect={false}
             />
-            {searchLoading && <ActivityIndicator size="small" color="#4f9cff" />}
+            {searchLoading && (
+              <ActivityIndicator size="small" color="#4f9cff" />
+            )}
             {!searchLoading && searchText.length > 0 && (
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("common.clear", {
+                  defaultValue: t("common.close"),
+                })}
                 onPress={() => {
                   userTyping.current = false;
                   setSearchText("");
                   setPinAddress("");
                   setSuggestions([]);
+                  setQueryDirty(false);
+                  setLocationError(null);
+                  autocompleteRequest.current++;
+                }}
+                style={{
+                  minWidth: 48,
+                  minHeight: 48,
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 <Ionicons name="close-circle" size={18} color={colors.muted} />
@@ -500,17 +767,35 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
         <View style={{ flex: 1 }}>
           <MapErrorBoundary
             fallback={
-              <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 }}>
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 32,
+                  gap: 12,
+                }}
+              >
                 <Ionicons name="map-outline" size={48} color={colors.muted} />
-                <Text style={{ color: colors.text, fontWeight: "700", fontSize: 16, textAlign: "center" }}>
-                  Google Maps API key required
+                <Text
+                  style={{
+                    color: colors.text,
+                    fontWeight: "700",
+                    fontSize: 16,
+                    textAlign: "center",
+                  }}
+                >
+                  {t("uxHealth.mapUnavailable")}
                 </Text>
-                <Text style={{ color: colors.muted, fontSize: 13, textAlign: "center", lineHeight: 20 }}>
-                  Set the key in{" "}
-                  <Text style={{ fontWeight: "700" }}>src/config.ts</Text>
-                  {" "}and{" "}
-                  <Text style={{ fontWeight: "700" }}>android/.../strings.xml</Text>.
-                  Enable "Maps SDK for Android" + "Places API".
+                <Text
+                  style={{
+                    color: colors.muted,
+                    fontSize: 13,
+                    textAlign: "center",
+                    lineHeight: 20,
+                  }}
+                >
+                  {t("uxHealth.manualAddress")}
                 </Text>
               </View>
             }
@@ -537,8 +822,13 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
           <View
             pointerEvents="none"
             style={{
-              position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-              alignItems: "center", justifyContent: "center",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <View style={{ transform: [{ translateY: -20 }] }}>
@@ -546,8 +836,11 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
             </View>
             <View
               style={{
-                width: 10, height: 5, borderRadius: 5,
-                backgroundColor: "rgba(0,0,0,0.22)", marginTop: -4,
+                width: 10,
+                height: 5,
+                borderRadius: 5,
+                backgroundColor: "rgba(0,0,0,0.22)",
+                marginTop: -4,
               }}
             />
           </View>
@@ -557,10 +850,16 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
             <View
               pointerEvents="none"
               style={{
-                position: "absolute", top: 12, alignSelf: "center",
-                backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 20,
-                paddingHorizontal: 14, paddingVertical: 7,
-                flexDirection: "row", alignItems: "center", gap: 6,
+                position: "absolute",
+                top: 12,
+                alignSelf: "center",
+                backgroundColor: "rgba(0,0,0,0.55)",
+                borderRadius: 20,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
               }}
             >
               <ActivityIndicator size="small" color="#fff" />
@@ -571,16 +870,25 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
           )}
 
           {/* Autocomplete suggestions + recent locations overlay */}
-          {(suggestions.length > 0 || (inputFocused && filteredRecents.length > 0)) && (
+          {(suggestions.length > 0 ||
+            (inputFocused && filteredRecents.length > 0)) && (
             <View
               style={{
-                position: "absolute", top: 0, left: 12, right: 12,
+                position: "absolute",
+                top: 0,
+                left: 12,
+                right: 12,
                 backgroundColor: colors.card,
-                borderRadius: 14, borderWidth: 1, borderColor: colors.border,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: colors.border,
                 elevation: 8,
-                shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.18, shadowRadius: 8,
-                maxHeight: 300, overflow: "hidden",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.18,
+                shadowRadius: 8,
+                maxHeight: 300,
+                overflow: "hidden",
                 zIndex: 10,
               }}
             >
@@ -588,24 +896,49 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
                 {/* Recent locations */}
                 {inputFocused && filteredRecents.length > 0 && (
                   <>
-                    <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4 }}>
-                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    <View
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingTop: 10,
+                        paddingBottom: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: colors.muted,
+                          fontSize: 11,
+                          fontWeight: "700",
+                          textTransform: "uppercase",
+                          letterSpacing: 0.5,
+                        }}
+                      >
                         {t("appointments.recentLocations")}
                       </Text>
                     </View>
                     {filteredRecents.map((recent, i) => (
                       <TouchableOpacity
+                        accessibilityRole="button"
                         key={`recent-${i}`}
                         onPress={() => handleSelectRecent(recent)}
                         style={{
-                          flexDirection: "row", alignItems: "center",
-                          paddingHorizontal: 14, paddingVertical: 11, gap: 10,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingHorizontal: 14,
+                          paddingVertical: 11,
+                          gap: 10,
                           borderBottomWidth: 1,
                           borderBottomColor: colors.border,
                         }}
                       >
-                        <Ionicons name="time-outline" size={16} color={colors.muted} />
-                        <Text style={{ color: colors.text, fontSize: 14, flex: 1 }} numberOfLines={2}>
+                        <Ionicons
+                          name="time-outline"
+                          size={16}
+                          color={colors.muted}
+                        />
+                        <Text
+                          style={{ color: colors.text, fontSize: 14, flex: 1 }}
+                          numberOfLines={2}
+                        >
                           {recent.label}
                         </Text>
                       </TouchableOpacity>
@@ -615,17 +948,28 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
                 {/* Google Places suggestions */}
                 {suggestions.map((pred, i) => (
                   <TouchableOpacity
+                    accessibilityRole="button"
                     key={pred.place_id}
                     onPress={() => handleSelectSuggestion(pred)}
                     style={{
-                      flexDirection: "row", alignItems: "center",
-                      paddingHorizontal: 14, paddingVertical: 12, gap: 10,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      gap: 10,
                       borderBottomWidth: i < suggestions.length - 1 ? 1 : 0,
                       borderBottomColor: colors.border,
                     }}
                   >
-                    <Ionicons name="location-outline" size={16} color="#4f9cff" />
-                    <Text style={{ color: colors.text, fontSize: 14, flex: 1 }} numberOfLines={2}>
+                    <Ionicons
+                      name="location-outline"
+                      size={16}
+                      color="#4f9cff"
+                    />
+                    <Text
+                      style={{ color: colors.text, fontSize: 14, flex: 1 }}
+                      numberOfLines={2}
+                    >
                       {pred.description}
                     </Text>
                   </TouchableOpacity>
@@ -636,32 +980,55 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
 
           {/* Locate-me FAB */}
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("appointments.myLocation", {
+              defaultValue: t("appointments.locationPickerTitle"),
+            })}
             onPress={handleLocateMe}
             disabled={locating}
             style={{
-              position: "absolute", top: 16, right: 16,
-              backgroundColor: colors.card, borderRadius: 16, padding: 12,
-              elevation: 4, shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4,
-              borderWidth: 1, borderColor: colors.border,
+              position: "absolute",
+              top: 16,
+              right: 16,
+              backgroundColor: colors.card,
+              borderRadius: 16,
+              padding: 12,
+              elevation: 4,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 4,
+              borderWidth: 1,
+              borderColor: colors.border,
             }}
           >
-            {locating
-              ? <ActivityIndicator size="small" color="#4f9cff" />
-              : <Ionicons name="navigate" size={22} color="#4f9cff" />
-            }
+            {locating ? (
+              <ActivityIndicator size="small" color="#4f9cff" />
+            ) : (
+              <Ionicons name="navigate" size={22} color="#4f9cff" />
+            )}
           </TouchableOpacity>
 
           {/* Drag hint pill */}
           <View
             pointerEvents="none"
-            style={{ position: "absolute", bottom: 20, left: 0, right: 0, alignItems: "center" }}
+            style={{
+              position: "absolute",
+              bottom: 20,
+              left: 0,
+              right: 0,
+              alignItems: "center",
+            }}
           >
             <View
               style={{
-                backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 20,
-                paddingHorizontal: 14, paddingVertical: 7,
-                flexDirection: "row", alignItems: "center", gap: 6,
+                backgroundColor: "rgba(0,0,0,0.55)",
+                borderRadius: 20,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
               }}
             >
               <Ionicons name="move-outline" size={13} color="#fff" />
@@ -675,31 +1042,93 @@ export function LocationPickerModal({ visible, initial, recentLocations = [], on
         {/* ── Footer ──────────────────────────────────────── */}
         <View
           style={{
-            paddingHorizontal: 20, paddingTop: 14,
-            paddingBottom: Platform.OS === "ios" ? 36 : 20,
+            paddingHorizontal: 20,
+            paddingTop: 14,
+            paddingBottom: Math.max(insets.bottom, 16),
             backgroundColor: colors.background,
-            borderTopWidth: 1, borderTopColor: colors.border,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
             gap: 8,
           }}
         >
-          {(searchText || pinAddress) ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          {searchText || pinAddress ? (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
               <Ionicons name="location" size={13} color="#4f9cff" />
-              <Text style={{ color: colors.muted, fontSize: 12, flex: 1 }} numberOfLines={1}>
+              <Text
+                style={{ color: colors.muted, fontSize: 12, flex: 1 }}
+                numberOfLines={1}
+              >
                 {searchText || pinAddress}
               </Text>
             </View>
           ) : (
-            <Text style={{ color: colors.muted, fontSize: 12, textAlign: "center" }}>
+            <Text
+              style={{ color: colors.muted, fontSize: 12, textAlign: "center" }}
+            >
               {`${pin.latitude.toFixed(5)}, ${pin.longitude.toFixed(5)}`}
             </Text>
           )}
 
+          {locationError && (
+            <Text
+              accessibilityRole="alert"
+              style={{ color: theme.danger, fontSize: 14 }}
+            >
+              {locationError}
+            </Text>
+          )}
+          {(resolving || reverseGeocoding) && (
+            <ActivityIndicator color={theme.primary} />
+          )}
           <TouchableOpacity
+            accessibilityRole="button"
+            disabled={!searchText.trim() || resolving}
+            onPress={() => {
+              onConfirm(undefined, searchText.trim());
+              onClose();
+            }}
+            style={{
+              minHeight: 48,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: theme.primary, fontSize: 15 }}>
+              {t("uxHealth.addressOnly")}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled:
+                !pinChosen ||
+                queryDirty ||
+                resolving ||
+                reverseGeocoding ||
+                locating,
+            }}
+            disabled={
+              !pinChosen ||
+              queryDirty ||
+              resolving ||
+              reverseGeocoding ||
+              locating
+            }
             onPress={handleConfirm}
             style={{
-              backgroundColor: "#4f9cff", borderRadius: 16,
-              paddingVertical: 16, alignItems: "center",
+              backgroundColor:
+                !pinChosen ||
+                queryDirty ||
+                resolving ||
+                reverseGeocoding ||
+                locating
+                  ? colors.muted
+                  : theme.actionFill,
+              borderRadius: 16,
+              paddingVertical: 16,
+              alignItems: "center",
             }}
           >
             <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>

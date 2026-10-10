@@ -5,12 +5,21 @@ import {
   getActiveMedications,
   getAllActiveSchedules,
   getDoseLogsByDate,
+  getDoseLogsByDateRange,
+  reconcileActiveProfile,
   clearAllData,
   getActiveAppointments,
   getProfiles,
 } from "../db/database";
 import { today } from "../utils";
-import { cancelAllNotifications } from "../services/notifications";
+import { format, subDays } from "date-fns";
+import { saveSnoozedDoses } from "../services/snoozedDoses";
+import { applyWebTheme } from "../services/webTheme";
+import { getActiveProfileId } from "../services/profileStore";
+import {
+  cancelAllNotifications,
+  rebuildDoseNotifications,
+} from "../services/notifications";
 import { unregisterBackgroundFetch } from "../services/backgroundTask";
 import { STORAGE_KEYS } from "../config";
 import type { AppState, ThemeMode } from "./types";
@@ -27,6 +36,9 @@ export type { ThemeMode } from "./types";
 
 export const useAppStore = create<AppState>()((...a) => {
   const [set, get] = a;
+  let loadGeneration = 0;
+  let logGeneration = 0;
+  let resetting = false;
 
   return {
     // ── Spread slices ──────────────────────────────────────────────────
@@ -51,10 +63,14 @@ export const useAppStore = create<AppState>()((...a) => {
     // ── Theme ──────────────────────────────────────────────────────────
 
     loadThemeMode() {
-      const saved = storage.getString(STORAGE_KEYS.THEME_MODE) as ThemeMode | undefined;
+      const saved = storage.getString(STORAGE_KEYS.THEME_MODE) as
+        | ThemeMode
+        | undefined;
       const mode: ThemeMode = saved ?? "system";
       if (Platform.OS !== "web") {
         Appearance.setColorScheme(mode === "system" ? null : mode);
+      } else {
+        applyWebTheme(mode);
       }
       set({ themeMode: mode });
     },
@@ -62,6 +78,8 @@ export const useAppStore = create<AppState>()((...a) => {
     setThemeMode(mode) {
       if (Platform.OS !== "web") {
         Appearance.setColorScheme(mode === "system" ? null : mode);
+      } else {
+        applyWebTheme(mode);
       }
       storage.set(STORAGE_KEYS.THEME_MODE, mode);
       set({ themeMode: mode });
@@ -70,36 +88,113 @@ export const useAppStore = create<AppState>()((...a) => {
     // ── Load all data ─────────────────────────────────────────────────
 
     async loadAll() {
+      if (resetting) return;
+      const generation = ++loadGeneration;
+      ++logGeneration;
       set({ isLoading: true });
       try {
+        const activeProfileId = await reconcileActiveProfile();
+        if (generation !== loadGeneration) return;
+        if (activeProfileId !== get().activeProfileId) {
+          set({
+            activeProfileId,
+            medications: [],
+            schedules: [],
+            todayLogs: [],
+            appointments: [],
+            appointmentDocuments: [],
+            healthMeasurements: [],
+            dailyCheckins: [],
+            selectedAppointmentId: null,
+            pendingEditAppointmentId: null,
+          });
+        }
         const [meds, schedules, appointments, profiles] = await Promise.all([
           getActiveMedications(),
           getAllActiveSchedules(),
           getActiveAppointments(),
           getProfiles(),
         ]);
-        const logs = await getDoseLogsByDate(today());
-        set({ medications: meds, schedules, todayLogs: logs, appointments, profiles, isLoading: false });
+        const logs = await getDoseLogsByDateRange(
+          format(subDays(new Date(), 1), "yyyy-MM-dd"),
+          today()
+        );
+        if (
+          generation !== loadGeneration ||
+          getActiveProfileId() !== activeProfileId
+        )
+          return;
+        set({
+          activeProfileId,
+          medications: meds,
+          schedules,
+          todayLogs: logs,
+          appointments,
+          profiles,
+          isLoading: false,
+        });
       } catch (e) {
-        set({ isLoading: false });
+        if (generation === loadGeneration) set({ isLoading: false });
         throw e;
       }
     },
 
     async loadTodayLogs() {
-      const logs = await getDoseLogsByDate(today());
+      if (resetting) return;
+      const generation = ++logGeneration;
+      const profileId = getActiveProfileId();
+      const logs = await getDoseLogsByDateRange(
+        format(subDays(new Date(), 1), "yyyy-MM-dd"),
+        today()
+      );
+      if (generation !== logGeneration || getActiveProfileId() !== profileId)
+        return;
       set({ todayLogs: logs });
     },
 
     // ── Reset all data (dev / fresh start) ─────────────────────────────
 
     async resetAllData() {
-      await cancelAllNotifications();
-      await clearAllData();
-      await unregisterBackgroundFetch();
-      const [meds, schedules] = await Promise.all([getActiveMedications(), getAllActiveSchedules()]);
-      const logs = await getDoseLogsByDate(today());
-      set({ medications: meds, schedules, todayLogs: logs, appointments: [], appointmentDocuments: [], healthMeasurements: [], dailyCheckins: [], snoozedTimes: {} });
+      if (resetting) return;
+      resetting = true;
+      ++loadGeneration;
+      ++logGeneration;
+      set({ isLoading: true });
+      try {
+        try {
+          await cancelAllNotifications();
+          await clearAllData();
+        } catch (error) {
+          await rebuildDoseNotifications().catch(() => {});
+          throw error;
+        }
+        await unregisterBackgroundFetch();
+        saveSnoozedDoses({});
+        const activeProfileId = await reconcileActiveProfile();
+        const [meds, schedules, profiles] = await Promise.all([
+          getActiveMedications(),
+          getAllActiveSchedules(),
+          getProfiles(),
+        ]);
+        const logs = await getDoseLogsByDate(today());
+        set({
+          activeProfileId,
+          profiles,
+          medications: meds,
+          schedules,
+          todayLogs: logs,
+          appointments: [],
+          appointmentDocuments: [],
+          healthMeasurements: [],
+          dailyCheckins: [],
+          snoozedTimes: {},
+          selectedAppointmentId: null,
+          pendingEditAppointmentId: null,
+        });
+      } finally {
+        resetting = false;
+        set({ isLoading: false });
+      }
     },
   };
 });

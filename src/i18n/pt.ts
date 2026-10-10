@@ -9,6 +9,10 @@ const pt: TranslationShape = {
     edit: "Editar",
     add: "Adicionar",
     close: "Fechar",
+    back: "Voltar",
+    share: "Compartilhar",
+    clear: "Limpar",
+    saved: "Salvo",
     confirm: "Confirmar",
     yes: "Sim",
     no: "Não",
@@ -369,6 +373,7 @@ const pt: TranslationShape = {
 
   // ─── Consultas ───────────────────────────────────────────────────────────
   appointments: {
+    myLocation: "Usar minha localização",
     title: "Consultas",
     noAppointments: "Nenhuma consulta",
     noAppointmentsSubtitle: "Adicione sua próxima consulta médica tocando em +",
@@ -442,6 +447,7 @@ const pt: TranslationShape = {
   // ─── Health & measurements ─────────────────────────────────────────────────────
   health: {
     title: "Saúde",
+    addButton: "Adicionar medição",
     tabMeasurements: "Medições",
     tabDiary: "Diário",
     noMeasurements: "Nenhuma medição ainda",

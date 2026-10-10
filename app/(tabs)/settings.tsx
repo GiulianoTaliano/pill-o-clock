@@ -1,26 +1,68 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform, Linking, Switch } from "react-native";
-import { useToast } from "../../src/context/ToastContext";
-import * as Haptics from "expo-haptics";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  Linking,
+  Switch,
+  Modal,
+  AppState,
+  BackHandler,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect, useCallback } from "react";
-import { AppState as RNAppState } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
-import { useAppStore, ThemeMode } from "../../src/store";
-import { exportBackup, importBackup, BackupCancelledError, BackupFormatError, WrongPassphraseError } from "../../src/services/backup";
-import { PassphraseModal } from "../../components/PassphraseModal";
-import { generateAndShareReport } from "../../src/services/pdfReport";
-import { generateAndShareCaregiverSnapshot } from "../../src/services/caregiverSnapshot";
-import { generateAndShareFhirBundle } from "../../src/services/fhirExport";
-import { checkFullScreenIntentPermission, requestFullScreenIntentPermission, getAlarmSound, stopSoundPreview } from "expo-alarm";
-import type { AlarmSound } from "expo-alarm";
+import { useAppStore, type ThemeMode } from "../../src/store";
+import { useToast } from "../../src/context/ToastContext";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
+import {
+  exportBackup,
+  importBackup,
+  BackupCancelledError,
+  BackupFormatError,
+  BackupAttachmentError,
+  WrongPassphraseError,
+  type BackupPreview,
+  type ImportMode,
+} from "../../src/services/backup";
+import {
+  PassphraseModal,
+  type PassphraseResult,
+} from "../../components/PassphraseModal";
+import { ProfileModal } from "../../components/ProfileModal";
+import { ProfileChip } from "../../components/ProfileChip";
 import { AlarmSoundPicker } from "../../components/AlarmSoundPicker";
-import { SNOOZE_OPTIONS, getDefaultSnoozeMinutes, setDefaultSnoozeMinutes } from "../../src/services/snoozeSettings";
-import { getDrugRegionOverride, setDrugRegion } from "../../src/services/deviceCountry";
-import { refreshDoseReminderCategory, rebuildDoseNotifications } from "../../src/services/notifications";
+import { ReportPreparationModal } from "../../components/ReportPreparationModal";
+import {
+  requestFullScreenIntentPermission,
+  stopSoundPreview,
+} from "expo-alarm";
+import {
+  getReminderReadiness,
+  scheduleReminderTest,
+  type ReminderReadiness,
+} from "../../src/services/reminderReadiness";
+import {
+  setupNotifications,
+  openExactAlarmSettings,
+  refreshDoseReminderCategory,
+  rebuildDoseNotifications,
+} from "../../src/services/notifications";
+import {
+  SNOOZE_OPTIONS,
+  getDefaultSnoozeMinutes,
+  setDefaultSnoozeMinutes,
+} from "../../src/services/snoozeSettings";
+import {
+  getDrugRegionOverride,
+  setDrugRegion,
+} from "../../src/services/deviceCountry";
 import {
   isAppLockSupported,
   isAppLockEnabled,
@@ -35,401 +77,357 @@ import {
   setIosAlarmSound,
   type IosAlarmSound,
 } from "../../src/services/iosAlarmSound";
-import { isHealthSyncSupported, isHealthSyncEnabled, enableHealthSync, disableHealthSync } from "../../src/services/healthSync";
+import {
+  isHealthSyncSupported,
+  isHealthSyncEnabled,
+  enableHealthSync,
+  disableHealthSync,
+  getHealthSyncPermissionStatus,
+} from "../../src/services/healthSync";
 import { isTtsEnabled, setTtsEnabled } from "../../src/services/tts";
-import { ProfileModal } from "../../components/ProfileModal";
-import { MEDICATION_COLORS } from "../../src/utils";
+import { DEFAULT_PROFILE_ID } from "../../src/services/profileStore";
+import { storage } from "../../src/storage";
 import type { Profile } from "../../src/types";
 
-// ─── Sub-components ────────────────────────────────────────────────────────
+type Category =
+  | "reminders"
+  | "people"
+  | "data"
+  | "access"
+  | "language"
+  | "about";
+type Icon = React.ComponentProps<typeof Ionicons>["name"];
+const CATEGORIES: { id: Category; icon: Icon }[] = [
+  { id: "reminders", icon: "notifications-outline" },
+  { id: "people", icon: "people-outline" },
+  { id: "data", icon: "folder-open-outline" },
+  { id: "access", icon: "accessibility-outline" },
+  { id: "language", icon: "language-outline" },
+  { id: "about", icon: "information-circle-outline" },
+];
+const LAST_BACKUP = "@pilloclock/last_backup_prepared";
+const total = (counts: Record<string, number>) =>
+  Object.values(counts).reduce((sum, value) => sum + value, 0);
 
-function SectionHeader({ title, danger = false }: { title: string; danger?: boolean }) {
-  return (
-    <View className="px-5 pt-6 pb-1">
-      <Text
-        className="text-xs font-semibold uppercase tracking-widest text-muted"
-        style={danger ? { color: "#dc2626" } : undefined}
-      >
-        {title}
-      </Text>
-    </View>
-  );
-}
-
-function Divider() {
-  return <View className="h-px bg-border mx-5" />;
-}
-
-interface RowProps {
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  iconColor?: string;
-  title: string;
-  subtitle?: string;
-  value?: string;
-  onPress?: () => void;
-  loading?: boolean;
-  danger?: boolean;
-  chevron?: boolean;
-}
-
-function SettingRow({
-  icon,
-  iconColor,
+function Row({
   title,
   subtitle,
   value,
+  icon = "chevron-forward",
   onPress,
+  selected,
+  disabled = false,
   loading = false,
   danger = false,
-  chevron,
-}: RowProps) {
+}: {
+  title: string;
+  subtitle?: string;
+  value?: string;
+  icon?: Icon;
+  onPress?: () => void;
+  selected?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+  danger?: boolean;
+}) {
   const theme = useAppTheme();
-  const resolvedIconColor = iconColor ?? theme.primary;
-  const isInteractive = !!onPress;
-  const showChevron = chevron ?? (isInteractive && !value);
-
-  const inner = (
-    <View className="flex-row items-center px-5 py-4 bg-card" style={{ minHeight: 60 }}>
-      {/* icon pill */}
-      <View
-        className="w-11 h-11 rounded-xl items-center justify-center mr-4"
-        style={{ backgroundColor: resolvedIconColor + "18" }}
-      >
-        <Ionicons name={icon} size={20} color={resolvedIconColor} />
-      </View>
-
-      {/* text */}
-      <View className="flex-1">
-        <Text
-          className="text-sm font-semibold text-text"
-          style={danger ? { color: theme.danger } : undefined}
-        >
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text className="text-xs text-muted mt-0.5">{subtitle}</Text>
+  return (
+    <TouchableOpacity
+      accessibilityRole={selected === undefined ? "button" : "radio"}
+      accessibilityState={{
+        disabled: disabled || loading,
+        busy: loading,
+        ...(selected === undefined ? {} : { checked: selected }),
+      }}
+      accessibilityLabel={[title, subtitle, value].filter(Boolean).join(". ")}
+      disabled={disabled || loading || !onPress}
+      onPress={onPress}
+      className="bg-card rounded-2xl px-4 py-4 mb-2 border border-border"
+      style={{ minHeight: 60, opacity: disabled ? 0.6 : 1 }}
+    >
+      <View className="flex-row items-center gap-3">
+        <Ionicons
+          name={
+            selected === undefined
+              ? icon
+              : selected
+              ? "radio-button-on"
+              : "radio-button-off-outline"
+          }
+          size={22}
+          color={danger ? theme.danger : theme.primary}
+        />
+        <View className="flex-1">
+          <Text
+            className="text-base font-semibold text-text"
+            style={danger ? { color: theme.danger } : undefined}
+          >
+            {title}
+          </Text>
+          {subtitle && (
+            <Text className="text-sm text-muted leading-5 mt-1">
+              {subtitle}
+            </Text>
+          )}
+          {value && <Text className="text-sm text-primary mt-1">{value}</Text>}
+        </View>
+        {loading ? (
+          <ActivityIndicator color={theme.primary} />
+        ) : onPress && selected === undefined ? (
+          <Ionicons name="chevron-forward" size={18} color={theme.muted} />
         ) : null}
       </View>
-
-      {/* right side */}
-      {loading ? (
-        <ActivityIndicator size="small" color={theme.primary} />
-      ) : value ? (
-        <Text className="text-sm text-muted">{value}</Text>
-      ) : showChevron ? (
-        <Ionicons name="chevron-forward" size={16} color={theme.muted} />
-      ) : null}
-    </View>
-  );
-
-  if (!isInteractive) return inner;
-
-  return (
-    <TouchableOpacity onPress={onPress} disabled={loading} activeOpacity={0.7}>
-      {inner}
     </TouchableOpacity>
   );
 }
-
-// ─── Screen ────────────────────────────────────────────────────────────────
+function Note({
+  children,
+  danger = false,
+}: {
+  children: React.ReactNode;
+  danger?: boolean;
+}) {
+  return (
+    <Text
+      className="text-sm leading-6 mb-4 text-muted"
+      style={danger ? { color: "#b42336" } : undefined}
+    >
+      {children}
+    </Text>
+  );
+}
+function Heading({ children }: { children: React.ReactNode }) {
+  return (
+    <Text
+      accessibilityRole="header"
+      className="text-base font-bold text-text mt-5 mb-3"
+    >
+      {children}
+    </Text>
+  );
+}
+function Toggle({
+  title,
+  subtitle,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  title: string;
+  subtitle?: string;
+  value: boolean;
+  onChange: (on: boolean) => void;
+  disabled?: boolean;
+}) {
+  const theme = useAppTheme();
+  return (
+    <View className="flex-row items-center bg-card border border-border rounded-2xl px-4 py-4 mb-2 gap-3">
+      <View className="flex-1">
+        <Text className="text-base font-semibold text-text">{title}</Text>
+        {subtitle && (
+          <Text className="text-sm text-muted leading-5 mt-1">{subtitle}</Text>
+        )}
+      </View>
+      <Switch
+        accessibilityLabel={title}
+        accessibilityHint={subtitle}
+        accessibilityState={{ disabled }}
+        value={value}
+        onValueChange={onChange}
+        disabled={disabled}
+        trackColor={{ true: theme.actionFill }}
+      />
+    </View>
+  );
+}
 
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const theme = useAppTheme();
-  const resetAllData = useAppStore((s) => s.resetAllData);
-  const loadAll = useAppStore((s) => s.loadAll);
-  const themeMode = useAppStore((s) => s.themeMode);
-  const setThemeMode = useAppStore((s) => s.setThemeMode);
-  const seniorMode = useAppStore((s) => s.seniorMode);
-  const setSeniorMode = useAppStore((s) => s.setSeniorMode);
-
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [generatingPdf, setGeneratingPdf] = useState(false);
-  const [generatingSnapshot, setGeneratingSnapshot] = useState(false);
-  const [exportingFhir, setExportingFhir] = useState(false);
-  const [ttsOn, setTtsOn] = useState(isTtsEnabled);
-  // Passphrase prompt (F3 encrypted backup): promise resolved by the modal.
+  const { showToast } = useToast();
+  const store = useAppStore();
+  const [category, setCategory] = useState<Category | null>(null);
+  const [reportKind, setReportKind] = useState<
+    "report" | "caregiver" | "fhir" | null
+  >(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<ReminderReadiness | null>(null);
+  const [profileModal, setProfileModal] = useState<"new" | Profile | null>(
+    null
+  );
+  const createdProfile = useRef<Profile | null>(null);
   const [passModal, setPassModal] = useState<{
     mode: "set" | "enter";
-    resolve: (pass: string | null) => void;
+    resolve: (r: PassphraseResult) => void;
   } | null>(null);
-  const promptPassphrase = (mode: "set" | "enter") =>
-    new Promise<string | null>((resolve) => setPassModal({ mode, resolve }));
-  const { showToast } = useToast();
-
-  // Multi-profile (F2)
-  const profiles = useAppStore((s) => s.profiles);
-  const activeProfileId = useAppStore((s) => s.activeProfileId);
-  const switchProfile = useAppStore((s) => s.switchProfile);
-  const addProfile = useAppStore((s) => s.addProfile);
-  const renameProfile = useAppStore((s) => s.renameProfile);
-  const removeProfile = useAppStore((s) => s.removeProfile);
-  const loadProfiles = useAppStore((s) => s.loadProfiles);
-  /** null = closed; "new" = create mode; otherwise the profile being edited. */
-  const [profileModal, setProfileModal] = useState<"new" | Profile | null>(null);
-
-  useEffect(() => {
-    loadProfiles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const profileDisplayName = (p: Profile) => p.name || t("profiles.me");
-
-  async function handleProfileSave(name: string, color: string, contact: { name: string; phone: string }) {
-    const editing = profileModal;
-    setProfileModal(null);
-    if (editing === "new") {
-      const p = await addProfile(name, color);
-      if (contact.name || contact.phone) {
-        await renameProfile(p.id, name, color, contact);
-      }
-      await switchProfile(p.id);
-      showToast(t("profiles.switchedTo", { name: name || t("profiles.me") }), "success");
-    } else if (editing) {
-      await renameProfile(editing.id, name, color, contact);
-    }
-  }
-
-  async function handleProfileDelete(id: string) {
-    setProfileModal(null);
-    await removeProfile(id);
-    showToast(t("profiles.deleted"), "success");
-  }
-
-  // Full-screen intent permission (Android 14+ only)
-  const [hasFullScreenPerm, setHasFullScreenPerm] = useState<boolean | null>(null);
-
-  // Alarm sound selection (Android only)
-  const [alarmSoundExpanded, setAlarmSoundExpanded] = useState(false);
-  const [currentSoundTitle, setCurrentSoundTitle] = useState<string>("");
-
-  // Default snooze interval (F1: configurable snooze)
-  const [snoozeMinutes, setSnoozeMinutesState] = useState(getDefaultSnoozeMinutes);
-
-  const handleSnoozeMinutes = (min: number) => {
-    if (min === snoozeMinutes) return;
-    Haptics.selectionAsync();
-    setSnoozeMinutesState(min);
-    setDefaultSnoozeMinutes(min);
-    // Fire-and-forget: refresh the notification quick-action label so the
-    // ⏰ button shows the new interval on future reminders.
-    refreshDoseReminderCategory().catch(() => {});
-  };
-
-  // Alarm sound (iOS). Android uses the native ringtone picker instead.
+  const [importPreview, setImportPreview] = useState<{
+    preview: BackupPreview;
+    resolve: (mode: ImportMode | null) => void;
+  } | null>(null);
+  const pendingPass = useRef<((r: PassphraseResult) => void) | null>(null);
+  const pendingImport = useRef<((mode: ImportMode | null) => void) | null>(
+    null
+  );
+  const [lastBackup, setLastBackup] = useState(() =>
+    storage.getString(LAST_BACKUP)
+  );
+  const [snooze, setSnooze] = useState(getDefaultSnoozeMinutes);
   const [iosSound, setIosSound] = useState<IosAlarmSound>(getIosAlarmSound);
-
-  const handleIosSoundChange = async (sound: IosAlarmSound) => {
-    if (sound === iosSound) return;
-    Haptics.selectionAsync();
-    setIosSound(sound);
-    setIosAlarmSound(sound);
-    // Queued notifications carry the old sound baked in, so they must be
-    // rebuilt for the change to take effect on doses already scheduled.
-    try {
-      await rebuildDoseNotifications();
-      showToast(t("settings.iosSoundChanged"), "success");
-    } catch {
-      showToast(t("common.error"), "error");
+  const [lockOn, setLockOn] = useState(isAppLockEnabled);
+  const [secured, setSecured] = useState(true);
+  const [healthOn, setHealthOn] = useState(isHealthSyncEnabled);
+  const [healthStatus, setHealthStatus] = useState("off");
+  const [ttsOn, setTtsOn] = useState(isTtsEnabled);
+  const [region, setRegion] = useState<string | null>(getDrugRegionOverride);
+  const active = store.profiles.find((p) => p.id === store.activeProfileId);
+  const person = active?.name || t("profiles.me");
+  const unavailable = busy !== null;
+  const refresh = useCallback(async () => {
+    setReadiness(await getReminderReadiness());
+    setHealthOn(isHealthSyncEnabled());
+    setHealthStatus(await getHealthSyncPermissionStatus());
+    if (isAppLockSupported()) {
+      try {
+        setSecured(await isDeviceSecuredAsync());
+      } catch {
+        setSecured(false);
+      }
     }
-  };
-
-  // App lock — authentication is delegated to the OS (biometrics + device
-  // passcode); the app has no PIN of its own.
-  const [appLockOn, setAppLockOn] = useState(isAppLockEnabled);
-  const [deviceSecured, setDeviceSecured] = useState(true);
-
-  useEffect(() => {
-    if (!isAppLockSupported()) return;
-    isDeviceSecuredAsync().then(setDeviceSecured).catch(() => setDeviceSecured(false));
   }, []);
-
-  const handleAppLockToggle = async (on: boolean) => {
-    Haptics.selectionAsync();
-    if (!on) {
-      // Turning the lock OFF requires authenticating, so a passerby holding an
-      // already-unlocked phone can't quietly remove the protection.
-      if (!(await authenticateAsync(t("appLock.biometricPrompt")))) return;
-      await disableAppLock();
-      setAppLockOn(false);
-      showToast(t("appLock.disabledToast"), "success");
-      return;
-    }
-    try {
-      // Authenticate BEFORE enabling: this proves the device credential
-      // actually works, so the user can't lock their medication data behind an
-      // unlock they are unable to pass.
-      if (!(await authenticateAsync(t("appLock.biometricPrompt")))) return;
-      await enableAppLock();
-      setAppLockOn(true);
-      showToast(t("appLock.enabledToast"), "success");
-    } catch {
-      // The only expected failure is a device with no screen lock enrolled.
-      setDeviceSecured(false);
-      showToast(t("appLock.deviceNotSecured"), "error");
-    }
-  };
-
-  // Health Connect sync (F2)
-  const [healthSyncOn, setHealthSyncOn] = useState(isHealthSyncEnabled);
-
-  const handleHealthSyncToggle = async (on: boolean) => {
-    Haptics.selectionAsync();
-    if (!on) {
-      disableHealthSync();
-      setHealthSyncOn(false);
-      return;
-    }
-    // Optimistic flip while the permission sheet is up; revert on refusal.
-    setHealthSyncOn(true);
-    const granted = await enableHealthSync();
-    if (!granted) {
-      setHealthSyncOn(false);
-      showToast(t("settings.healthSyncDenied"), "error");
-    } else {
-      showToast(t("settings.healthSyncEnabled"), "success");
-    }
-  };
-
   useFocusEffect(
     useCallback(() => {
-      if (Platform.OS !== "android") return;
-
-      // Check on mount/focus
-      checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => setHasFullScreenPerm(true));
-
-      // Load current alarm sound name
-      getAlarmSound()
-        .then((s) => setCurrentSoundTitle(s.title || ""))
-        .catch(() => {});
-
-      // Re-check when the user returns from system Settings
-      const sub = RNAppState.addEventListener("change", (nextState) => {
-        if (nextState === "active") {
-          checkFullScreenIntentPermission().then(setHasFullScreenPerm).catch(() => {});
-        }
+      void refresh();
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "active") void refresh();
       });
-
       return () => {
         sub.remove();
-        // Stop any sound preview when leaving settings
-        stopSoundPreview().catch(() => {});
+        void stopSoundPreview().catch(() => {});
       };
-    }, [])
+    }, [refresh])
   );
-
-  // ─── Handlers ──────────────────────────────────────────────────────────
-
-  async function handleFullScreenPermission() {
-    Haptics.selectionAsync();
-    await requestFullScreenIntentPermission();
-  }
-
-  function handleToggleAlarmSound() {
-    Haptics.selectionAsync();
-    if (alarmSoundExpanded) {
-      stopSoundPreview().catch(() => {});
-    }
-    setAlarmSoundExpanded((prev) => !prev);
-  }
-
-  function handleSoundChange(sound: AlarmSound) {
-    setCurrentSoundTitle(sound.title || "");
-  }
-
-  async function handleExport() {
-    // Optional passphrase (F3): skip = plain JSON, exactly as before.
-    const passphrase = await promptPassphrase("set");
-    setExporting(true);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!category) return false;
+      setCategory(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [category]);
+  useEffect(
+    () => () => {
+      pendingPass.current?.({ kind: "cancel" });
+      pendingImport.current?.(null);
+    },
+    []
+  );
+  const run = async (key: string, work: () => Promise<unknown>) => {
+    if (busy) return;
+    setBusy(key);
     try {
-      await exportBackup(passphrase ?? undefined);
-      showToast(t("settings.exportSuccess"), "success");
-    } catch (e) {
-      if (e instanceof BackupCancelledError) return;
-      showToast(t("settings.exportErrorGeneric"), "error");
+      await work();
+    } catch {
+      showToast(t("uxSettings.operationError"), "error");
     } finally {
-      setExporting(false);
+      setBusy(null);
     }
-  }
-
-  function handleImport() {
-    Alert.alert(
-      t("settings.importModeTitle"),
-      t("settings.importModeMessage"),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("settings.importModeMerge"),
-          onPress: () => runImport("merge"),
-        },
-        {
-          text: t("settings.importModeReplace"),
-          style: "destructive",
-          onPress: () => runImport("replace"),
-        },
-      ]
-    );
-  }
-
-  async function runImport(mode: "replace" | "merge") {
-    setImporting(true);
-    try {
-      const { count } = await importBackup(mode, () => promptPassphrase("enter"));
-      await loadAll();
-      showToast(t("settings.importSuccessMsg", { count }), "success");
-    } catch (e) {
-      if (e instanceof BackupCancelledError) return;
-      const msg =
-        e instanceof WrongPassphraseError
-          ? t("backupCrypto.wrongPassphrase")
-          : e instanceof BackupFormatError
-            ? t("settings.importErrorFormat")
-            : t("settings.importErrorGeneric");
-      showToast(msg, "error");
-    } finally {
-      setImporting(false);
-    }
-  }
-
-  async function handleGeneratePdf() {
-    setGeneratingPdf(true);
-    try {
-      await generateAndShareReport();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
-    } finally {
-      setGeneratingPdf(false);
-    }
-  }
-
-  async function handleFhirExport() {
-    setExportingFhir(true);
-    try {
-      await generateAndShareFhirBundle();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
-    } finally {
-      setExportingFhir(false);
-    }
-  }
-
-  async function handleCaregiverSnapshot() {
-    setGeneratingSnapshot(true);
-    try {
-      await generateAndShareCaregiverSnapshot();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert(t("report.errorTitle"), msg || t("report.errorMsg"));
-    } finally {
-      setGeneratingSnapshot(false);
-    }
-  }
-
-  function handleClearData() {
+  };
+  const promptPass = (mode: "set" | "enter") =>
+    new Promise<PassphraseResult>((resolve) => {
+      pendingPass.current = resolve;
+      setPassModal({ mode, resolve });
+    });
+  const finishPass = (result: PassphraseResult) => {
+    passModal?.resolve(result);
+    pendingPass.current = null;
+    setPassModal(null);
+  };
+  const finishImport = (mode: ImportMode | null) => {
+    importPreview?.resolve(mode);
+    pendingImport.current = null;
+    setImportPreview(null);
+  };
+  const exportData = () =>
+    run("export", async () => {
+      const result = await promptPass("set");
+      if (result.kind === "cancel") return;
+      try {
+        const { missingAttachments } = await exportBackup(
+          result.kind === "passphrase" ? result.passphrase : undefined
+        );
+        const stamp = new Date().toISOString();
+        storage.set(LAST_BACKUP, stamp);
+        setLastBackup(stamp);
+        if (missingAttachments > 0)
+          showToast(
+            t("uxSettings.exportPartial", { count: missingAttachments }),
+            "info"
+          );
+        else showToast(t("uxSettings.exportDone"), "success");
+      } catch (error) {
+        if (error instanceof BackupCancelledError) return;
+        showToast(
+          t(
+            error instanceof BackupAttachmentError
+              ? "uxSettings.attachmentMissing"
+              : "settings.exportErrorGeneric"
+          ),
+          "error"
+        );
+      }
+    });
+  const importData = () =>
+    run("import", async () => {
+      try {
+        const result = await importBackup(
+          "merge",
+          async () => {
+            const result = await promptPass("enter");
+            return result.kind === "passphrase" ? result.passphrase : null;
+          },
+          (preview) =>
+            new Promise((resolve) => {
+              pendingImport.current = resolve;
+              setImportPreview({ preview, resolve });
+            })
+        );
+        await store.loadAll();
+        await Promise.all([
+          store.loadHealthMeasurements(),
+          store.loadDailyCheckins(),
+        ]);
+        showToast(
+          t("uxSettings.importDone", {
+            inserted: total(result.inserted),
+            skipped: total(result.skipped),
+          }),
+          "success"
+        );
+        if (result.reminderErrors)
+          showToast(t("uxSettings.reminderWarning"), "info");
+        if (result.missingAttachments)
+          Alert.alert(
+            t("uxSettings.preview"),
+            t("uxSettings.legacyAttachments", {
+              count: result.missingAttachments,
+            })
+          );
+      } catch (error) {
+        if (error instanceof BackupCancelledError) return;
+        showToast(
+          t(
+            error instanceof WrongPassphraseError
+              ? "backupCrypto.wrongPassphrase"
+              : error instanceof BackupFormatError
+              ? "settings.importErrorFormat"
+              : "settings.importErrorGeneric"
+          ),
+          "error"
+        );
+      }
+    });
+  const clear = () =>
     Alert.alert(
       t("settings.clearDataConfirmTitle"),
       t("settings.clearDataConfirmMsg"),
@@ -438,8 +436,7 @@ export default function SettingsScreen() {
         {
           text: t("settings.clearDataConfirmButton"),
           style: "destructive",
-          onPress: () => {
-            // Second confirmation to prevent accidental data loss
+          onPress: () =>
             Alert.alert(
               t("settings.clearDataFinalTitle"),
               t("settings.clearDataFinalMsg"),
@@ -448,480 +445,620 @@ export default function SettingsScreen() {
                 {
                   text: t("settings.clearDataFinalButton"),
                   style: "destructive",
-                  onPress: async () => {
-                    await resetAllData();
-                    await loadAll();
+                  onPress: () => {
+                    void run("reset", async () => {
+                      await store.resetAllData();
+                      await store.loadAll();
+                      showToast(t("uxSettings.dataReset"), "success");
+                    });
                   },
                 },
               ]
-            );
-          },
+            ),
         },
       ]
     );
-  }
-
-  function handleLanguage(lang: "es" | "en" | "pt") {
-    Haptics.selectionAsync();
-    changeLanguage(lang);
-  }
-
-  // Drug-data region: null = "Automatic" (use the device region). An explicit
-  // choice fixes the catalog + barcode scanner for people whose device region
-  // isn't set to where they actually get their medication (e.g. es-419, which
-  // carries no region).
-  const [drugRegion, setDrugRegionState] = useState<string | null>(getDrugRegionOverride());
-  function handleDrugRegion(region: string | null) {
-    Haptics.selectionAsync();
-    setDrugRegion(region);
-    setDrugRegionState(region);
-  }
-
-  function handleTheme(mode: ThemeMode) {
-    Haptics.selectionAsync();
-    setThemeMode(mode);
-  }
-
-  const currentLang = i18n.language.startsWith("es") ? "es" : i18n.language.startsWith("pt") ? "pt" : "en";
-  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
-
-  // ─── Render ────────────────────────────────────────────────────────────
-
+  const saveProfile = async (
+    name: string,
+    color: string,
+    contact: { name: string; phone: string }
+  ) => {
+    if (profileModal === "new") {
+      const p =
+        createdProfile.current ??
+        (await store.addProfile(name, color, contact));
+      if (createdProfile.current)
+        await store.renameProfile(p.id, name, color, contact);
+      createdProfile.current = p;
+      await store.switchProfile(p.id);
+    } else if (profileModal)
+      await store.renameProfile(profileModal.id, name, color, contact);
+  };
+  const lang = i18n.language.startsWith("es")
+    ? "es"
+    : i18n.language.startsWith("pt")
+    ? "pt"
+    : "en";
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Header */}
-        <View className="px-5 pt-4 pb-2">
-          <Text className="text-2xl font-bold text-text">{t("settings.title")}</Text>
+      <ScrollView
+        key={category ?? "root"}
+        contentContainerStyle={{ padding: 20, paddingBottom: 44 }}
+        showsVerticalScrollIndicator
+      >
+        {category && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => setCategory(null)}
+            className="flex-row items-center min-h-[48px] mb-1 gap-2"
+          >
+            <Ionicons name="arrow-back" size={22} color={theme.primary} />
+            <Text className="text-primary font-semibold">
+              {t("uxSettings.back")}
+            </Text>
+          </TouchableOpacity>
+        )}
+        <Text
+          accessibilityRole="header"
+          className="text-3xl font-bold text-text mb-3"
+        >
+          {category ? t("uxSettings." + category) : t("settings.title")}
+        </Text>
+        <View className="items-start mb-5">
+          <ProfileChip />
         </View>
-
-        {/* ─── Permissions (Android only) ─── */}
-        {Platform.OS === "android" && (
+        {!category &&
+          CATEGORIES.map((item) => (
+            <Row
+              key={item.id}
+              title={t("uxSettings." + item.id)}
+              subtitle={
+                item.id === "about"
+                  ? undefined
+                  : t("uxSettings." + item.id + "Hint")
+              }
+              icon={item.icon}
+              onPress={() => setCategory(item.id)}
+            />
+          ))}
+        {category === "reminders" && (
           <>
-            <SectionHeader title={t("settings.sectionPermissions")} />
-            <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-              <SettingRow
-                icon="notifications-outline"
-                iconColor={hasFullScreenPerm === false ? theme.warning : theme.primary}
-                title={t("settings.fullScreenPermission")}
-                subtitle={t("settings.fullScreenPermissionSubtitle")}
-                value={
-                  hasFullScreenPerm === null
-                    ? undefined
-                    : hasFullScreenPerm
-                    ? t("settings.fullScreenPermissionGranted")
-                    : t("settings.fullScreenPermissionRequired")
-                }
-                onPress={hasFullScreenPerm === false ? handleFullScreenPermission : undefined}
-                loading={hasFullScreenPerm === null}
-                chevron={hasFullScreenPerm === false}
-              />
-            </View>
-          </>
-        )}
-
-        {/* ─── Alarm sound (Android only) ─── */}
-        {Platform.OS === "android" && (
-          <>
-            <SectionHeader title={t("settings.sectionAlarmSound")} />
-            <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-              <SettingRow
-                icon="musical-notes-outline"
-                iconColor="#8b5cf6"
-                title={t("settings.alarmSound")}
-                subtitle={t("settings.alarmSoundSubtitle")}
-                value={currentSoundTitle || t("settings.alarmSoundDefault")}
-                onPress={handleToggleAlarmSound}
-                chevron
-              />
-            </View>
-            {alarmSoundExpanded && (
-              <View className="mx-5 mt-2">
-                <AlarmSoundPicker maxHeight={300} onSoundChange={handleSoundChange} />
-              </View>
-            )}
-          </>
-        )}
-
-        {/* ─── Alarm sound (iOS) ───
-            iOS apps cannot enumerate the device's ringtones, so unlike Android
-            the choice is limited to what ships in the bundle. */}
-        {Platform.OS === "ios" && (
-          <>
-            <SectionHeader title={t("settings.sectionAlarmSound")} />
-            <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-              {IOS_ALARM_SOUNDS.map((sound, i) => (
-                <View key={sound}>
-                  {i > 0 && <Divider />}
-                  <SettingRow
-                    icon={iosSound === sound ? "checkmark-circle" : "ellipse-outline"}
-                    iconColor={iosSound === sound ? theme.primary : theme.muted}
-                    title={t(`settings.iosSound_${sound}`)}
-                    subtitle={t(`settings.iosSound_${sound}_sub`)}
-                    onPress={() => handleIosSoundChange(sound)}
-                  />
-                </View>
+            <Note>{t("profiles.alarmsNote")}</Note>
+            {(["notifications", "exact", "fullScreen"] as const)
+              .filter(
+                (key) => key === "notifications" || Platform.OS === "android"
+              )
+              .map((key) => (
+                <Row
+                  key={key}
+                  title={t("uxSettings." + key)}
+                  subtitle={t("uxSettings.permissionHint")}
+                  value={t("uxSettings." + (readiness?.[key] ?? "pending"))}
+                  loading={busy === key}
+                  disabled={
+                    unavailable ||
+                    Platform.OS === "web" ||
+                    readiness?.[key] === "unavailable"
+                  }
+                  onPress={() => {
+                    void run(key, async () => {
+                      if (key === "notifications") {
+                        if (
+                          readiness?.notifications === "denied" ||
+                          readiness?.notifications === "limited"
+                        )
+                          await Linking.openSettings();
+                        else
+                          await setupNotifications({
+                            requestPermissions: true,
+                          });
+                      } else if (key === "exact")
+                        await openExactAlarmSettings();
+                      else await requestFullScreenIntentPermission();
+                      await refresh();
+                    });
+                  }}
+                />
+              ))}
+            <Row
+              title={t("uxSettings.checkAgain")}
+              icon="refresh-outline"
+              onPress={() => {
+                void run("check", refresh);
+              }}
+              loading={busy === "check"}
+              disabled={unavailable}
+            />
+            <Row
+              title={t("uxSettings.test")}
+              subtitle={t("uxSettings.testHint")}
+              icon="notifications-outline"
+              disabled={unavailable || readiness?.notifications !== "granted"}
+              loading={busy === "test"}
+              onPress={() => {
+                void run("test", async () => {
+                  await scheduleReminderTest();
+                  showToast(t("uxSettings.testScheduled"), "success");
+                });
+              }}
+            />
+            <Note>{t("uxSettings.checkHint")}</Note>
+            <Heading>{t("settings.sectionAlarmSound")}</Heading>
+            {Platform.OS === "android" && <AlarmSoundPicker maxHeight={360} />}
+            {Platform.OS === "ios" &&
+              IOS_ALARM_SOUNDS.map((sound) => (
+                <Row
+                  key={sound}
+                  title={t("settings.iosSound_" + sound)}
+                  subtitle={t("settings.iosSound_" + sound + "_sub")}
+                  selected={iosSound === sound}
+                  disabled={unavailable}
+                  onPress={() => {
+                    void run("sound", async () => {
+                      const previous = iosSound;
+                      setIosAlarmSound(sound);
+                      try {
+                        await rebuildDoseNotifications();
+                        setIosSound(sound);
+                      } catch (error) {
+                        setIosAlarmSound(previous);
+                        throw error;
+                      }
+                    });
+                  }}
+                />
+              ))}
+            <Heading>{t("settings.snoozeDefaultTitle")}</Heading>
+            <Note>{t("settings.snoozeDefaultSubtitle")}</Note>
+            <View className="flex-row flex-wrap gap-2">
+              {SNOOZE_OPTIONS.map((minutes) => (
+                <TouchableOpacity
+                  key={minutes}
+                  accessibilityRole="radio"
+                  accessibilityState={{
+                    checked: snooze === minutes,
+                    disabled: unavailable,
+                  }}
+                  disabled={unavailable}
+                  onPress={() => {
+                    void run("snooze", async () => {
+                      const previous = snooze;
+                      setDefaultSnoozeMinutes(minutes);
+                      try {
+                        await refreshDoseReminderCategory();
+                        setSnooze(minutes);
+                      } catch (error) {
+                        setDefaultSnoozeMinutes(previous);
+                        throw error;
+                      }
+                    });
+                  }}
+                  className={
+                    "rounded-xl min-h-[48px] px-4 justify-center border " +
+                    (snooze === minutes
+                      ? "bg-action border-action"
+                      : "bg-card border-border")
+                  }
+                >
+                  <Text
+                    className={
+                      snooze === minutes
+                        ? "text-white font-bold"
+                        : "text-text font-semibold"
+                    }
+                  >
+                    {minutes} min
+                  </Text>
+                </TouchableOpacity>
               ))}
             </View>
           </>
         )}
-
-        {/* ─── Snooze default (F1: configurable snooze) ─── */}
-        <SectionHeader title={t("settings.sectionSnooze")} />
-        <View className="mx-5 rounded-2xl overflow-hidden bg-card px-4 py-3.5" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          <View className="flex-row items-center gap-3 mb-3">
-            <Ionicons name="alarm-outline" size={20} color="#f59e0b" />
-            <View className="flex-1">
-              <Text className="text-[15px] font-semibold text-text">{t("settings.snoozeDefaultTitle")}</Text>
-              <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.snoozeDefaultSubtitle")}</Text>
-            </View>
-          </View>
-          <View className="flex-row flex-wrap gap-2">
-            {SNOOZE_OPTIONS.map((min) => {
-              const selected = min === snoozeMinutes;
-              return (
-                <TouchableOpacity
-                  key={min}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={t("settings.snoozeOptionA11y", { minutes: min })}
-                  onPress={() => handleSnoozeMinutes(min)}
-                  className={`rounded-xl px-3.5 py-2 border ${
-                    selected
-                      ? "bg-amber-500 border-amber-600 dark:bg-amber-600 dark:border-amber-500"
-                      : "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
-                  }`}
-                >
-                  <Text className={`font-bold text-sm ${selected ? "text-white" : "text-amber-700 dark:text-amber-300"}`}>
-                    {min} min
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* ─── Security (F1: app lock) ─── */}
-        {isAppLockSupported() && (
+        {category === "people" && (
           <>
-            <SectionHeader title={t("settings.sectionSecurity")} />
-            <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-              <View className="flex-row items-center px-4 py-3.5 gap-3">
-                <Ionicons name="lock-closed-outline" size={20} color={theme.primary} />
+            <Note>{t("profiles.alarmsNote")}</Note>
+            {store.profiles.map((p) => (
+              <View key={p.id} className="flex-row items-center gap-2">
                 <View className="flex-1">
-                  <Text className="text-[15px] font-semibold text-text">{t("settings.appLockTitle")}</Text>
-                  <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.appLockSubtitle")}</Text>
+                  <Row
+                    title={p.name || t("profiles.me")}
+                    selected={p.id === store.activeProfileId}
+                    disabled={unavailable}
+                    onPress={() => {
+                      void run("profile", () => store.switchProfile(p.id));
+                    }}
+                  />
                 </View>
-                <Switch
-                  value={appLockOn}
-                  onValueChange={handleAppLockToggle}
-                  disabled={!deviceSecured && !appLockOn}
-                  trackColor={{ false: undefined, true: theme.primary }}
-                  accessibilityLabel={t("settings.appLockTitle")}
-                />
-              </View>
-              {!deviceSecured && (
-                <>
-                  <Divider />
-                  <View className="flex-row items-start px-4 py-3 gap-2">
-                    <Ionicons name="warning-outline" size={16} color={theme.warning} style={{ marginTop: 1 }} />
-                    <Text className="text-xs text-muted flex-1 leading-5">
-                      {t("appLock.deviceNotSecured")}
-                    </Text>
-                  </View>
-                </>
-              )}
-            </View>
-          </>
-        )}
-
-        {/* ─── Your data ─── */}
-        {/* ─── Profiles (F2 multi-profile) ─── */}
-        <SectionHeader title={t("profiles.sectionTitle")} />
-        {/* Safety honesty note: alarms ring for every profile, always. */}
-        <View className="mx-5 mb-2 flex-row items-start gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5">
-          <Ionicons name="information-circle-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
-          <Text className="text-xs text-muted flex-1 leading-5">{t("profiles.alarmsNote")}</Text>
-        </View>
-        <View className="mx-5 mb-2 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          {profiles.map((p, idx) => (
-            <View key={p.id}>
-              {idx > 0 && <Divider />}
-              <View className="flex-row items-center px-4 py-3">
                 <TouchableOpacity
                   accessibilityRole="button"
-                  accessibilityLabel={profileDisplayName(p)}
-                  onPress={() => { Haptics.selectionAsync(); switchProfile(p.id); }}
-                  className="flex-1 flex-row items-center gap-3"
+                  accessibilityLabel={
+                    t("profiles.editTitle") +
+                    ": " +
+                    (p.name || t("profiles.me"))
+                  }
+                  disabled={unavailable}
+                  onPress={() => setProfileModal(p)}
+                  className="w-12 h-12 items-center justify-center bg-card border border-border rounded-xl mb-2"
                 >
                   <Ionicons
-                    name={p.id === activeProfileId ? "radio-button-on" : "radio-button-off-outline"}
+                    name="pencil-outline"
                     size={20}
-                    color={p.id === activeProfileId ? theme.primary : theme.muted}
+                    color={theme.primary}
                   />
-                  <View
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: MEDICATION_COLORS[p.color]?.bg ?? "#3b82f6" }}
-                  />
-                  <Text className="text-[15px] font-semibold text-text flex-1" numberOfLines={1}>
-                    {profileDisplayName(p)}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={t("profiles.editTitle")}
-                  onPress={() => setProfileModal(p)}
-                  className="p-2"
-                >
-                  <Ionicons name="pencil-outline" size={18} color={theme.muted} />
                 </TouchableOpacity>
               </View>
-            </View>
-          ))}
-          <Divider />
-          <SettingRow
-            icon="person-add-outline"
-            iconColor={theme.accent}
-            title={t("profiles.add")}
-            onPress={() => setProfileModal("new")}
-            chevron={false}
-          />
-          <Divider />
-          {/* Allergies + emergency card (F3) — both scoped to the active profile */}
-          <SettingRow
-            icon="shield-outline"
-            iconColor={theme.accent}
-            title={t("allergies.title")}
-            subtitle={t("allergies.settingsSubtitle")}
-            onPress={() => router.push("/allergies")}
-          />
-          <Divider />
-          <SettingRow
-            icon="medkit-outline"
-            iconColor="#dc2626"
-            title={t("emergency.title")}
-            subtitle={t("emergency.settingsSubtitle")}
-            onPress={() => router.push("/emergency")}
-          />
-        </View>
-
-        <SectionHeader title={t("settings.sectionData")} />
-        {/* Health Connect one-way vitals sync (F2, Android only) */}
-        {isHealthSyncSupported() && (
-          <View className="mx-5 mb-2 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-            <View className="flex-row items-center px-4 py-3.5 gap-3">
-              <Ionicons name="fitness-outline" size={20} color={theme.accent} />
-              <View className="flex-1">
-                <Text className="text-[15px] font-semibold text-text">{t("settings.healthSync")}</Text>
-                <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.healthSyncSubtitle")}</Text>
-              </View>
-              <Switch
-                value={healthSyncOn}
-                onValueChange={handleHealthSyncToggle}
-                trackColor={{ false: undefined, true: theme.primary }}
-                accessibilityLabel={t("settings.healthSync")}
-              />
-            </View>
-          </View>
-        )}
-        {/* Local-first nudge: users are never told their data isn't backed up
-            anywhere and is lost with the phone (audit UX I11). */}
-        <View className="mx-5 mb-2 flex-row items-start gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2.5">
-          <Ionicons name="information-circle-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
-          <Text className="text-xs text-muted flex-1 leading-5">{t("settings.dataLocalNote")}</Text>
-        </View>
-        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          <SettingRow
-            icon="cloud-download-outline"
-            title={t("settings.exportButton")}
-            subtitle={t("settings.exportSubtitle")}
-            onPress={handleExport}
-            loading={exporting}
-          />
-          <Divider />
-          <SettingRow
-            icon="cloud-upload-outline"
-            title={t("settings.importButton")}
-            subtitle={t("settings.importSubtitle")}
-            onPress={handleImport}
-            loading={importing}
-          />
-          <Divider />
-          <SettingRow
-            icon="document-text-outline"
-            iconColor={theme.accent}
-            title={t("report.generate")}
-            subtitle={t("report.generateSubtitle")}
-            onPress={handleGeneratePdf}
-            loading={generatingPdf}
-          />
-          <Divider />
-          {/* Caregiver handoff snapshot (F2) — operational, 100% local. */}
-          <SettingRow
-            icon="people-outline"
-            iconColor={theme.accent}
-            title={t("settings.caregiverSnapshot")}
-            subtitle={t("settings.caregiverSnapshotSubtitle")}
-            onPress={handleCaregiverSnapshot}
-            loading={generatingSnapshot}
-          />
-          <Divider />
-          {/* FHIR R4 export (F3): interop with clinics/EHRs, read-only */}
-          <SettingRow
-            icon="share-outline"
-            iconColor={theme.accent}
-            title={t("fhir.settingsTitle")}
-            subtitle={t("fhir.settingsSubtitle")}
-            onPress={handleFhirExport}
-            loading={exportingFhir}
-          />
-        </View>
-
-        {/* ─── Language ─── */}
-        <SectionHeader title={t("settings.sectionLanguage")} />
-        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          {(["es", "en", "pt"] as const).map((lang, idx) => (
-            <View key={lang}>
-              {idx > 0 && <Divider />}
-              <SettingRow
-                icon={currentLang === lang ? "radio-button-on" : "radio-button-off-outline"}
-                iconColor={currentLang === lang ? theme.primary : theme.muted}
-                title={lang === "es" ? t("settings.languageEs") : lang === "en" ? t("settings.languageEn") : t("settings.languagePt")}
-                onPress={() => handleLanguage(lang)}
-                chevron={false}
-              />
-            </View>
-          ))}
-        </View>
-
-        {/* ─── Drug-data region ─── */}
-        <SectionHeader title={t("settings.sectionDrugRegion")} />
-        <Text className="mx-5 mb-2 text-xs text-muted leading-4">{t("settings.drugRegionSubtitle")}</Text>
-        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          {([null, "AR", "US"] as const).map((region, idx) => (
-            <View key={region ?? "auto"}>
-              {idx > 0 && <Divider />}
-              <SettingRow
-                icon={drugRegion === region ? "radio-button-on" : "radio-button-off-outline"}
-                iconColor={drugRegion === region ? theme.primary : theme.muted}
-                title={region === null ? t("settings.drugRegionAuto") : region === "AR" ? t("settings.drugRegionAr") : t("settings.drugRegionUs")}
-                onPress={() => handleDrugRegion(region)}
-                chevron={false}
-              />
-            </View>
-          ))}
-        </View>
-
-        {/* ─── Appearance ─── */}
-        <SectionHeader title={t("settings.sectionAppearance")} />
-        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          {([
-            { mode: "system" as ThemeMode, label: t("settings.themeSystem"), icon: "phone-portrait-outline" },
-            { mode: "light"  as ThemeMode, label: t("settings.themeLight"),  icon: "sunny-outline" },
-            { mode: "dark"   as ThemeMode, label: t("settings.themeDark"),   icon: "moon-outline" },
-          ] as { mode: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>["name"] }[]).map(({ mode, label, icon }, idx) => (
-            <View key={mode}>
-              {idx > 0 && <Divider />}
-              <SettingRow
-                icon={themeMode === mode ? "radio-button-on" : "radio-button-off-outline"}
-                iconColor={themeMode === mode ? theme.primary : theme.muted}
-                title={label}
-                value={themeMode === mode ? undefined : undefined}
-                onPress={() => handleTheme(mode)}
-                chevron={false}
-              />
-            </View>
-          ))}
-          {/* Senior / low-vision mode (F1) */}
-          <Divider />
-          <View className="flex-row items-center px-4 py-3.5 gap-3">
-            <Ionicons name="text-outline" size={20} color={theme.primary} />
-            <View className="flex-1">
-              <Text className="text-[15px] font-semibold text-text">{t("settings.seniorMode")}</Text>
-              <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.seniorModeSubtitle")}</Text>
-            </View>
-            <Switch
-              value={seniorMode}
-              onValueChange={(on) => { Haptics.selectionAsync(); setSeniorMode(on); }}
-              trackColor={{ false: undefined, true: theme.primary }}
-              accessibilityLabel={t("settings.seniorMode")}
+            ))}
+            <Row
+              title={t("profiles.add")}
+              icon="person-add-outline"
+              disabled={unavailable}
+              onPress={() => {
+                createdProfile.current = null;
+                setProfileModal("new");
+              }}
             />
-          </View>
-          {/* Spoken alarms (F4 TTS) — opt-in accessibility */}
-          <Divider />
-          <View className="flex-row items-center px-4 py-3.5 gap-3">
-            <Ionicons name="volume-high-outline" size={20} color={theme.primary} />
-            <View className="flex-1">
-              <Text className="text-[15px] font-semibold text-text">{t("settings.tts")}</Text>
-              <Text className="text-xs text-muted mt-0.5 leading-4">{t("settings.ttsSubtitle")}</Text>
-            </View>
-            <Switch
+            <Heading>{t("uxSettings.activePerson", { name: person })}</Heading>
+            <Row
+              title={t("allergies.title")}
+              subtitle={t("allergies.settingsSubtitle")}
+              icon="shield-outline"
+              onPress={() => router.push("/allergies")}
+            />
+            <Row
+              title={t("emergency.title")}
+              subtitle={t("emergency.settingsSubtitle")}
+              icon="medkit-outline"
+              onPress={() => router.push("/emergency")}
+            />
+          </>
+        )}
+        {category === "data" && (
+          <>
+            <Note>{t("settings.dataLocalNote")}</Note>
+            <Heading>{t("uxSettings.allProfiles")}</Heading>
+            <Note>{t("uxSettings.backupComplete")}</Note>
+            <Note>
+              {lastBackup
+                ? t("uxSettings.lastBackup", {
+                    date: new Date(lastBackup).toLocaleString(),
+                  })
+                : t("uxSettings.noBackup")}
+            </Note>
+            <Row
+              title={t("settings.exportButton")}
+              icon="cloud-download-outline"
+              disabled={unavailable}
+              loading={busy === "export"}
+              onPress={() => {
+                void exportData();
+              }}
+            />
+            <Row
+              title={t("settings.importButton")}
+              subtitle={t("uxSettings.mergeHint")}
+              icon="cloud-upload-outline"
+              disabled={unavailable}
+              loading={busy === "import"}
+              onPress={() => {
+                void importData();
+              }}
+            />
+            <Heading>{t("uxSettings.activePerson", { name: person })}</Heading>
+            <Row
+              title={t("report.generate")}
+              subtitle={t("report.generateSubtitle")}
+              icon="document-text-outline"
+              disabled={unavailable}
+              onPress={() => setReportKind("report")}
+            />
+            <Row
+              title={t("settings.caregiverSnapshot")}
+              subtitle={t("settings.caregiverSnapshotSubtitle")}
+              icon="people-outline"
+              disabled={unavailable}
+              onPress={() => setReportKind("caregiver")}
+            />
+            <Row
+              title={t("fhir.settingsTitle")}
+              subtitle={t("fhir.settingsSubtitle")}
+              icon="share-outline"
+              disabled={unavailable}
+              onPress={() => setReportKind("fhir")}
+            />
+            {isHealthSyncSupported() && (
+              <>
+                <Heading>{t("settings.healthSync")}</Heading>
+                <Note>{t("uxSettings.ownerOnly")}</Note>
+                <Toggle
+                  title={t("settings.healthSync")}
+                  subtitle={t("uxSettings." + healthStatus)}
+                  value={healthOn}
+                  disabled={
+                    unavailable || store.activeProfileId !== DEFAULT_PROFILE_ID
+                  }
+                  onChange={(on) => {
+                    void run("health", async () => {
+                      if (!on) {
+                        disableHealthSync();
+                        setHealthOn(false);
+                      } else {
+                        const granted = await enableHealthSync();
+                        setHealthOn(granted);
+                        if (!granted)
+                          showToast(t("settings.healthSyncDenied"), "error");
+                      }
+                      await refresh();
+                    });
+                  }}
+                />
+                {store.activeProfileId !== DEFAULT_PROFILE_ID && (
+                  <Note>{t("uxSettings.ownerRequired")}</Note>
+                )}
+              </>
+            )}
+            <Heading>{t("settings.sectionDanger")}</Heading>
+            <Row
+              title={t("settings.clearData")}
+              subtitle={t("settings.clearDataSubtitle")}
+              icon="trash-outline"
+              danger
+              disabled={unavailable}
+              loading={busy === "reset"}
+              onPress={clear}
+            />
+          </>
+        )}
+        {category === "access" && (
+          <>
+            <Heading>{t("settings.sectionAppearance")}</Heading>
+            {(["system", "light", "dark"] as ThemeMode[]).map((mode) => (
+              <Row
+                key={mode}
+                title={t(
+                  "settings.theme" + mode[0].toUpperCase() + mode.slice(1)
+                )}
+                selected={store.themeMode === mode}
+                onPress={() => store.setThemeMode(mode)}
+              />
+            ))}
+            <Toggle
+              title={t("uxSettings.largeDoseCards")}
+              subtitle={t("settings.seniorModeSubtitle")}
+              value={store.seniorMode}
+              onChange={store.setSeniorMode}
+            />
+            <Toggle
+              title={t("settings.tts")}
+              subtitle={t("settings.ttsSubtitle")}
               value={ttsOn}
-              onValueChange={(on) => {
-                Haptics.selectionAsync();
+              onChange={(on) => {
                 setTtsEnabled(on);
                 setTtsOn(on);
               }}
-              trackColor={{ false: undefined, true: theme.primary }}
-              accessibilityLabel={t("settings.tts")}
             />
-          </View>
-        </View>
-
-        {/* ─── About ─── */}
-        <SectionHeader title={t("settings.sectionAbout")} />
-        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          <SettingRow
-            icon="information-circle-outline"
-            iconColor={theme.muted}
-            title={t("settings.version")}
-            value={appVersion}
-          />
-          <Divider />
-          <SettingRow
-            icon="shield-checkmark-outline"
-            iconColor={theme.success}
-            title={t("settings.privacyPolicy")}
-            onPress={() => Linking.openURL("https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html")}
-          />
-        </View>
-        {/* RxTerms data attribution (required courtesy — see scripts/build-drug-db.mjs) */}
-        <Text className="mx-6 mt-2 text-[11px] text-muted leading-4">
-          {t("settings.rxtermsAttribution")}
-        </Text>
-
-        {/* ─── Danger zone ─── */}
-        <SectionHeader title={t("settings.sectionDanger")} danger />
-        <View className="mx-5 rounded-2xl overflow-hidden bg-card" style={{ shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
-          <SettingRow
-            icon="trash-outline"
-            iconColor="#dc2626"
-            title={t("settings.clearData")}
-            subtitle={t("settings.clearDataSubtitle")}
-            onPress={handleClearData}
-            danger
-          />
-        </View>
+            {isAppLockSupported() && (
+              <>
+                <Heading>{t("settings.sectionSecurity")}</Heading>
+                <Toggle
+                  title={t("settings.appLockTitle")}
+                  subtitle={t("settings.appLockSubtitle")}
+                  value={lockOn}
+                  disabled={unavailable || (!secured && !lockOn)}
+                  onChange={(on) => {
+                    void run("lock", async () => {
+                      if (
+                        !(await authenticateAsync(t("appLock.biometricPrompt")))
+                      )
+                        return;
+                      if (on) await enableAppLock();
+                      else await disableAppLock();
+                      setLockOn(on);
+                    });
+                  }}
+                />
+                {!secured && <Note>{t("appLock.deviceNotSecured")}</Note>}
+                <Note>{t("uxSettings.emergencyPrivacy")}</Note>
+              </>
+            )}
+          </>
+        )}
+        {category === "language" && (
+          <>
+            <Heading>{t("settings.sectionLanguage")}</Heading>
+            {(["es", "en", "pt"] as const).map((language) => (
+              <Row
+                key={language}
+                title={t(
+                  language === "es"
+                    ? "settings.languageEs"
+                    : language === "pt"
+                    ? "settings.languagePt"
+                    : "settings.languageEn"
+                )}
+                selected={lang === language}
+                disabled={unavailable}
+                onPress={() => {
+                  void run("language", async () => {
+                    await changeLanguage(language);
+                    await refreshDoseReminderCategory();
+                    await rebuildDoseNotifications();
+                  });
+                }}
+              />
+            ))}
+            <Heading>{t("settings.sectionDrugRegion")}</Heading>
+            <Note>{t("settings.drugRegionSubtitle")}</Note>
+            {([null, "AR", "US"] as const).map((country) => (
+              <Row
+                key={country ?? "auto"}
+                title={t(
+                  country === null
+                    ? "settings.drugRegionAuto"
+                    : country === "AR"
+                    ? "settings.drugRegionAr"
+                    : "settings.drugRegionUs"
+                )}
+                selected={region === country}
+                onPress={() => {
+                  setDrugRegion(country);
+                  setRegion(country);
+                }}
+              />
+            ))}
+          </>
+        )}
+        {category === "about" && (
+          <>
+            <View className="bg-card rounded-2xl p-5 border border-border mb-3">
+              <Text className="text-base text-text">
+                {t("settings.version")}:{" "}
+                {Constants.expoConfig?.version ?? "1.0.0"}
+              </Text>
+            </View>
+            <Row
+              title={t("settings.privacyPolicy")}
+              icon="shield-checkmark-outline"
+              onPress={() => {
+                void run("privacy", () =>
+                  Linking.openURL(
+                    "https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html"
+                  )
+                );
+              }}
+              loading={busy === "privacy"}
+            />
+            <Note>{t("settings.rxtermsAttribution")}</Note>
+          </>
+        )}
       </ScrollView>
-
-      {/* Backup passphrase prompt (F3 encrypted backup) */}
       <PassphraseModal
         visible={passModal !== null}
         mode={passModal?.mode ?? "set"}
-        onDone={(pass) => {
-          passModal?.resolve(pass);
-          setPassModal(null);
-        }}
+        onDone={finishPass}
       />
-
-      {/* Profile create/edit modal (F2 multi-profile) */}
+      <ReportPreparationModal
+        visible={reportKind !== null}
+        kind={reportKind ?? "report"}
+        onClose={() => setReportKind(null)}
+      />
       <ProfileModal
         visible={profileModal !== null}
         profile={profileModal === "new" ? null : profileModal}
-        onSave={handleProfileSave}
-        onDelete={handleProfileDelete}
+        onSave={saveProfile}
+        onDelete={store.removeProfile}
         onClose={() => setProfileModal(null)}
       />
+      <Modal
+        visible={importPreview !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => finishImport(null)}
+      >
+        <View className="flex-1 bg-black/50 justify-center px-5 py-8">
+          <View
+            className="bg-card rounded-3xl p-5"
+            style={{ maxHeight: "90%" }}
+            accessibilityViewIsModal
+          >
+            <ScrollView showsVerticalScrollIndicator>
+              <Text
+                accessibilityRole="header"
+                className="text-xl font-bold text-text mb-3"
+              >
+                {t("uxSettings.preview")}
+              </Text>
+              {importPreview && (
+                <>
+                  <Note>
+                    {t("uxSettings.exportDate", {
+                      date: new Date(
+                        importPreview.preview.exportedAt
+                      ).toLocaleString(),
+                      version: importPreview.preview.version,
+                    })}
+                  </Note>
+                  <Note>
+                    {t("uxSettings.allProfiles")}:{" "}
+                    {importPreview.preview.profiles.join(", ") ||
+                      t("profiles.me")}
+                  </Note>
+                  {Object.entries(importPreview.preview.counts).map(
+                    ([key, value]) => (
+                      <View
+                        key={key}
+                        className="flex-row justify-between gap-4 py-2 border-b border-border"
+                      >
+                        <Text className="text-sm text-text flex-1">
+                          {t("uxSettings.count_" + key)}
+                        </Text>
+                        <Text className="text-sm font-bold text-text">
+                          {value}
+                        </Text>
+                      </View>
+                    )
+                  )}
+                  <Text className="text-sm text-primary mt-4 mb-2">
+                    {t("uxSettings.conflicts", {
+                      count: total(importPreview.preview.conflicts),
+                    })}
+                  </Text>
+                  <Note>{t("uxSettings.mergeHint")}</Note>
+                  {importPreview.preview.missingAttachments > 0 && (
+                    <Note>
+                      {t("uxSettings.legacyAttachments", {
+                        count: importPreview.preview.missingAttachments,
+                      })}
+                    </Note>
+                  )}
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    onPress={() => finishImport("merge")}
+                    className="bg-action rounded-xl min-h-[52px] items-center justify-center px-4 py-3 mb-3"
+                  >
+                    <Text className="text-white font-bold text-center">
+                      {t("settings.importModeMerge")}
+                    </Text>
+                  </TouchableOpacity>
+                  <Note>{t("uxSettings.replaceHint")}</Note>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    onPress={() =>
+                      Alert.alert(
+                        t("settings.importModeReplace"),
+                        t("uxSettings.replaceConfirm", {
+                          count: total(importPreview.preview.counts),
+                        }),
+                        [
+                          { text: t("common.cancel"), style: "cancel" },
+                          {
+                            text: t("settings.importModeReplace"),
+                            style: "destructive",
+                            onPress: () => finishImport("replace"),
+                          },
+                        ]
+                      )
+                    }
+                    className="border border-danger rounded-xl min-h-[52px] items-center justify-center px-4 py-3 mb-2"
+                  >
+                    <Text className="text-danger font-semibold text-center">
+                      {t("settings.importModeReplace")}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => finishImport(null)}
+                className="min-h-[48px] items-center justify-center"
+              >
+                <Text className="text-primary font-semibold">
+                  {t("common.cancel")}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

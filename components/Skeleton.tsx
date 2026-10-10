@@ -1,5 +1,12 @@
 import { useEffect, useRef } from "react";
-import { Animated, StyleProp, View, ViewStyle, useColorScheme } from "react-native";
+import {
+  Animated,
+  StyleProp,
+  View,
+  ViewStyle,
+  useColorScheme,
+} from "react-native";
+import { useReducedMotion } from "../src/hooks/useReducedMotion";
 
 /**
  * Returns an `{ opacity }` animated style object that pulses between 1 and
@@ -9,17 +16,30 @@ import { Animated, StyleProp, View, ViewStyle, useColorScheme } from "react-nati
  */
 export function useSkeletonAnimation() {
   const opacity = useRef(new Animated.Value(1)).current;
+  const reduced = useReducedMotion();
 
   useEffect(() => {
+    if (reduced) {
+      opacity.setValue(1);
+      return;
+    }
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.45, duration: 700, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1.0,  duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, {
+          toValue: 0.45,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1.0,
+          duration: 700,
+          useNativeDriver: true,
+        }),
       ])
     );
     anim.start();
     return () => anim.stop();
-  }, [opacity]);
+  }, [opacity, reduced]);
 
   return { opacity };
 }
@@ -32,11 +52,6 @@ export function useSkeletonAnimation() {
 export function SkeletonBox({ style }: { style?: StyleProp<ViewStyle> }) {
   const dark = useColorScheme() === "dark";
   return (
-    <View
-      style={[
-        { backgroundColor: dark ? "#1e293b" : "#e2e8f0" },
-        style,
-      ]}
-    />
+    <View style={[{ backgroundColor: dark ? "#1e293b" : "#e2e8f0" }, style]} />
   );
 }

@@ -65,7 +65,7 @@ jest.mock("../../src/utils", () => ({
 
 // ─── Import after mocks ──────────────────────────────────────────────────
 
-import { cancelScheduleNotifications } from "../../src/services/notifications";
+import { cancelScheduleNotifications, cancelAllNotifications, setupNotifications, scheduleAppointmentNotification } from "../../src/services/notifications";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -163,5 +163,27 @@ describe("cancelScheduleNotifications", () => {
     // Only one cancelAlarm call per unique date (Set deduplication)
     expect(ExpoAlarm.cancelAlarm).toHaveBeenCalledTimes(1);
     expect(ExpoAlarm.cancelAlarm).toHaveBeenCalledWith("sch-1", "2026-03-16");
+  });
+});
+
+
+describe("UX reminder intent and reset", () => {
+  beforeEach(() => { jest.clearAllMocks(); (Platform as any).OS = "android"; });
+  it("selecting no appointment reminder schedules no notification at any time", async () => {
+    await scheduleAppointmentNotification({ id: "a", title: "Visit", date: "2099-01-01", time: "12:00", reminderMinutes: 0, createdAt: "2026-01-01" });
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+  it("startup setup respects a user who deferred permission", async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce({ status: "undetermined" } as never);
+    const result = await setupNotifications({ requestPermissions: false });
+    expect(result.granted).toBe(false);
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+  it("reset cancels persisted native alarms as well as notification rows", async () => {
+    mockDb.getAllAsync.mockResolvedValue([makeNotifMapRow("sch-1", "2026-10-10")]);
+    await cancelAllNotifications();
+    expect(ExpoAlarm.cancelAllAlarms).toHaveBeenCalledTimes(1);
+    expect(ExpoAlarm.cancelAlarm).toHaveBeenCalledWith("sch-1", "2026-10-10");
+    expect(mockDb.runAsync).toHaveBeenCalledWith("DELETE FROM notification_map");
   });
 });

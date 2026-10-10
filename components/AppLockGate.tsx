@@ -16,7 +16,7 @@
  */
 import { View, Text, AppState, TouchableOpacity } from "react-native";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { usePathname } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
@@ -32,6 +32,7 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const pathname = usePathname();
+  const router = useRouter();
 
   const [locked, setLocked] = useState(() => isAppLockEnabled());
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -50,7 +51,8 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
     const sub = AppState.addEventListener("change", (next) => {
       if (next === "background" || next === "inactive") {
         // Keep the earliest background timestamp of this excursion.
-        if (backgroundedAt.current === null) backgroundedAt.current = Date.now();
+        if (backgroundedAt.current === null)
+          backgroundedAt.current = Date.now();
       } else if (next === "active") {
         const since = backgroundedAt.current;
         backgroundedAt.current = null;
@@ -99,17 +101,31 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
 
   return (
     <View style={{ flex: 1 }}>
-      {children}
+      <View
+        style={{ flex: 1 }}
+        importantForAccessibility={
+          overlayVisible ? "no-hide-descendants" : "auto"
+        }
+        accessibilityElementsHidden={overlayVisible}
+      >
+        {children}
+      </View>
       {overlayVisible && (
         <View
           className="absolute inset-0 items-center justify-center px-8 bg-background"
           // Solid fallback color in case NativeWind's bg-background var fails:
           // the overlay must NEVER be transparent (it hides health data).
-          style={{ backgroundColor: theme.isDark ? "#0b1220" : "#f1f5f9", zIndex: 999, elevation: 999 }}
+          style={{
+            backgroundColor: theme.isDark ? "#0b1220" : "#f1f5f9",
+            zIndex: 999,
+            elevation: 999,
+          }}
           accessibilityViewIsModal
         >
           <BrandMark size={52} />
-          <Text className="text-2xl font-bold text-text mt-2">Pill O-Clock</Text>
+          <Text className="text-2xl font-bold text-text mt-2">
+            Pill O-Clock
+          </Text>
           <Text className="text-sm text-muted mt-1 mb-6 text-center">
             {t("appLock.lockedSubtitle")}
           </Text>
@@ -120,7 +136,12 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
             accessibilityRole="button"
             accessibilityLabel={t("appLock.unlock")}
             className="flex-row items-center rounded-2xl px-6 py-4"
-            style={{ backgroundColor: theme.primary, opacity: prompting ? 0.6 : 1, gap: 10 }}
+            accessibilityState={{ disabled: prompting, busy: prompting }}
+            style={{
+              backgroundColor: theme.actionFill,
+              opacity: prompting ? 0.6 : 1,
+              gap: 10,
+            }}
           >
             <Ionicons
               name={biometricAvailable ? "finger-print" : "lock-open-outline"}
@@ -131,6 +152,19 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
               {t("appLock.unlock")}
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityHint={t("uxSettings.emergencyPrivacy")}
+            onPress={() => router.push("/emergency")}
+            className="min-h-[48px] justify-center mt-5"
+          >
+            <Text className="text-primary font-semibold text-center">
+              {t("uxSettings.emergencyAccess")}
+            </Text>
+          </TouchableOpacity>
+          <Text className="text-sm text-muted text-center mt-1">
+            {t("uxSettings.emergencyPrivacy")}
+          </Text>
         </View>
       )}
     </View>

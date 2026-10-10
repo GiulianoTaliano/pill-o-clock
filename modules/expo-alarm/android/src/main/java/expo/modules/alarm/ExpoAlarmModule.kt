@@ -57,9 +57,9 @@ class ExpoAlarmModule : Module() {
       val pendingIntent = AlarmIntentHelper.buildReceiverPendingIntent(context, params)
 
       // setAlarmClock() is the gold standard for user-facing alarms:
-      // • Bypasses Doze idle and battery optimisation without any permission on API 21+.
+      // • Bypasses Doze idle and battery optimisation.
       // • Shows a clock icon in the status bar.
-      // • Does NOT require SCHEDULE_EXACT_ALARM (unlike setExact on API 31+).
+      // • Requires exact-alarm access on Android 12+.
       val clockInfo = AlarmManager.AlarmClockInfo(params.fireTimestamp, null)
       alarmManager.setAlarmClock(clockInfo, pendingIntent)
 
@@ -99,6 +99,20 @@ class ExpoAlarmModule : Module() {
       pendingIntent.cancel()
     }
 
+    AsyncFunction("cancelAllAlarms") {
+      val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+      AlarmPreferences.getScheduledAlarms(context).forEach { alarm ->
+        val requestCode = AlarmIntentHelper.requestCodeFor(alarm.scheduleId, alarm.scheduledDate)
+        val pending = AlarmIntentHelper.buildCancelPendingIntent(context, requestCode)
+        if (pending != null) {
+          manager.cancel(pending)
+          pending.cancel()
+        }
+      }
+      AlarmPreferences.setScheduledAlarms(context, emptyList())
+      context.sendBroadcast(Intent(AlarmAudioService.ACTION_STOP).apply { setPackage(context.packageName) })
+    }
+
     // ── stopAlarm ──────────────────────────────────────────────────────────
     AsyncFunction("stopAlarm") {
       // Sends the STOP broadcast to AlarmAudioService regardless of whether
@@ -107,6 +121,26 @@ class ExpoAlarmModule : Module() {
         setPackage(context.packageName)
       }
       context.sendBroadcast(stopIntent)
+    }
+
+    // ── dismissAlarm ───────────────────────────────────────────────────────
+    AsyncFunction("dismissAlarm") {
+      // Same path as swiping the alarm notification away: silences the ring,
+      // leaves a quiet reminder and re-arms the next auto-reminder, because
+      // closing the alarm screen is not the same as logging the dose.
+      val dismissIntent = Intent(AlarmAudioService.ACTION_DISMISS).apply {
+        setPackage(context.packageName)
+      }
+      context.sendBroadcast(dismissIntent)
+    }
+
+    AsyncFunction("checkExactAlarmPermission") {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        manager.canScheduleExactAlarms()
+      } else {
+        true
+      }
     }
 
     // ── checkFullScreenIntentPermission ────────────────────────────────────

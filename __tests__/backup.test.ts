@@ -1,374 +1,239 @@
-/**
- * __tests__/backup.test.ts
- *
- * Export→import round-trip for the backup service. zod strips unknown keys on
- * parse, so any Medication field missing from medicationSchema is silently
- * dropped on import — user data loss (this once bit renewalDate, the PRN
- * safety limits and rxcui).
- *
- * Key assertions:
- *  - The exported JSON carries every Medication field as-is.
- *  - A Medication with ALL optional fields set survives export→import.
- *  - renewalNotifIds is the one intentional exception (device-local OS ids),
- *    and import reschedules renewal reminders on the importing device instead.
- *  - Appointment.notificationId is stripped the same way, and import
- *    reschedules reminders on the importing device instead.
- *  - Legacy backups without the newer optional fields still import.
- */
-
-/* eslint-disable import/namespace -- the eslint resolver picks
-   db/database.web.ts (an intentionally partial stub), so `db.*` members that
-   only exist in the native db/database.ts are false-positive "not found".
-   Jest itself resolves the native module. */
-
-import { exportBackup, importBackup } from "../src/services/backup";
-import { makeMedication } from "./factories";
-import type { Appointment, Medication } from "../src/types";
-
-jest.mock("expo-file-system", () => ({
-  File: jest.fn(),
-  Paths: {},
-}));
-
-jest.mock("expo-file-system/src/legacy", () => ({
-  StorageAccessFramework: {
-    requestDirectoryPermissionsAsync: jest.fn(),
-    createFileAsync: jest.fn(),
-    writeAsStringAsync: jest.fn(),
-  },
-}));
-
-jest.mock("expo-document-picker", () => ({
-  getDocumentAsync: jest.fn(),
-}));
-
-jest.mock("../src/db/database", () => ({
-  getDb: jest.fn(),
-  getMedications: jest.fn(),
-  getAllSchedules: jest.fn(),
-  getAllDoseLogs: jest.fn(),
-  getAppointments: jest.fn(),
-  getAllAppointmentDocuments: jest.fn(),
-  getHealthMeasurements: jest.fn(),
-  getDailyCheckins: jest.fn(),
-  getProfiles: jest.fn(),
-  getAllAllergies: jest.fn(),
-  clearAllData: jest.fn(),
-  insertMedication: jest.fn(),
-  insertSchedule: jest.fn(),
-  upsertDoseLogNoTx: jest.fn(),
-  insertAppointment: jest.fn(),
-  insertAppointmentDocument: jest.fn(),
-  insertHealthMeasurement: jest.fn(),
-  upsertDailyCheckin: jest.fn(),
-  insertProfile: jest.fn(),
-  insertAllergy: jest.fn(),
-  updateAppointment: jest.fn(),
-  setMedicationRenewalNotifIds: jest.fn(),
-}));
-
-jest.mock("../src/services/notifications", () => ({
-  scheduleAppointmentNotification: jest.fn(),
-  cancelAppointmentNotification: jest.fn(),
-  scheduleRenewalReminders: jest.fn(),
-  cancelRenewalReminders: jest.fn(),
-}));
-
+import { Platform } from "react-native";
+import { File, Directory } from "expo-file-system";
 import * as DocumentPicker from "expo-document-picker";
-import { File } from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system/src/legacy";
+import { exportBackup, importBackup, planBackupMerge, BackupCancelledError, BackupFormatError, type BackupData } from "../src/services/backup";
 import * as db from "../src/db/database";
 import * as notifications from "../src/services/notifications";
+import { makeMedication, makeDoseLog } from "./factories";
+import type { Medication, Appointment } from "../src/types";
 
-/**
- * Every optional Medication field set. `Required<>` makes this fail to compile
- * whenever a new field is added to the type, forcing the author to decide
- * whether it round-trips through medicationSchema.
- */
+jest.mock("expo-file-system", () => ({ File: jest.fn(), Directory: jest.fn(), Paths: { document: "file:///documents", cache: "file:///cache" } }));
+jest.mock("expo-file-system/src/legacy", () => ({ StorageAccessFramework: { requestDirectoryPermissionsAsync: jest.fn(), createFileAsync: jest.fn(), writeAsStringAsync: jest.fn() } }));
+jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
+jest.mock("../src/db/database", () => Object.fromEntries([
+  "getDb", "getMedications", "getAllSchedules", "getAllDoseLogs", "getAppointments", "getAllAppointmentDocuments", "getAllHealthMeasurements", "getAllDailyCheckins", "getProfiles", "getAllAllergies",
+  "clearAllData", "clearAllDataNoTx", "insertMedication", "insertSchedule", "upsertDoseLogNoTx", "insertAppointment", "insertAppointmentDocument", "insertHealthMeasurement", "upsertDailyCheckin", "insertProfile", "updateProfile", "reconcileActiveProfile", "insertAllergy", "updateAppointment", "setMedicationRenewalNotifIds",
+].map(key => [key, jest.fn()])));
+jest.mock("../src/services/notifications", () => Object.fromEntries([
+  "scheduleAppointmentNotification", "cancelAppointmentNotification", "scheduleRenewalReminders", "cancelRenewalReminders", "cancelScheduleNotifications", "rebuildDoseNotifications",
+].map(key => [key, jest.fn()])));
+
 const FULL_MED: Required<Medication> = {
-  ...makeMedication(),
-  notes: "tomar con comida",
-  startDate: "2026-01-01",
-  endDate: "2026-12-31",
-  stockQuantity: 30,
-  stockAlertThreshold: 5,
-  photoUri: "file:///photos/med-1.jpg",
-  isPRN: true,
-  renewalDate: "2026-08-15",
-  renewalNotifIds: "notif-a|notif-b",
-  prnMaxPerDay: 4,
-  prnMinIntervalMinutes: 360,
-  rxcui: "1049221",
-  profileId: "profile-2",
-  regimen: '{"type":"everyN","intervalDays":2}',
-  isInjectable: true,
-  archivedAt: "2026-07-01T00:00:00.000Z",
-  archiveReason: "doctor",
+  ...makeMedication(), notes: "tomar con comida", startDate: "2026-01-01", endDate: "2026-12-31", stockQuantity: 30, stockAlertThreshold: 5,
+  photoUri: "file:///photos/med-1.jpg", isPRN: true, renewalDate: "2099-08-15", renewalNotifIds: "old-renewal", prnMaxPerDay: 4,
+  prnMinIntervalMinutes: 360, rxcui: "1049221", profileId: "profile-2", regimen: '{"type":"everyN","intervalDays":2}',
+  isInjectable: true, archivedAt: "2026-07-01T00:00:00.000Z", archiveReason: "doctor",
 };
-
-/**
- * Every optional Appointment field set — same compile-time guard as FULL_MED:
- * a new Appointment field breaks this until appointmentSchema is revisited.
- */
 const FULL_APPT: Required<Appointment> = {
-  id: "appt-1",
-  title: "Cardiología",
-  doctor: "Dra. Pérez",
-  location: "Hospital Italiano",
-  locationCoords: { latitude: -34.6037, longitude: -58.3816 },
-  notes: "llevar estudios previos",
-  date: "2099-05-20",
-  time: "09:30",
-  reminderMinutes: 60,
-  notificationId: "old-device-notif-1|old-device-notif-2",
-  createdAt: "2026-07-01T00:00:00.000Z",
-  profileId: "profile-2",
+  id: "appt-1", title: "Cardiología", doctor: "Dra. Pérez", location: "Hospital", locationCoords: { latitude: -34.6, longitude: -58.3 },
+  notes: "estudios", date: "2099-05-20", time: "09:30", reminderMinutes: 60, notificationId: "old-appointment",
+  createdAt: "2026-07-01T00:00:00.000Z", profileId: "profile-2",
 };
-
-/** FULL_APPT as import must deliver it: without the exporting device's id. */
-const { notificationId: _oldDeviceId, ...IMPORTED_APPT } = FULL_APPT;
-
-/** FULL_MED as import must deliver it: without the exporting device's ids. */
-const { renewalNotifIds: _oldDeviceRenewalIds, ...IMPORTED_MED } = FULL_MED;
-
-/** Runs exportBackup with the given entities and returns the JSON it wrote. */
-async function runExport(medications: Medication[], appointments: Appointment[] = []): Promise<string> {
-  jest.mocked(db.getMedications).mockResolvedValue(medications);
-  jest.mocked(db.getAllSchedules).mockResolvedValue([]);
-  jest.mocked(db.getAllDoseLogs).mockResolvedValue([]);
-  jest.mocked(db.getAppointments).mockResolvedValue(appointments);
-  jest.mocked(db.getAllAppointmentDocuments).mockResolvedValue([]);
-  jest.mocked(db.getHealthMeasurements).mockResolvedValue([]);
-  jest.mocked(db.getDailyCheckins).mockResolvedValue([]);
-  jest.mocked(db.getProfiles).mockResolvedValue([]);
-  jest.mocked(db.getAllAllergies).mockResolvedValue([]);
-
-  jest
-    .mocked(StorageAccessFramework.requestDirectoryPermissionsAsync)
-    .mockResolvedValue({ granted: true, directoryUri: "content://backups" } as never);
-  jest.mocked(StorageAccessFramework.createFileAsync).mockResolvedValue("content://backups/f");
-
-  let written = "";
-  jest
-    .mocked(StorageAccessFramework.writeAsStringAsync)
-    .mockImplementation(async (_uri: string, json: string) => {
-      written = json;
-    });
-
-  await exportBackup();
-  return written;
-}
-
-/** Minimal mock surface for casts where jest.mocked's typing doesn't fit
- *  (class constructors, partial fakes). */
-type AnyMock = {
-  mockImplementation: (fn: (...args: never[]) => unknown) => void;
-  mockResolvedValue: (value: unknown) => void;
-};
-
-/** Runs importBackup against the given backup JSON. `existingAppointments` /
- *  `existingMedications` are what the device already holds when the import
- *  starts (stale-reminder cancellation on "replace"). */
-async function runImport(
-  json: string,
-  opts: {
-    mode?: "replace" | "merge";
-    existingAppointments?: Appointment[];
-    existingMedications?: Medication[];
-  } = {}
-): Promise<{ count: number }> {
-  const { mode = "replace", existingAppointments = [], existingMedications = [] } = opts;
-  jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
-    canceled: false,
-    assets: [{ uri: "file:///picked.json" }],
-  } as never);
-  (File as unknown as AnyMock).mockImplementation(() => ({
-    text: async () => json,
-    delete: jest.fn(),
-  }));
-  (db.getDb as unknown as AnyMock).mockResolvedValue({
-    withTransactionAsync: (fn: () => Promise<void>) => fn(),
-  });
-  jest.mocked(db.getAppointments).mockResolvedValue(existingAppointments);
-  jest.mocked(db.getMedications).mockResolvedValue(existingMedications);
-  return importBackup(mode);
-}
-
+const profiles = [
+  { id: "default", name: "Owner", color: "blue", createdAt: "2026-01-01", emergencyContactName: "Ana", emergencyContactPhone: "+541123456789" },
+  { id: "profile-2", name: "Daughter", color: "pink", createdAt: "2026-01-01" },
+];
+let input = "";
+let output = "";
+let files: { uri: string; create: jest.Mock; write: jest.Mock; delete: jest.Mock; base64: jest.Mock }[] = [];
+const empty = (): BackupData["data"] => ({ profiles: [], medications: [], schedules: [], doseLogs: [], appointments: [], appointmentDocuments: [], healthMeasurements: [], dailyCheckins: [], allergies: [] });
 beforeEach(() => {
-  jest.clearAllMocks();
-});
-
-describe("backup export→import round-trip", () => {
-  it("exports every Medication field as-is", async () => {
-    const written = await runExport([FULL_MED]);
-    const parsed = JSON.parse(written);
-    expect(parsed.data.medications[0]).toEqual(FULL_MED);
+  jest.resetAllMocks();
+  Object.defineProperty(Platform, "OS", { value: "android", configurable: true });
+  files = []; output = ""; input = "";
+  for (const read of [db.getMedications, db.getAllSchedules, db.getAllDoseLogs, db.getAppointments, db.getAllAppointmentDocuments, db.getAllHealthMeasurements, db.getAllDailyCheckins, db.getAllAllergies]) jest.mocked(read).mockResolvedValue([] as never);
+  jest.mocked(db.getProfiles).mockResolvedValue(profiles);
+  jest.mocked(db.getDb).mockReturnValue({ withTransactionAsync: (fn: () => Promise<void>) => fn() } as never);
+  (Directory as unknown as jest.Mock).mockImplementation(() => ({ create: jest.fn() }));
+  (File as unknown as jest.Mock).mockImplementation((path: string, filename?: string) => {
+    const file = { uri: filename ? "file:///restored/" + filename : path, exists: true, text: async () => input, base64: jest.fn(async () => "cG9ydGFibGU="), create: jest.fn(), write: jest.fn(), delete: jest.fn() };
+    files.push(file); return file;
   });
+  jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [{ uri: "file:///picked.json" }] } as never);
+  jest.mocked(StorageAccessFramework.requestDirectoryPermissionsAsync).mockResolvedValue({ granted: true, directoryUri: "content://backups" } as never);
+  jest.mocked(StorageAccessFramework.createFileAsync).mockResolvedValue("content://backups/file");
+  jest.mocked(StorageAccessFramework.writeAsStringAsync).mockImplementation(async (_uri, contents) => { output = contents; });
+});
+const exportFixture = async (medications: Medication[] = [], appointments: Appointment[] = []) => {
+  jest.mocked(db.getMedications).mockResolvedValue(medications);
+  jest.mocked(db.getAppointments).mockResolvedValue(appointments);
+  await exportBackup();
+  input = output;
+  return JSON.parse(output) as BackupData;
+};
+const resetExisting = () => {
+  jest.mocked(db.getMedications).mockResolvedValue([]);
+  jest.mocked(db.getAppointments).mockResolvedValue([]);
+  jest.mocked(db.getAllAppointmentDocuments).mockResolvedValue([]);
+  jest.mocked(db.getAllDoseLogs).mockResolvedValue([]);
+};
+const legacy = (data: Partial<BackupData["data"]>) => JSON.stringify({ version: 1, app: "pill-o-clock", exportedAt: "2026-01-01", data: { medications: [], ...data } });
 
-  it("a Medication with all optional fields survives import", async () => {
-    const written = await runExport([FULL_MED]);
-    const { count } = await runImport(written);
-
-    expect(count).toBe(1);
-    expect(db.clearAllData).toHaveBeenCalled();
-
+describe("complete portable backup", () => {
+  it("exports every medication field, embeds bytes and remaps the photo on restore", async () => {
+    const backup = await exportFixture([FULL_MED]);
+    expect(backup.version).toBe(4);
+    expect(backup.data.medications[0]).toEqual(FULL_MED);
+    expect(backup.attachments[0]).toMatchObject({ kind: "photo", ownerId: FULL_MED.id, base64: "cG9ydGFibGU=" });
+    resetExisting();
+    const result = await importBackup("replace");
+    expect(result.count).toBe(1);
     const imported = jest.mocked(db.insertMedication).mock.calls[0][0];
-    // renewalNotifIds is intentionally stripped (see medicationSchema): OS
-    // notification ids are device-local. toEqual fails on extra *defined*
-    // keys, so this also proves the field did not sneak through.
-    const { renewalNotifIds: _deviceLocal, ...expected } = FULL_MED;
-    expect(imported).toEqual(expected);
-    expect("renewalNotifIds" in imported).toBe(false);
-
-    // Spell out the patient-safety / identity fields the schema once dropped.
-    expect(imported.renewalDate).toBe("2026-08-15");
-    expect(imported.prnMaxPerDay).toBe(4);
-    expect(imported.prnMinIntervalMinutes).toBe(360);
-    expect(imported.rxcui).toBe("1049221");
-    expect(imported.profileId).toBe("profile-2");
+    const { renewalNotifIds: _deviceOnly, photoUri: _oldPhoto, ...expected } = FULL_MED;
+    expect(imported).toMatchObject(expected);
+    expect(imported).not.toHaveProperty("renewalNotifIds");
+    expect(imported.photoUri?.startsWith("file:///restored/")).toBe(true);
+    expect(files.find(f => f.uri === imported.photoUri)?.write).toHaveBeenCalledWith("cG9ydGFibGU=", { encoding: "base64" });
   });
-
-  it("still imports a legacy backup without the newer optional fields", async () => {
-    const legacy = JSON.stringify({
-      version: 1,
-      exportedAt: "2025-01-01T00:00:00.000Z",
-      app: "pill-o-clock",
-      data: { medications: [makeMedication()] },
-    });
-    const { count } = await runImport(legacy);
-    expect(count).toBe(1);
-    expect(jest.mocked(db.insertMedication).mock.calls[0][0]).toEqual(makeMedication());
+  it("exports all measurements and diary rows across people beyond UI limits", async () => {
+    const measurements = Array.from({ length: 130 }, (_, i) => ({ id: "h" + i, type: "weight" as const, value1: 70, measuredAt: "2026-01-01", createdAt: "2026-01-01", profileId: i % 2 ? "default" : "profile-2" }));
+    const checkins = Array.from({ length: 140 }, (_, i) => ({ id: "c" + i, date: "2026-01-" + i, mood: 3 as const, symptoms: [], createdAt: "2026-01-01", profileId: "default" }));
+    jest.mocked(db.getAllHealthMeasurements).mockResolvedValue(measurements);
+    jest.mocked(db.getAllDailyCheckins).mockResolvedValue(checkins);
+    const backup = await exportFixture();
+    expect(backup.data.healthMeasurements).toEqual(measurements);
+    expect(backup.data.dailyCheckins).toEqual(checkins);
+  });
+  it("round-trips document bytes, injection site, stock delta, and default emergency contact", async () => {
+    const log = makeDoseLog({ injectionSite: "abdomen_l", stockDelta: 0.5 });
+    jest.mocked(db.getAllDoseLogs).mockResolvedValue([log]);
+    jest.mocked(db.getAllAppointmentDocuments).mockResolvedValue([{ id: "doc", appointmentId: FULL_APPT.id, fileName: "analysis.pdf", mimeType: "application/pdf", fileUri: "file:///old.pdf", createdAt: "2026-01-01" }]);
+    await exportFixture([], [FULL_APPT]); resetExisting();
+    const result = await importBackup("replace");
+    expect(db.upsertDoseLogNoTx).toHaveBeenCalledWith(log);
+    expect(db.updateProfile).toHaveBeenCalledWith(profiles[0]);
+    expect(db.insertProfile).toHaveBeenCalledWith(profiles[1]);
+    expect(jest.mocked(db.insertAppointmentDocument).mock.calls[0][0].fileUri).toMatch(/restored.*\.pdf$/);
+    expect(result.inserted.doseLogs).toBe(1);
+    expect(db.reconcileActiveProfile).toHaveBeenCalledTimes(1);
+  });
+  it("still writes the records when a referenced file cannot be read, and reports it", async () => {
+    (File as unknown as jest.Mock).mockImplementation(() => ({ text: async () => input, base64: async () => { throw new Error("missing"); } }));
+    jest.mocked(db.getMedications).mockResolvedValue([FULL_MED]);
+    jest.mocked(db.getAllAppointmentDocuments).mockResolvedValue([{ id: "doc", appointmentId: FULL_APPT.id, fileName: "analysis.pdf", mimeType: "application/pdf", fileUri: "file:///gone.pdf", createdAt: "2026-01-01" }]);
+    await expect(exportBackup()).resolves.toEqual({ missingAttachments: 2 });
+    const written = JSON.parse(output) as BackupData;
+    expect(written.data.medications[0].photoUri).toBeUndefined();
+    expect(written.data.appointmentDocuments).toEqual([]);
+    expect(written.attachments).toEqual([]);
+    // The partial copy stays importable: v4 never references bytes it lacks.
+    input = output; resetExisting();
+    await expect(importBackup("replace")).resolves.toMatchObject({ count: 1 });
+  });
+  it("merge keeps the current schedules of a medication that already exists", async () => {
+    const med = makeMedication();
+    const backup = { ...empty(), medications: [med], schedules: [{ id: "old-evening", medicationId: med.id, time: "20:00", days: [], isActive: true }] };
+    const { selected, conflicts } = planBackupMerge(backup, { ...empty(), profiles, medications: [med] });
+    expect(selected.schedules).toEqual([]);
+    expect(conflicts.schedules).toBe(1);
+  });
+  it("replace accepts allergies whose names differ only in case", async () => {
+    input = JSON.stringify({ version: 4, exportedAt: "2026-01-01", app: "pill-o-clock", attachments: [], data: { ...empty(), profiles, allergies: [
+      { id: "a1", name: "Penicilina", createdAt: "2026-01-01", profileId: "default" },
+      { id: "a2", name: "penicilina", createdAt: "2026-01-01", profileId: "default" },
+    ] } });
+    await expect(importBackup("replace")).resolves.toBeDefined();
+    expect(db.insertAllergy).toHaveBeenCalledTimes(2);
+  });
+  it("keeps legacy records and assigns unscoped data to the main person", async () => {
+    input = legacy({ medications: [makeMedication()] });
+    const result = await importBackup("replace");
+    expect(result.count).toBe(1);
+    expect(db.insertMedication).toHaveBeenCalledWith({ ...makeMedication(), profileId: "default" });
+  });
+  it("surfaces legacy attachment limits instead of claiming portable bytes", async () => {
+    input = legacy({ medications: [makeMedication({ photoUri: "file:///old.jpg" })] });
+    const confirm = jest.fn(async () => "merge" as const);
+    const result = await importBackup("merge", undefined, confirm);
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ missingAttachments: 1 }));
+    expect(result.missingAttachments).toBe(1);
   });
 });
 
-describe("appointment reminders across export→import", () => {
-  it("exports every Appointment field as-is", async () => {
-    const written = await runExport([], [FULL_APPT]);
-    const parsed = JSON.parse(written);
-    expect(parsed.data.appointments[0]).toEqual(FULL_APPT);
+describe("restore preview and conflicts", () => {
+  it("restores the main person's identity into a fresh placeholder but preserves a populated main profile", () => {
+    const incoming = { ...empty(), profiles: [profiles[0]] };
+    const fresh = { ...empty(), profiles: [{ id: "default", name: "", color: "blue", createdAt: "now" }] };
+    expect(planBackupMerge(incoming, fresh).selected.profiles).toEqual([profiles[0]]);
+    expect(planBackupMerge(incoming, { ...fresh, medications: [makeMedication()] }).selected.profiles).toEqual([]);
   });
-
-  it("strips the exporting device's notificationId and reschedules on this device", async () => {
-    const written = await runExport([], [FULL_APPT]);
-    jest
-      .mocked(notifications.scheduleAppointmentNotification)
-      .mockResolvedValue("fresh-notif-1|fresh-notif-2");
-
-    await runImport(written);
-
-    const inserted = jest.mocked(db.insertAppointment).mock.calls[0][0];
-    expect(inserted).toEqual(IMPORTED_APPT);
-    expect("notificationId" in inserted).toBe(false);
-
-    // The reminder is rebuilt here, and the fresh ids are persisted so a later
-    // edit/delete can cancel them.
-    expect(notifications.scheduleAppointmentNotification).toHaveBeenCalledWith(IMPORTED_APPT);
-    expect(db.updateAppointment).toHaveBeenCalledWith({
-      ...IMPORTED_APPT,
-      notificationId: "fresh-notif-1|fresh-notif-2",
-    });
+  it("cancelling preview touches neither data, files nor reminders", async () => {
+    await exportFixture([FULL_MED]); resetExisting(); files = [];
+    await expect(importBackup("replace", undefined, async () => null)).rejects.toBeInstanceOf(BackupCancelledError);
+    expect(db.clearAllData).not.toHaveBeenCalled();
+    expect(db.insertMedication).not.toHaveBeenCalled();
+    expect(Directory).not.toHaveBeenCalled();
+    expect(notifications.rebuildDoseNotifications).not.toHaveBeenCalled();
+    expect(files[0].delete).toHaveBeenCalled();
   });
-
-  it("persists nothing when no reminder could be scheduled (past date / web)", async () => {
-    const written = await runExport([], [FULL_APPT]);
-    jest.mocked(notifications.scheduleAppointmentNotification).mockResolvedValue(undefined);
-
-    await runImport(written);
-
-    expect(db.updateAppointment).not.toHaveBeenCalled();
+  it("merge preserves existing medication, dose status, diary and normalized allergy", () => {
+    const existing = { ...empty(), medications: [makeMedication({ name: "Current" })], doseLogs: [makeDoseLog({ status: "taken" })], dailyCheckins: [{ id: "c1", date: "2026-01-01", mood: 3, symptoms: [], createdAt: "2026", profileId: "default" }], allergies: [{ id: "a1", name: "Penicillin", createdAt: "2026", profileId: "default" }] } as BackupData["data"];
+    const incoming = { ...empty(), medications: [makeMedication({ name: "Old" })], doseLogs: [makeDoseLog({ id: "other-log", status: "missed" })], dailyCheckins: [{ ...existing.dailyCheckins[0], id: "c2", mood: 1 }], allergies: [{ ...existing.allergies[0], id: "a2", name: " penicillin " }] };
+    const plan = planBackupMerge(incoming, existing);
+    expect(plan.selected.medications).toEqual([]);
+    expect(plan.selected.doseLogs).toEqual([]);
+    expect(plan.selected.dailyCheckins).toEqual([]);
+    expect(plan.selected.allergies).toEqual([]);
+    expect(plan.conflicts).toMatchObject({ medications: 1, doseLogs: 1, dailyCheckins: 1, allergies: 1 });
   });
-
-  it("replace-import cancels the reminders queued for the wiped appointments", async () => {
-    const written = await runExport([], [FULL_APPT]);
-    const onDevice: Appointment[] = [
-      { ...FULL_APPT, id: "appt-old", notificationId: "stale-1|stale-2" },
-      { ...IMPORTED_APPT, id: "appt-never-scheduled" }, // no id → nothing to cancel
-    ];
-
-    await runImport(written, { existingAppointments: onDevice });
-
-    expect(notifications.cancelAppointmentNotification).toHaveBeenCalledTimes(1);
-    expect(notifications.cancelAppointmentNotification).toHaveBeenCalledWith("stale-1|stale-2");
+  it("merge totals count inserted records and skips known IDs before insertion", async () => {
+    input = legacy({ medications: [makeMedication(), makeMedication({ id: "new" })] });
+    jest.mocked(db.getMedications).mockResolvedValue([makeMedication({ name: "Current" })]);
+    const result = await importBackup("merge");
+    expect(result.count).toBe(1);
+    expect(result.skipped.medications).toBe(1);
+    expect(db.insertMedication).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(db.insertMedication).mock.calls[0][0].id).toBe("new");
+    expect(notifications.cancelScheduleNotifications).not.toHaveBeenCalled();
   });
+  it("rejects duplicate replacement rows instead of overwriting silently", async () => {
+    input = legacy({ doseLogs: [makeDoseLog(), makeDoseLog({ id: "different" })] });
+    await expect(importBackup("replace")).rejects.toBeInstanceOf(BackupFormatError);
+    expect(db.clearAllData).not.toHaveBeenCalled();
+  });
+  it("rejects unknown profile and missing portable bytes before changing data", async () => {
+    input = legacy({ medications: [makeMedication({ profileId: "unknown" })] });
+    await expect(importBackup("replace")).rejects.toBeInstanceOf(BackupFormatError);
+    input = JSON.stringify({ version: 4, exportedAt: "2026", app: "pill-o-clock", data: { medications: [makeMedication({ photoUri: "file:///missing.jpg" })] } });
+    await expect(importBackup("replace")).rejects.toBeInstanceOf(BackupFormatError);
+    expect(db.clearAllData).not.toHaveBeenCalled();
+  });
+  it("write failure propagates, removes only new assets and does not alter live reminders", async () => {
+    await exportFixture([FULL_MED]); resetExisting(); files = [];
+    jest.mocked(db.insertMedication).mockRejectedValueOnce(new Error("disk full"));
+    await expect(importBackup("replace")).rejects.toThrow("disk full");
+    expect(files.filter(f => f.uri.startsWith("file:///restored/")).every(f => f.delete.mock.calls.length === 1)).toBe(true);
+    expect(db.reconcileActiveProfile).not.toHaveBeenCalled();
+    expect(notifications.rebuildDoseNotifications).not.toHaveBeenCalled();
+  });
+});
 
-  it("merge-import neither cancels existing reminders nor reschedules duplicates", async () => {
-    const written = await runExport([], [FULL_APPT]);
-    // Same id already on the device → insertAppointment rejects (duplicate).
-    jest.mocked(db.insertAppointment).mockRejectedValueOnce(new Error("UNIQUE constraint"));
-
-    await runImport(written, {
-      mode: "merge",
-      existingAppointments: [{ ...FULL_APPT, notificationId: "live-1" }],
-    });
-
-    expect(notifications.cancelAppointmentNotification).not.toHaveBeenCalled();
+describe("reminders after data commit", () => {
+  it("replaces old appointment IDs and renewals with IDs from this device", async () => {
+    await exportFixture([FULL_MED], [FULL_APPT]); resetExisting();
+    jest.mocked(notifications.scheduleAppointmentNotification).mockResolvedValue("fresh-appointment");
+    jest.mocked(notifications.scheduleRenewalReminders).mockResolvedValue("fresh-renewal");
+    await importBackup("replace");
+    const appt = jest.mocked(db.insertAppointment).mock.calls[0][0];
+    expect(appt).not.toHaveProperty("notificationId");
+    expect(db.updateAppointment).toHaveBeenCalledWith({ ...appt, notificationId: "fresh-appointment" });
+    expect(db.setMedicationRenewalNotifIds).toHaveBeenCalledWith(FULL_MED.id, "fresh-renewal");
+    expect(notifications.rebuildDoseNotifications).toHaveBeenCalledTimes(1);
+  });
+  it("reports notification failure after a successful restore without losing data", async () => {
+    input = legacy({ medications: [makeMedication()] });
+    jest.mocked(notifications.rebuildDoseNotifications).mockRejectedValueOnce(new Error("permission"));
+    const result = await importBackup("replace");
+    expect(result.count).toBe(1);
+    expect(result.reminderErrors).toBe(1);
+    expect(db.reconcileActiveProfile).toHaveBeenCalled();
+  });
+  it("does not cancel or reschedule duplicate appointments on merge", async () => {
+    await exportFixture([], [FULL_APPT]);
+    const result = await importBackup("merge");
+    expect(result.skipped.appointments).toBe(1);
     expect(notifications.scheduleAppointmentNotification).not.toHaveBeenCalled();
-    expect(db.updateAppointment).not.toHaveBeenCalled();
-  });
-});
-
-describe("renewal reminders across export→import", () => {
-  it("strips the exporting device's renewalNotifIds and reschedules on this device", async () => {
-    const written = await runExport([FULL_MED]);
-    jest
-      .mocked(notifications.scheduleRenewalReminders)
-      .mockResolvedValue("fresh-renewal-1|fresh-renewal-2");
-
-    await runImport(written);
-
-    // The renewal reminders are rebuilt here, and the fresh ids are persisted
-    // so a later edit/delete can cancel them.
-    expect(notifications.scheduleRenewalReminders).toHaveBeenCalledWith(IMPORTED_MED);
-    expect(db.setMedicationRenewalNotifIds).toHaveBeenCalledWith(
-      FULL_MED.id,
-      "fresh-renewal-1|fresh-renewal-2"
-    );
-  });
-
-  it("persists nothing when no reminder could be scheduled (past date / web)", async () => {
-    const written = await runExport([FULL_MED]);
-    jest.mocked(notifications.scheduleRenewalReminders).mockResolvedValue(undefined);
-
-    await runImport(written);
-
-    expect(db.setMedicationRenewalNotifIds).not.toHaveBeenCalled();
-  });
-
-  it("does not reschedule for medications without a renewalDate", async () => {
-    const written = await runExport([makeMedication()]);
-
-    await runImport(written);
-
-    expect(notifications.scheduleRenewalReminders).not.toHaveBeenCalled();
-    expect(db.setMedicationRenewalNotifIds).not.toHaveBeenCalled();
-  });
-
-  it("replace-import cancels the renewal reminders queued for the wiped medications", async () => {
-    const written = await runExport([FULL_MED]);
-    const staleMed = makeMedication({ id: "med-old", renewalNotifIds: "stale-1|stale-2" });
-    const onDevice: Medication[] = [
-      staleMed,
-      makeMedication({ id: "med-never-scheduled" }), // no ids → nothing to cancel
-    ];
-
-    await runImport(written, { existingMedications: onDevice });
-
-    expect(notifications.cancelRenewalReminders).toHaveBeenCalledTimes(1);
-    expect(notifications.cancelRenewalReminders).toHaveBeenCalledWith(staleMed);
-  });
-
-  it("merge-import neither cancels existing renewal reminders nor reschedules duplicates", async () => {
-    const written = await runExport([FULL_MED]);
-    // Same id already on the device → insertMedication rejects (duplicate).
-    jest.mocked(db.insertMedication).mockRejectedValueOnce(new Error("UNIQUE constraint"));
-
-    await runImport(written, {
-      mode: "merge",
-      existingMedications: [{ ...FULL_MED, renewalNotifIds: "live-1" }],
-    });
-
-    expect(notifications.cancelRenewalReminders).not.toHaveBeenCalled();
-    expect(notifications.scheduleRenewalReminders).not.toHaveBeenCalled();
-    expect(db.setMedicationRenewalNotifIds).not.toHaveBeenCalled();
+    expect(notifications.cancelAppointmentNotification).not.toHaveBeenCalled();
   });
 });

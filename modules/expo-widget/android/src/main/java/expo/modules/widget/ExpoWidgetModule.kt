@@ -17,6 +17,11 @@ class WidgetData : Record {
     @Field val name:    String?  = null
     @Field val time:    String?  = null
     @Field val allDone: Boolean  = false
+    @Field val title: String = ""
+    @Field val subtitle: String = ""
+    @Field val profile: String = ""
+    @Field val date: String = ""
+    @Field val fallbackText: String = "Pill O-Clock"
 }
 
 // ─── Module ────────────────────────────────────────────────────────────────
@@ -42,6 +47,11 @@ class ExpoWidgetModule : Module() {
                 .putString("next_dose_name", data.name)
                 .putString("next_dose_time", data.time)
                 .putBoolean("all_done", data.allDone)
+                .putString("plan_title", data.title)
+                .putString("plan_subtitle", data.subtitle)
+                .putString("plan_profile", data.profile)
+                .putString("plan_date", data.date)
+                .putString("fallback_text", data.fallbackText)
                 .apply()
 
             val manager  = AppWidgetManager.getInstance(context)

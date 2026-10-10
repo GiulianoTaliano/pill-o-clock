@@ -1,4 +1,11 @@
-import { sqliteTable, text, real, integer, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  real,
+  integer,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/sqlite-core";
 
 // ─── Profiles (F2 multi-profile: one caregiver, several people/pets) ───────
 // The row with id 'default' always exists (created in migration v14) and its
@@ -55,7 +62,9 @@ export const medications = sqliteTable("medications", {
   rxcui: text("rxcui"),
   profileId: text("profile_id").notNull().default("default"),
   regimen: text("regimen"),
-  isInjectable: integer("is_injectable", { mode: "boolean" }).notNull().default(false),
+  isInjectable: integer("is_injectable", { mode: "boolean" })
+    .notNull()
+    .default(false),
   archivedAt: text("archived_at"),
   archiveReason: text("archive_reason"),
 });
@@ -66,7 +75,9 @@ export const schedules = sqliteTable(
   "schedules",
   {
     id: text("id").primaryKey(),
-    medicationId: text("medication_id").notNull().references(() => medications.id, { onDelete: "cascade" }),
+    medicationId: text("medication_id")
+      .notNull()
+      .references(() => medications.id, { onDelete: "cascade" }),
     time: text("time").notNull(),
     /** JSON array of day numbers: 0=Sun..6=Sat. Empty = every day. */
     days: text("days").notNull().default("[]"),
@@ -91,6 +102,7 @@ export const doseLogs = sqliteTable(
     notes: text("notes"),
     skipReason: text("skip_reason"),
     injectionSite: text("injection_site"),
+    stockDelta: real("stock_delta"),
   },
   (t) => [
     uniqueIndex("idx_dose_unique").on(t.scheduleId, t.scheduledDate),

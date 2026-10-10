@@ -34,7 +34,7 @@ function log(date: string, status: string, scheduleId = "sch-1") {
 async function computeStreak(logs: ReturnType<typeof log>[]): Promise<number> {
   const getHistoryLogs = jest.fn().mockResolvedValue(logs);
   const state = { getHistoryLogs, todayLogs: [] };
-  (useAppStore as jest.Mock).mockImplementation((sel: (s: any) => unknown) => sel(state));
+  (useAppStore as unknown as jest.Mock).mockImplementation((sel: (s: any) => unknown) => sel(state));
 
   const { result } = renderHook(() => useAdherenceStreak());
   await act(async () => {

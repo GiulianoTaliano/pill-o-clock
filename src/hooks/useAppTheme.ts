@@ -1,63 +1,60 @@
-import { useColorScheme } from "react-native";
+import { useColorScheme } from "nativewind";
 
-/**
- * Returns theme-aware raw color values for use inside inline `style={{ }}`
- * props that cannot use NativeWind class-based dark mode.
- *
- * For everything else (Tailwind class names), use the `dark:` prefix or the
- * CSS-variable-backed semantic tokens defined in tailwind.config.js.
- */
+/** Raw semantic colors for native styles, matching global.css. */
 export function useAppTheme() {
-  const scheme = useColorScheme();
-  const dark = scheme === "dark";
-
+  const dark = useColorScheme().colorScheme === "dark";
   return {
     isDark: dark,
-
-    // ── Semantic surface colors ───────────────────────────────────────────
-    card:    dark ? "#0f172a" : "#ffffff",   // bg-card
-    cardAlt: dark ? "#1e293b" : "#f8fafc",  // inactive / secondary surface
-
-    // -- Muted text / icon color (matches --color-muted in global.css) --------
-    muted: dark ? "#94a3b8" : "#5b6675",     // light darkened to pass AA (OM2)
-
-    // ── Accent / semantic colors (dark-adaptive for inline styles) ─────────
-    primary: dark ? "#60a5fa" : "#2563eb",   // blue-400 / blue-600 (AA as text, OM1)
-    danger:  dark ? "#f87171" : "#ef4444",   // red-400 / red-500
-    warning: dark ? "#fb923c" : "#f97316",   // orange-400 / orange-500
-    success: dark ? "#4ade80" : "#22c55e",   // green-400 / green-500
-    accent:  dark ? "#a78bfa" : "#8b5cf6",   // violet-400 / violet-500
-    amber:   dark ? "#fbbf24" : "#d97706",   // amber-400 / amber-600
-
-    // ── Dose status card backgrounds + borders ────────────────────────────
+    background: dark ? "#0b1324" : "#f4f7fc",
+    card: dark ? "#132036" : "#ffffff",
+    cardAlt: dark ? "#1d2c44" : "#edf2f9",
+    text: dark ? "#f1f5fb" : "#17263c",
+    border: dark ? "#344760" : "#d9e2ef",
+    muted: dark ? "#b9c8dc" : "#52647c",
+    primary: dark ? "#91b7ff" : "#2459c4",
+    actionFill: "#2459c4",
+    onAction: "#ffffff",
+    danger: dark ? "#ff9b9b" : "#b42336",
+    warning: dark ? "#ffc980" : "#945000",
+    success: dark ? "#8ee0af" : "#167544",
+    accent: dark ? "#c0b2ff" : "#6e48bf",
+    amber: dark ? "#ffd27d" : "#875200",
     doseStatus: {
       pending: {
-        bg:     dark ? "#292101" : "#fffbeb",
-        border: dark ? "#92400e" : "#fde68a",
+        bg: dark ? "#132036" : "#ffffff",
+        border: dark ? "#344760" : "#d9e2ef",
       },
       taken: {
-        bg:     dark ? "#052e16" : "#f0fdf4",
-        border: dark ? "#14532d" : "#86efac",
+        bg: dark ? "#132036" : "#ffffff",
+        border: dark ? "#344760" : "#d9e2ef",
       },
       skipped: {
-        bg:     dark ? "#450a0a" : "#fff1f2",
-        border: dark ? "#7f1d1d" : "#fca5a5",
+        bg: dark ? "#132036" : "#ffffff",
+        border: dark ? "#344760" : "#d9e2ef",
       },
       missed: {
-        bg:     dark ? "#0f172a" : "#f8fafc",
-        border: dark ? "#334155" : "#cbd5e1",
+        bg: dark ? "#132036" : "#ffffff",
+        border: dark ? "#344760" : "#d9e2ef",
       },
     },
-
-    // ── Higher-contrast secondary text (dosage, notes, separators) ─────────
-    secondaryText: dark ? "#cbd5e1" : "#475569",
-
-    // ── Status badge (history rows + calendar detail) ─────────────────────
+    secondaryText: dark ? "#d0dced" : "#42546d",
     statusBadge: {
-      taken:   { bg: dark ? "#052e16" : "#dcfce7", color: dark ? "#4ade80" : "#16a34a" },
-      skipped: { bg: dark ? "#450a0a" : "#fee2e2", color: dark ? "#f87171" : "#dc2626" },
-      pending: { bg: dark ? "#292101" : "#fef3c7", color: dark ? "#fbbf24" : "#d97706" },
-      missed:  { bg: dark ? "#334155" : "#e2e8f0", color: dark ? "#e2e8f0" : "#334155" },
+      taken: {
+        bg: dark ? "#153c2d" : "#e0f2e8",
+        color: dark ? "#8ee0af" : "#12613a",
+      },
+      skipped: {
+        bg: dark ? "#492534" : "#fbe7ec",
+        color: dark ? "#ffb2c2" : "#9d233d",
+      },
+      pending: {
+        bg: dark ? "#43371f" : "#fff0d6",
+        color: dark ? "#ffd27d" : "#805000",
+      },
+      missed: {
+        bg: dark ? "#26364e" : "#e8edf5",
+        color: dark ? "#d0dced" : "#42546d",
+      },
     },
   } as const;
 }

@@ -8,7 +8,7 @@ export type MedicationColor =
   | "red"
   | "teal"
   | "pink"
-  | (string & {});  // allows custom hex values e.g. "#FF5733"
+  | (string & {}); // allows custom hex values e.g. "#FF5733"
 
 export type DosageUnit =
   | "mg"
@@ -71,7 +71,7 @@ export interface Medication {
   endDate?: string;
   isActive: boolean;
   createdAt: string;
-  /** Number of units currently in stock (optional). */
+  /** Available doses. Each recorded take consumes one; dosage is independent. */
   stockQuantity?: number;
   /** Fire a low-stock notification when stockQuantity drops to this value. */
   stockAlertThreshold?: number;
@@ -142,6 +142,8 @@ export interface DoseLog {
   skipReason?: SkipReason;
   /** Injection site key (F3) — see services/injectionSites.ts; injectables only. */
   injectionSite?: string;
+  /** Actual stock consumed by this record (0 or 1), retained for an exact undo. */
+  stockDelta?: number;
 }
 
 // ─── Appointment ──────────────────────────────────────────────────────────
@@ -190,11 +192,11 @@ export interface AppointmentDocument {
 // ─── Health measurements ─────────────────────────────────────────────────────
 
 export type MeasurementType =
-  | 'blood_pressure'
-  | 'glucose'
-  | 'weight'
-  | 'spo2'
-  | 'heart_rate';
+  | "blood_pressure"
+  | "glucose"
+  | "weight"
+  | "spo2"
+  | "heart_rate";
 
 export interface HealthMeasurement {
   id: string;

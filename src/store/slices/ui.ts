@@ -1,10 +1,13 @@
 import type { StateCreator } from "zustand";
+import { loadSnoozedDoses } from "../../services/snoozedDoses";
 import type { AppState, UISlice } from "../types";
 
-export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => ({
+export const createUISlice: StateCreator<AppState, [], [], UISlice> = (
+  set
+) => ({
   selectedAppointmentId: null,
   setSelectedAppointmentId: (id) => set({ selectedAppointmentId: id }),
   pendingEditAppointmentId: null,
   setPendingEditAppointmentId: (id) => set({ pendingEditAppointmentId: id }),
-  snoozedTimes: {},
+  snoozedTimes: loadSnoozedDoses(),
 });

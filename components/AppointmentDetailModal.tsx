@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,12 @@ import {
   Share,
   Linking,
   Platform,
-  PanResponder,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
 import * as Sharing from "expo-sharing";
 import * as IntentLauncher from "expo-intent-launcher";
@@ -26,52 +25,14 @@ import { formatTimeForDisplay } from "../src/utils";
 import { useTranslation, getDateLocale } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
 import { useAppStore } from "../src/store";
-
-// ─── Reminder label helper ─────────────────────────────────────────────────
-
-const REMINDER_MINUTES = [
-  { key: "reminderNone", minutes: 0 },
-  { key: "reminder1h",   minutes: 60 },
-  { key: "reminder2h",   minutes: 120 },
-  { key: "reminder1d",   minutes: 1440 },
-];
-
-// ─── Row component ─────────────────────────────────────────────────────────
-
-function DetailRow({
-  icon,
-  label,
-  value,
-  color = "#64748b",
-}: {
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  label: string;
-  value: string;
-  color?: string;
-}) {
-  return (
-    <View className="flex-row items-start gap-3 py-2.5 border-b border-border">
-      <View className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center mt-0.5">
-        <Ionicons name={icon} size={16} color={color} />
-      </View>
-      <View className="flex-1">
-        <Text className="text-xs text-muted font-semibold mb-0.5 uppercase tracking-wider">
-          {label}
-        </Text>
-        <Text className="text-sm text-text font-medium leading-5">{value}</Text>
-      </View>
-    </View>
-  );
-}
-
-// ─── Main component ────────────────────────────────────────────────────────
+import { isAppointmentPast } from "../src/services/carePlan";
 
 interface Props {
   appt: Appointment | null;
   visible: boolean;
   onClose: () => void;
   onEdit: (appt: Appointment) => void;
-  onDelete: (appt: Appointment) => void;
+  onDelete: (appt: Appointment) => void | Promise<void>;
 }
 
 export function AppointmentDetailModal({
@@ -84,527 +45,493 @@ export function AppointmentDetailModal({
   const { t } = useTranslation();
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
-  const appointmentDocuments = useAppStore((s) => s.appointmentDocuments);
-  const loadAppointmentDocuments = useAppStore((s) => s.loadAppointmentDocuments);
-  const addAppointmentDocument = useAppStore((s) => s.addAppointmentDocument);
-  const removeAppointmentDocument = useAppStore((s) => s.removeAppointmentDocument);
-
-  useEffect(() => {
-    if (visible && appt) {
-      loadAppointmentDocuments(appt.id);
-    }
-  }, [visible, appt?.id]);
-
-  const dismissPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderRelease: (_, { dy }) => { if (dy > 50) onClose(); },
-    })
-  ).current;
-
-  if (!appt) return null;
-
-  const dateObj = new Date(appt.date + "T12:00");
-  const dateLabel = format(dateObj, "PPP", { locale: getDateLocale() });
-  const dateLabelCap = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
-  const isPast = appt.date < new Date().toISOString().slice(0, 10);
-
-  const reminderLabel =
-    appt.reminderMinutes && appt.reminderMinutes > 0
-      ? REMINDER_MINUTES.find((r) => r.minutes === appt.reminderMinutes)?.key
-      : null;
-
-  const hasCoords = !!appt.locationCoords;
-  const coords = appt.locationCoords;
-
-  const mapsUrl = coords
-    ? `https://maps.google.com/maps?q=${coords.latitude},${coords.longitude}`
-    : null;
-
-  const handleOpenMaps = () => {
-    if (!mapsUrl) return;
-    const nativeUrl =
-      Platform.OS === "ios"
-        ? `maps://maps.apple.com/?q=${coords!.latitude},${coords!.longitude}`
-        : `geo:${coords!.latitude},${coords!.longitude}?q=${coords!.latitude},${coords!.longitude}(${encodeURIComponent(appt.title)})`;
-
-    Linking.canOpenURL(nativeUrl)
-      .then((supported) => Linking.openURL(supported ? nativeUrl : mapsUrl!))
-      .catch(() => Linking.openURL(mapsUrl!));
-  };
-
-  const handleShare = async () => {
-    if (!mapsUrl) return;
-    const message = [
-      appt.title,
-      appt.doctor ? `${t("appointments.fieldDoctor").replace(" (optional)", "")}: ${appt.doctor}` : null,
-      `${dateLabelCap}${appt.time ? ` · ${formatTimeForDisplay(appt.time)}` : ""}`,
-      appt.location ? appt.location : null,
-      mapsUrl,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    await Share.share({ message });
-  };
-
-  const handleDelete = () => {
-    Alert.alert(
-      t("appointments.deleteTitle"),
-      t("appointments.deleteMessage"),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("common.delete"),
-          style: "destructive",
-          onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onDelete(appt);
-          },
-        },
-      ]
-    );
-  };
-
-  // ─── Document handlers ──────────────────────────────────────────────────
-
-  async function handleAttachDocument() {
-    if (!appt) return;
+  const allDocuments = useAppStore((s) => s.appointmentDocuments);
+  const loadDocuments = useAppStore((s) => s.loadAppointmentDocuments);
+  const addDocument = useAppStore((s) => s.addAppointmentDocument);
+  const removeDocument = useAppStore((s) => s.removeAppointmentDocument);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const actionGuard = useRef(false);
+  const request = useRef(0);
+  const documents = allDocuments.filter(
+    (doc) => doc.appointmentId === appt?.id
+  );
+  const appointmentId = appt?.id;
+  const load = useCallback(async () => {
+    if (!appointmentId) return;
+    const token = ++request.current;
+    setLoading(true);
+    setError(null);
     try {
+      await loadDocuments(appointmentId);
+    } catch {
+      if (request.current === token) setError(t("uxHealth.loadError"));
+    } finally {
+      if (request.current === token) setLoading(false);
+    }
+  }, [appointmentId, loadDocuments, t]);
+  useEffect(() => {
+    const requests = request;
+    if (visible) void load();
+    return () => {
+      requests.current++;
+    };
+  }, [visible, load]);
+  const close = () => {
+    if (!actionGuard.current) onClose();
+  };
+  async function perform(action: () => Promise<unknown>, message: string) {
+    if (actionGuard.current) return;
+    actionGuard.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch {
+      setError(message);
+    } finally {
+      actionGuard.current = false;
+      setBusy(false);
+    }
+  }
+  if (!appt) return null;
+  const current = appt;
+  const dateLabel = format(new Date(current.date + "T12:00"), "PPP", {
+    locale: getDateLocale(),
+  });
+  const mapsUrl = current.locationCoords
+    ? `https://maps.google.com/maps?q=${current.locationCoords.latitude},${current.locationCoords.longitude}`
+    : current.location
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(current.location)}`
+    : undefined;
+  const openMap = async () => {
+    if (mapsUrl)
+      try {
+        await Linking.openURL(mapsUrl);
+      } catch {
+        setError(t("uxHealth.mapUnavailable"));
+      }
+  };
+  const reminder =
+    !current.time || current.reminderMinutes === 0
+      ? t("uxHealth.noNotifications")
+      : current.reminderMinutes === -1
+      ? t("uxHealth.reminderExact")
+      : t(
+          `appointments.${
+            (
+              {
+                60: "reminder1h",
+                120: "reminder2h",
+                1440: "reminder1d",
+              } as Record<number, string>
+            )[current.reminderMinutes ?? 60]
+          }`
+        );
+  const button = (
+    label: string,
+    icon: React.ComponentProps<typeof Ionicons>["name"],
+    onPress: () => void,
+    danger = false
+  ) => (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityState={{ disabled: busy }}
+      disabled={busy}
+      onPress={onPress}
+      style={{
+        minHeight: 48,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingHorizontal: 14,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: theme.border,
+        backgroundColor: theme.card,
+      }}
+    >
+      <Ionicons
+        name={icon}
+        size={20}
+        color={danger ? theme.danger : theme.primary}
+      />
+      <Text
+        style={{
+          color: danger ? theme.danger : theme.primary,
+          fontSize: 15,
+          fontWeight: "600",
+          flexShrink: 1,
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+  const row = (label: string, value: string) => (
+    <View
+      style={{
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.border,
+      }}
+    >
+      <Text style={{ color: theme.muted, fontSize: 13, marginBottom: 4 }}>
+        {label}
+      </Text>
+      <Text
+        selectable
+        style={{ color: theme.text, fontSize: 16, lineHeight: 24 }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+  async function attach() {
+    await perform(async () => {
       const result = await DocumentPicker.getDocumentAsync({
         type: "*/*",
         copyToCacheDirectory: true,
       });
       if (result.canceled) return;
       const asset = result.assets[0];
-      await addAppointmentDocument(appt.id, {
+      await addDocument(current.id, {
         uri: asset.uri,
         name: asset.name,
         mimeType: asset.mimeType ?? undefined,
         size: asset.size ?? undefined,
       });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      Alert.alert(t("appointments.docPickerError"));
-    }
+    }, t("appointments.docPickerError"));
   }
-
-  async function handleOpenDocument(fileUri: string, mimeType: string) {
-    try {
-      if (Platform.OS === "android") {
-        const contentUri = await getContentUriAsync(fileUri);
-        await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
-          data: contentUri,
-          type: mimeType,
-          flags: 1,
-        });
-      } else {
-        await Sharing.shareAsync(fileUri, { mimeType });
-      }
-    } catch {
-      // Fallback to share sheet if no viewer is available
+  async function openDocument(fileUri: string, mimeType: string) {
+    await perform(async () => {
       try {
-        await Sharing.shareAsync(fileUri, { mimeType });
+        if (Platform.OS === "android")
+          await IntentLauncher.startActivityAsync(
+            "android.intent.action.VIEW",
+            {
+              data: await getContentUriAsync(fileUri),
+              type: mimeType,
+              flags: 1,
+            }
+          );
+        else await Sharing.shareAsync(fileUri, { mimeType });
       } catch {
-        Alert.alert(t("appointments.docOpenError"));
+        await Sharing.shareAsync(fileUri, { mimeType });
       }
-    }
+    }, t("appointments.docOpenError"));
   }
-
-  function handleDeleteDocument(docId: string) {
+  function deleteDocument(id: string, name: string) {
     Alert.alert(
-      t("appointments.deleteDocTitle"),
+      t("uxHealth.deleteDocument", { name }),
       t("appointments.deleteDocMessage"),
       [
         { text: t("common.cancel"), style: "cancel" },
         {
           text: t("common.delete"),
           style: "destructive",
-          onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            removeAppointmentDocument(docId);
-          },
+          onPress: () =>
+            void perform(() => removeDocument(id), t("uxHealth.deleteError")),
         },
       ]
     );
   }
-
-  function formatFileSize(bytes?: number): string {
-    if (bytes == null) return "";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  function deleteAppointment() {
+    Alert.alert(
+      t("uxHealth.deleteNamed", { name: current.title }),
+      t("appointments.deleteMessage"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: () =>
+            void perform(async () => {
+              await onDelete(current);
+              onClose();
+            }, t("uxHealth.deleteError")),
+        },
+      ]
+    );
   }
-
-  const borderColor = theme.isDark ? "#1e293b" : "#e2e8f0";
-
+  const share = () =>
+    void perform(
+      () =>
+        Share.share({
+          message: [
+            current.title,
+            dateLabel +
+              (current.time
+                ? ` · ${formatTimeForDisplay(current.time)}`
+                : ` · ${t("uxHealth.noTime")}`),
+            current.doctor,
+            current.location,
+            current.notes,
+            mapsUrl,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        }),
+      t("uxHealth.shareError")
+    );
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={close}
     >
-      <Pressable onPress={onClose} style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
+      <Pressable
+        onPress={close}
+        style={{
+          flex: 1,
+          justifyContent: "flex-end",
+          backgroundColor: "rgba(0,0,0,.5)",
+        }}
+      >
         <Pressable
           onPress={() => {}}
           style={{
-            backgroundColor: theme.isDark ? "#0f172a" : "#ffffff",
+            backgroundColor: theme.background,
             borderTopLeftRadius: 28,
             borderTopRightRadius: 28,
-            maxHeight: "90%",
+            maxHeight: "92%",
+            paddingBottom: Math.max(insets.bottom, 16),
           }}
         >
-          {/* Handle */}
-          <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 4 }} {...dismissPan.panHandlers}>
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                backgroundColor: theme.isDark ? "#334155" : "#cbd5e1",
-                borderRadius: 2,
-              }}
-            />
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {/* ── Title row ──────────────────────────────────────── */}
-            <View
-              style={{
-                paddingHorizontal: 20,
-                paddingTop: 12,
-                paddingBottom: 16,
-                flexDirection: "row",
-                alignItems: "flex-start",
-                gap: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: borderColor,
-              }}
-            >
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: theme.isDark ? "#1e3a5f" : "#dbeafe",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              padding: 20,
+              gap: 12,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text
+                accessibilityRole="header"
+                style={{ color: theme.text, fontSize: 24, fontWeight: "700" }}
               >
-                <Ionicons name="calendar" size={24} color="#4f9cff" />
-              </View>
-              <View style={{ flex: 1 }}>
+                {current.title}
+              </Text>
+              {isAppointmentPast(current) && (
                 <Text
-                  style={{
-                    color: theme.isDark ? "#f8fafc" : "#1e293b",
-                    fontWeight: "900",
-                    fontSize: 18,
-                    lineHeight: 24,
-                  }}
+                  style={{ color: theme.muted, fontSize: 14, marginTop: 4 }}
                 >
-                  {appt.title}
+                  {t("uxHealth.past")}
                 </Text>
-                {isPast && (
-                  <View
-                    style={{
-                      marginTop: 4,
-                      alignSelf: "flex-start",
-                      backgroundColor: theme.isDark ? "#334155" : "#e2e8f0",
-                      borderRadius: 8,
-                      paddingHorizontal: 8,
-                      paddingVertical: 2,
-                    }}
-                  >
-                    <Text style={{ color: theme.isDark ? "#e2e8f0" : "#334155", fontSize: 11, fontWeight: "600" }}>
-                      Past
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <TouchableOpacity
-                onPress={onClose}
-                style={{
-                  padding: 6,
-                  borderRadius: 12,
-                  backgroundColor: theme.isDark ? "#1e293b" : "#f1f5f9",
-                }}
-              >
-                <Ionicons
-                  name="close"
-                  size={18}
-                  color={theme.muted}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* ── Detail rows ─────────────────────────────────────── */}
-            <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-              <DetailRow
-                icon="calendar-outline"
-                label={t("appointments.fieldDate")}
-                value={`${dateLabelCap}${appt.time ? `  ·  ${formatTimeForDisplay(appt.time)}` : ""}`}
-                color="#4f9cff"
-              />
-
-              {appt.doctor ? (
-                <DetailRow
-                  icon="person-outline"
-                  label={t("appointments.fieldDoctor").replace(" (optional)", "")}
-                  value={appt.doctor}
-                  color="#a855f7"
-                />
-              ) : null}
-
-              {appt.location ? (
-                <DetailRow
-                  icon="location-outline"
-                  label={t("appointments.fieldLocation").replace(" (optional)", "")}
-                  value={appt.location}
-                  color="#22c55e"
-                />
-              ) : null}
-
-              {appt.notes ? (
-                <DetailRow
-                  icon="document-text-outline"
-                  label={t("appointments.fieldNotes").replace(" (optional)", "")}
-                  value={appt.notes}
-                  color="#f59e0b"
-                />
-              ) : null}
-
-              {reminderLabel ? (
-                <DetailRow
-                  icon="notifications-outline"
-                  label={t("appointments.fieldReminder")}
-                  value={t(`appointments.${reminderLabel}`)}
-                  color="#4f9cff"
-                />
-              ) : null}
-            </View>
-
-            {/* ── Embedded map ──────────────────────────────────────── */}
-            {hasCoords && coords ? (
-              <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-                <TouchableOpacity onPress={handleOpenMaps} activeOpacity={0.85}>
-                  <View
-                    style={{
-                      borderRadius: 20,
-                      overflow: "hidden",
-                      height: 200,
-                      borderWidth: 1,
-                      borderColor: borderColor,
-                    }}
-                  >
-                    <MapView
-                      style={{ flex: 1 }}
-                      initialRegion={{
-                        latitude: coords.latitude,
-                        longitude: coords.longitude,
-                        latitudeDelta: 0.008,
-                        longitudeDelta: 0.008,
-                      }}
-                      scrollEnabled={false}
-                      zoomEnabled={false}
-                      pitchEnabled={false}
-                      rotateEnabled={false}
-                      customMapStyle={theme.isDark ? [] : []}
-                      pointerEvents="none"
-                    >
-                      <Marker
-                        coordinate={coords}
-                        pinColor="#4f9cff"
-                      />
-                    </MapView>
-
-                    {/* Tap overlay badge */}
-                    <View
-                      style={{
-                        position: "absolute",
-                        bottom: 10,
-                        right: 10,
-                        backgroundColor: "rgba(0,0,0,0.6)",
-                        borderRadius: 12,
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <Ionicons name="open-outline" size={12} color="#fff" />
-                      <Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}>
-                        {t("appointments.viewOnMap")}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-
-                {/* Share location */}
-                <TouchableOpacity
-                  onPress={handleShare}
-                  style={{
-                    marginTop: 10,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    paddingVertical: 10,
-                    borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: borderColor,
-                    backgroundColor: theme.card,
-                  }}
-                >
-                  <Ionicons name="share-outline" size={16} color="#4f9cff" />
-                  <Text style={{ color: "#4f9cff", fontWeight: "700", fontSize: 13 }}>
-                    {t("appointments.shareLocation")}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            {/* ── Documents section ─────────────────────────────────── */}
-            <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Ionicons name="attach-outline" size={18} color={theme.isDark ? "#94a3b8" : "#64748b"} />
-                  <Text style={{ color: theme.isDark ? "#f8fafc" : "#1e293b", fontWeight: "700", fontSize: 14 }}>
-                    {t("appointments.documentsTitle")}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={handleAttachDocument}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    borderRadius: 10,
-                    backgroundColor: theme.isDark ? "#1e3a5f" : "#dbeafe",
-                  }}
-                >
-                  <Ionicons name="add" size={16} color="#4f9cff" />
-                  <Text style={{ color: "#4f9cff", fontWeight: "600", fontSize: 12 }}>
-                    {t("appointments.attachDocument")}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {appointmentDocuments.length === 0 ? (
-                <Text style={{ color: theme.muted, fontSize: 13, fontStyle: "italic", paddingVertical: 8 }}>
-                  {t("appointments.noDocuments")}
-                </Text>
-              ) : (
-                appointmentDocuments.map((doc) => (
-                  <View
-                    key={doc.id}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 10,
-                      borderBottomWidth: 1,
-                      borderBottomColor: borderColor,
-                      gap: 10,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 10,
-                        backgroundColor: theme.isDark ? "#1e293b" : "#f1f5f9",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Ionicons
-                        name={doc.mimeType.startsWith("image/") ? "image-outline" : "document-outline"}
-                        size={18}
-                        color={theme.isDark ? "#94a3b8" : "#64748b"}
-                      />
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => handleOpenDocument(doc.fileUri, doc.mimeType)}
-                      style={{ flex: 1 }}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={{ color: theme.isDark ? "#f8fafc" : "#1e293b", fontSize: 13, fontWeight: "600" }}
-                      >
-                        {doc.fileName}
-                      </Text>
-                      <Text style={{ color: theme.muted, fontSize: 11 }}>
-                        {formatFileSize(doc.fileSize)}
-                        {doc.fileSize ? " · " : ""}
-                        {format(new Date(doc.createdAt), "PP", { locale: getDateLocale() })}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteDocument(doc.id)}
-                      style={{ padding: 6 }}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))
               )}
             </View>
-
-            {/* ── Edit / Delete actions ─────────────────────────────── */}
-            <View
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+              disabled={busy}
+              onPress={close}
               style={{
-                paddingHorizontal: 20,
-                paddingTop: 20,
-                paddingBottom: Math.max(insets.bottom, 16) + 12,
-                flexDirection: "row",
-                gap: 12,
+                minWidth: 48,
+                minHeight: 48,
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
+              <Ionicons name="close" size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12 }}
+          >
+            {row(
+              t("appointments.fieldDate"),
+              dateLabel +
+                (current.time
+                  ? ` · ${formatTimeForDisplay(current.time)}`
+                  : ` · ${t("uxHealth.noTime")}`)
+            )}
+            {current.doctor
+              ? row(t("appointments.fieldDoctor"), current.doctor)
+              : null}
+            {current.location
+              ? row(t("appointments.fieldLocation"), current.location)
+              : null}
+            {current.notes
+              ? row(t("appointments.fieldNotes"), current.notes)
+              : null}
+            {row(t("appointments.fieldReminder"), reminder)}
+            {current.time &&
+              current.reminderMinutes !== 0 &&
+              !current.notificationId &&
+              !isAppointmentPast(current) && (
+                <Text
+                  style={{ color: theme.warning, fontSize: 14, marginTop: 8 }}
+                >
+                  {t("uxHealth.reminderNotScheduled")}
+                </Text>
+              )}
+            {current.locationCoords && (
               <TouchableOpacity
-                onPress={handleDelete}
+                accessibilityRole="button"
+                accessibilityLabel={t("appointments.viewOnMap")}
+                onPress={() => void openMap()}
                 style={{
-                  flex: 1,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  paddingVertical: 14,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: theme.isDark ? "#7f1d1d" : "#fca5a5",
-                  backgroundColor: theme.isDark ? "#450a0a" : "#fff1f2",
+                  marginVertical: 16,
+                  borderRadius: 18,
+                  overflow: "hidden",
+                  height: 180,
                 }}
               >
-                <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                <Text style={{ color: "#ef4444", fontWeight: "700", fontSize: 14 }}>
-                  {t("common.delete")}
-                </Text>
+                <MapView
+                  key={current.id}
+                  accessible={false}
+                  style={{ flex: 1 }}
+                  initialRegion={{
+                    ...current.locationCoords,
+                    latitudeDelta: 0.008,
+                    longitudeDelta: 0.008,
+                  }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                  pointerEvents="none"
+                >
+                  <Marker coordinate={current.locationCoords} />
+                </MapView>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onEdit(appt);
-                }}
+            )}
+            {mapsUrl &&
+              button(
+                t("appointments.viewOnMap"),
+                "map-outline",
+                () => void openMap()
+              )}
+            <View style={{ marginTop: 20, marginBottom: 8 }}>
+              <Text
+                accessibilityRole="header"
                 style={{
-                  flex: 2,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  paddingVertical: 14,
-                  borderRadius: 16,
-                  backgroundColor: "#4f9cff",
+                  color: theme.text,
+                  fontSize: 18,
+                  fontWeight: "700",
+                  marginBottom: 8,
                 }}
               >
-                <Ionicons name="pencil-outline" size={16} color="#fff" />
-                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>
-                  {t("common.edit")}
-                </Text>
-              </TouchableOpacity>
+                {t("appointments.documentsTitle")}
+              </Text>
+              <Text
+                style={{ color: theme.muted, fontSize: 13, marginBottom: 8 }}
+              >
+                {t("uxHealth.documentsImmediate")}
+              </Text>
+              {button(
+                busy
+                  ? t("uxHealth.attaching")
+                  : t("appointments.attachDocument"),
+                "attach-outline",
+                () => void attach()
+              )}
             </View>
+            {loading ? (
+              <ActivityIndicator
+                accessibilityLabel={t("uxHealth.documentsLoading")}
+                color={theme.primary}
+              />
+            ) : !error && documents.length === 0 ? (
+              <Text
+                style={{
+                  color: theme.muted,
+                  fontSize: 14,
+                  paddingVertical: 12,
+                }}
+              >
+                {t("appointments.noDocuments")}
+              </Text>
+            ) : null}
+            {documents.map((doc) => (
+              <View
+                key={doc.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                }}
+              >
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={doc.fileName}
+                  disabled={busy}
+                  onPress={() => void openDocument(doc.fileUri, doc.mimeType)}
+                  style={{ flex: 1, minHeight: 56, paddingVertical: 12 }}
+                >
+                  <Text style={{ color: theme.text, fontSize: 15 }}>
+                    {doc.fileName}
+                  </Text>
+                  {doc.fileSize != null && (
+                    <Text style={{ color: theme.muted, fontSize: 12 }}>
+                      {doc.fileSize < 1024
+                        ? `${doc.fileSize} B`
+                        : `${Math.ceil(doc.fileSize / 1024)} KB`}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t("uxHealth.deleteDocument", {
+                    name: doc.fileName,
+                  })}
+                  disabled={busy}
+                  onPress={() => deleteDocument(doc.id, doc.fileName)}
+                  style={{
+                    width: 48,
+                    minHeight: 48,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={20}
+                    color={theme.danger}
+                  />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {error && (
+              <View style={{ paddingVertical: 12 }}>
+                <Text
+                  accessibilityRole="alert"
+                  style={{ color: theme.danger, fontSize: 15 }}
+                >
+                  {error}
+                </Text>
+                {button(t("uxHealth.retry"), "refresh", () => void load())}
+              </View>
+            )}
+            <View style={{ marginTop: 20, gap: 8 }}>
+              {button(
+                t("common.share", {
+                  defaultValue: t("uxHealth.shareAppointment"),
+                }),
+                "share-outline",
+                share
+              )}
+              {button(t("common.edit"), "create-outline", () =>
+                onEdit(current)
+              )}
+              {button(
+                t("common.delete"),
+                "trash-outline",
+                deleteAppointment,
+                true
+              )}
+            </View>
+            {busy && (
+              <ActivityIndicator
+                style={{ marginTop: 12 }}
+                color={theme.primary}
+              />
+            )}
           </ScrollView>
         </Pressable>
       </Pressable>

@@ -1,198 +1,141 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, LayoutAnimation, Platform, Modal, PanResponder, Pressable, Alert } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  RefreshControl,
+  Platform,
+  Modal,
+  Pressable,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
-import { prnWarningMessage } from "../../src/services/prnLimits";
-import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
+import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { storage } from "../../src/storage";
 import { STORAGE_KEYS } from "../../src/config";
 import { useAppStore } from "../../src/store";
 import { useTodaySchedule } from "../../src/hooks/useTodaySchedule";
-import { useAdherenceStreak } from "../../src/hooks/useAdherenceStreak";
 import { DoseCard } from "../../components/DoseCard";
 import { EmptyState } from "../../components/EmptyState";
 import { CheckinModal } from "../../components/CheckinModal";
 import { AppointmentMiniCard } from "../../components/AppointmentMiniCard";
 import { ProfileChip } from "../../components/ProfileChip";
 import { SitePickerModal } from "../../components/SitePickerModal";
-import { suggestNextSite, type InjectionSite } from "../../src/services/injectionSites";
+import { AppPressable } from "../../components/AppPressable";
+import {
+  suggestNextSite,
+  type InjectionSite,
+} from "../../src/services/injectionSites";
 import { setDoseInjectionSite } from "../../src/db/database";
-import { CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
-import { TodayDose, SkipReason } from "../../src/types";
-import { CATEGORY_CONFIG, getColorConfig, formatTimeForDisplay, getLocalizedDosage } from "../../src/utils";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { effectiveDoseDateTime } from "../../src/services/doseTime";
+import {
+  isAppointmentPast,
+  isMedicationCurrent,
+} from "../../src/services/carePlan";
+import { getDefaultSnoozeMinutes } from "../../src/services/snoozeSettings";
+import { prnWarningMessage } from "../../src/services/prnLimits";
+import type { TodayDose, SkipReason, Medication } from "../../src/types";
+import { formatTimeForDisplay, getLocalizedDosage } from "../../src/utils";
 import { useTranslation, getDateLocale } from "../../src/i18n";
 import { useAppTheme } from "../../src/hooks/useAppTheme";
 import { useToast } from "../../src/context/ToastContext";
-import { updateWidget } from "expo-widget";
 import BrandMark from "../../components/BrandMark";
 
+const WalkthroughableView = walkthroughable(View);
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const theme = useAppTheme();
   const { showToast } = useToast();
-  const loadTodayLogs = useAppStore((s) => s.loadTodayLogs);
-  const markDose = useAppStore((s) => s.markDose);
-  const getHistoryLogs = useAppStore((s) => s.getHistoryLogs);
-  const snoozeDose = useAppStore((s) => s.snoozeDose);
-  const rescheduleOnce = useAppStore((s) => s.rescheduleOnce);
-  const revertDose = useAppStore((s) => s.revertDose);
-  const revertSnooze = useAppStore((s) => s.revertSnooze);
-  const updateDoseNote = useAppStore((s) => s.updateDoseNote);
-  const dailyCheckins = useAppStore((s) => s.dailyCheckins);
-  const loadDailyCheckins = useAppStore((s) => s.loadDailyCheckins);
-  const medications = useAppStore((s) => s.medications);
-  const todayLogs = useAppStore((s) => s.todayLogs);
-  const logPRNDose = useAppStore((s) => s.logPRNDose);
-  const appointments = useAppStore((s) => s.appointments);
-  const setSelectedAppointmentId = useAppStore((s) => s.setSelectedAppointmentId);
+  const store = useAppStore();
+  const { loadDailyCheckins, loadTodayLogs } = store;
+  const doses = useTodaySchedule();
+  const copilot = useCopilot();
   const [refreshing, setRefreshing] = useState(false);
-  const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(null);
-  // Injection-site picker (F3): opened after taking an injectable dose or
-  // from the site chip on a taken dose.
+  const [showDone, setShowDone] = useState(false);
+  const [rescheduleTarget, setRescheduleTarget] = useState<TodayDose | null>(
+    null
+  );
+  const [pickerDraft, setPickerDraft] = useState(new Date());
+  const [rescheduleBusy, setRescheduleBusy] = useState(false);
   const [siteDose, setSiteDose] = useState<TodayDose | null>(null);
-  const [siteSuggestion, setSiteSuggestion] = useState<InjectionSite | null>(null);
-
-  const reschedulePan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderRelease: (_, { dy }) => { if (dy > 50) setRescheduleTarget(null); },
-    })
-  ).current;
-  const [pickerDraft, setPickerDraft] = useState<Date>(new Date());
+  const [siteSuggestion, setSiteSuggestion] = useState<InjectionSite | null>(
+    null
+  );
+  const [siteBusy, setSiteBusy] = useState(false);
   const [checkinVisible, setCheckinVisible] = useState(false);
   const [checkinDismissed, setCheckinDismissed] = useState(false);
-  // default true avoids a flash on first render; useEffect corrects it after MMKV read
-  const [tipSeen, setTipSeen] = useState(true);
-  const doses = useTodaySchedule();
-  const streak = useAdherenceStreak();
-
-  // ── In-app tour ────────────────────────────────────────────────────────────
-  const TOUR_DONE_KEY = STORAGE_KEYS.TOUR_DONE;
-  const tourShownRef = useRef(false);
-  const copilot = useCopilot();
-
-  const WalkthroughableView = useRef(walkthroughable(View)).current;
-
-  // Keep a ref to always access the latest copilot.start — the context value
-  // (and thus copilot.start) is recreated whenever CopilotStep components
-  // register, so a stale closure would call a `start` that sees zero steps.
-  const copilotRef = useRef(copilot);
-  useEffect(() => { copilotRef.current = copilot; }, [copilot]);
-
-  // Mark tour complete when copilot stops
-  useEffect(() => {
-    const handler = () => { storage.set(TOUR_DONE_KEY, "1"); };
-    copilot.copilotEvents.on("stop", handler);
-    return () => { copilot.copilotEvents.off("stop", handler); };
-  }, [copilot.copilotEvents]);
-
-  // Trigger once, the first time this screen is focused after onboarding
-  useFocusEffect(
-    useCallback(() => {
-      if (tourShownRef.current) return;
-      // Only start the tour after onboarding is complete — the home screen
-      // mounts briefly before the redirect to onboarding, and starting the
-      // copilot there would leave it in a stale "active" state with no steps.
-      if (
-        !storage.getString(TOUR_DONE_KEY) &&
-        storage.getString(STORAGE_KEYS.ONBOARDING_DONE)
-      ) {
-        tourShownRef.current = true;
-        // Delay so layout is complete and CopilotStep refs are measured.
-        // Read from ref to get the latest `start` that knows about all
-        // registered steps (the context recreates start on each register).
-        setTimeout(() => {
-          copilotRef.current.start();
-        }, 800);
-      }
-    }, [])
+  const [prnBusy, setPrnBusy] = useState<string | null>(null);
+  const prnLock = useRef(false);
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  const outstanding = doses.filter(
+    (d) => d.status === "pending" || d.status === "missed"
   );
-
-  useEffect(() => {
-    if (!storage.getString(STORAGE_KEYS.TIP_RESCHEDULE_SEEN)) setTipSeen(false);
-  }, []);
-
-  // Keep the Android home-screen widget in sync with the current dose list.
-  useEffect(() => {
-    const nextPending = doses.find((d) => d.status === "pending");
-    const allDone = doses.length > 0 && doses.every((d) => d.status === "taken" || d.status === "skipped");
-    updateWidget({
-      name:    nextPending?.medication.name ?? null,
-      time:    nextPending?.scheduledTime  ?? null,
-      allDone,
-    });
-  }, [doses]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadDailyCheckins();
-      const todayKey = format(new Date(), "yyyy-MM-dd");
-      setCheckinDismissed(storage.getString(STORAGE_KEYS.CHECKIN_DISMISSED_DATE) === todayKey);
-    }, [loadDailyCheckins])
+  const done = doses.filter(
+    (d) => d.status === "taken" || d.status === "skipped"
   );
-
-  const openReschedule = (dose: TodayDose) => {
-    const base = dose.snoozedUntil ?? dose.scheduledTime;
-    const [h, m] = base.split(":").map(Number);
-    const d = new Date();
-    d.setHours(h, m, 0, 0);
-    setPickerDraft(d);
-    setRescheduleTarget(dose);
-  };
-
-  const dismissTip = () => {
-    setTipSeen(true);
-    storage.set(STORAGE_KEYS.TIP_RESCHEDULE_SEEN, "1");
-  };
-
-  // Sort by category priority (ascending) then time within each group
-  const byPriorityThenTime = (a: TodayDose, b: TodayDose) => {
-    const pa = CATEGORY_CONFIG[a.medication.category].priority;
-    const pb = CATEGORY_CONFIG[b.medication.category].priority;
-    if (pa !== pb) return pa - pb;
-    return a.scheduledTime.localeCompare(b.scheduledTime);
-  };
-
-  const pending  = doses.filter((d) => d.status === "pending").sort(byPriorityThenTime);
-  const missed   = doses.filter((d) => d.status === "missed").sort(byPriorityThenTime);
-  const done     = doses.filter((d) => d.status === "taken" || d.status === "skipped");
-
-  // PRN medications have no schedules; show them in a separate section
-  const prnMeds = medications.filter((m) => m.isPRN && m.isActive);
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  const today = format(new Date(), "PPP", { locale: getDateLocale() });
-  const todayCap = today.charAt(0).toUpperCase() + today.slice(1);
-  const todayCheckin = dailyCheckins.find((c) => c.date === todayStr);
-  const showCheckinPrompt = !todayCheckin && !checkinDismissed;
-
-  // Upcoming appointments (today and future, max 2)
-  const upcomingAppointments = appointments
-    .filter((a) => a.date >= todayStr)
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""))
+  const taken = doses.filter((d) => d.status === "taken").length;
+  const skipped = doses.filter((d) => d.status === "skipped").length;
+  const prnMeds = store.medications.filter(
+    (m) => m.isPRN && isMedicationCurrent(m)
+  );
+  const profile = store.profiles.find((p) => p.id === store.activeProfileId);
+  const person = profile?.name || t("ux.me");
+  const checkin = store.dailyCheckins.find((c) => c.date === todayKey);
+  const upcoming = store.appointments
+    .filter((a) => !isAppointmentPast(a))
+    .sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        (a.time ?? "").localeCompare(b.time ?? "")
+    )
     .slice(0, 2);
+  const dateLabel = format(new Date(), "EEEE d MMMM", {
+    locale: getDateLocale(),
+  });
+  useEffect(() => {
+    const stop = () => storage.set(STORAGE_KEYS.TOUR_DONE, "1");
+    copilot.copilotEvents.on("stop", stop);
+    return () => copilot.copilotEvents.off("stop", stop);
+  }, [copilot.copilotEvents]);
+  useFocusEffect(
+    useCallback(() => {
+      loadDailyCheckins().catch(() => {});
+      loadTodayLogs().catch(() => showToast(t("ux.refreshFailed"), "error"));
+      setCheckinDismissed(
+        storage.getString(STORAGE_KEYS.CHECKIN_DISMISSED_DATE) ===
+          format(new Date(), "yyyy-MM-dd")
+      );
+    }, [loadDailyCheckins, loadTodayLogs, showToast, t])
+  );
+  useEffect(() => {
+    setCheckinDismissed(
+      storage.getString(STORAGE_KEYS.CHECKIN_DISMISSED_DATE) === todayKey
+    );
+  }, [todayKey, store.activeProfileId]);
 
-  const handleRefresh = async () => {
+  async function refresh() {
     setRefreshing(true);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    await loadTodayLogs();
-    setRefreshing(false);
-  };
-
-  const handleMarkDose = (dose: TodayDose, status: "taken" | "skipped", skipReason?: SkipReason) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    markDose(dose, status, undefined, skipReason);
-    if (status === "taken" && dose.medication.isInjectable) openSitePicker(dose);
-  };
-
-  const openSitePicker = async (dose: TodayDose) => {
     try {
-      const to = format(new Date(), "yyyy-MM-dd");
-      const from = format(new Date(Date.now() - 90 * 86_400_000), "yyyy-MM-dd");
-      const logs = (await getHistoryLogs(from, to)).filter(
+      await store.loadAll();
+      await store.loadDailyCheckins();
+    } catch {
+      showToast(t("ux.refreshFailed"), "error");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+  async function openSite(dose: TodayDose) {
+    try {
+      const from = format(new Date(Date.now() - 90 * 86400000), "yyyy-MM-dd");
+      const logs = (await store.getHistoryLogs(from, todayKey)).filter(
         (l) => l.medicationId === dose.medication.id
       );
       setSiteSuggestion(suggestNextSite(logs));
@@ -200,455 +143,545 @@ export default function HomeScreen() {
       setSiteSuggestion(null);
     }
     setSiteDose(dose);
-  };
-
-  const handlePickSite = async (site: InjectionSite) => {
-    const dose = siteDose;
-    setSiteDose(null);
-    if (!dose) return;
-    await setDoseInjectionSite(dose.schedule.id, dose.scheduledDate, site);
-    await loadTodayLogs();
-  };
-
-  const handleSnooze = (dose: TodayDose, minutes?: number) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    snoozeDose(dose, minutes);
-    showToast(t('doseCard.snoozeConfirm', { minutes: minutes ?? 15 }), 'info');
-  };
-
-  const handleRevert = (dose: TodayDose) => {
-    revertDose(dose);
-  };
-
-  const handleRevertSnooze = (dose: TodayDose) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    revertSnooze(dose);
-  };
-
-  const handleUpdateNote = (dose: TodayDose, note: string) => {
-    updateDoseNote(dose.schedule.id, dose.scheduledDate, note);
-  };
-
-  const handleRescheduleChange = (_: DateTimePickerEvent, date?: Date) => {
-    // Android: the picker closes on selection; capture target before clearing it
+  }
+  async function mark(
+    dose: TodayDose,
+    status: "taken" | "skipped",
+    reason?: SkipReason
+  ) {
+    await store.markDose(dose, status, undefined, reason);
+    showToast(
+      status === "taken" ? t("ux.prnSaved") : t("status.skipped"),
+      "success"
+    );
+    if (status === "taken" && dose.medication.isInjectable)
+      await openSite(dose);
+  }
+  async function saveSite(site: InjectionSite) {
+    if (!siteDose || siteBusy) return;
+    setSiteBusy(true);
+    try {
+      await setDoseInjectionSite(
+        siteDose.schedule.id,
+        siteDose.scheduledDate,
+        site
+      );
+      await store.loadTodayLogs();
+      setSiteDose(null);
+      showToast(t("ux.siteSaved"), "success");
+    } catch {
+      showToast(t("ux.saveFailed"), "error");
+    } finally {
+      setSiteBusy(false);
+    }
+  }
+  function openReschedule(dose: TodayDose) {
+    setPickerDraft(
+      effectiveDoseDateTime(
+        dose.scheduledDate,
+        dose.scheduledTime,
+        dose.snoozedUntil
+      )
+    );
+    setRescheduleTarget(dose);
+  }
+  async function confirmReschedule(date: Date, target = rescheduleTarget) {
+    if (!target || rescheduleBusy) return;
+    const chosen = new Date();
+    chosen.setHours(date.getHours(), date.getMinutes(), 0, 0);
+    if (chosen.getTime() <= Date.now()) {
+      showToast(t("ux.pastTime"), "error");
+      return;
+    }
+    setRescheduleBusy(true);
+    try {
+      const time = format(chosen, "HH:mm");
+      await store.rescheduleOnce(target, time);
+      setRescheduleTarget(null);
+      showToast(
+        t("doseCard.rescheduleConfirm", { time: formatTimeForDisplay(time) }),
+        "info"
+      );
+    } catch {
+      showToast(t("ux.saveFailed"), "error");
+    } finally {
+      setRescheduleBusy(false);
+    }
+  }
+  function onNativeTime(event: DateTimePickerEvent, date?: Date) {
     const target = rescheduleTarget;
     setRescheduleTarget(null);
-    if (!date || !target) return;
-    const newTime = format(date, "HH:mm");
-    rescheduleOnce(target, newTime);
-    showToast(t('doseCard.rescheduleConfirm', { time: newTime }), 'info');
-  };
-
-  const handlePickerDraftChange = (_: DateTimePickerEvent, date?: Date) => {
-    if (date) setPickerDraft(date);
-  };
-
-  const handleConfirmReschedule = () => {
-    if (!rescheduleTarget) return;
-    const newTime = format(pickerDraft, "HH:mm");
-    rescheduleOnce(rescheduleTarget, newTime);
-    showToast(t('doseCard.rescheduleConfirm', { time: newTime }), 'info');
-    setRescheduleTarget(null);
-  };
-
+    if (event.type === "set" && date) void confirmReschedule(date, target);
+  }
+  async function logPRN(med: Medication, force = false) {
+    if (prnLock.current) return;
+    prnLock.current = true;
+    setPrnBusy(med.id);
+    try {
+      const check = await store.logPRNDose(
+        med,
+        force ? { force: true } : undefined
+      );
+      if (check?.blocked) {
+        Alert.alert(t("prn.limitTitle"), prnWarningMessage(t, med, check), [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("prn.logAnyway"),
+            style: "destructive",
+            onPress: () => {
+              void logPRN(med, true);
+            },
+          },
+        ]);
+      } else showToast(t("ux.prnSaved"), "success");
+    } catch (e) {
+      showToast(
+        t(
+          e instanceof Error && e.name.startsWith("Saved")
+            ? "ux.savedWithWarning"
+            : "ux.saveFailed"
+        ),
+        "error"
+      );
+    } finally {
+      prnLock.current = false;
+      setPrnBusy(null);
+    }
+  }
+  function confirmPRN(med: Medication) {
+    Alert.alert(
+      t("medicationCard.logPRNTitle"),
+      t("medicationCard.logPRNConfirm", { name: med.name }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("medicationCard.logPRNConfirmBtn"),
+          onPress: () => {
+            void logPRN(med);
+          },
+        },
+      ]
+    );
+  }
+  function renderDose(dose: TodayDose) {
+    const completed = dose.status === "taken" || dose.status === "skipped";
+    return (
+      <DoseCard
+        key={dose.schedule.id + "-" + dose.scheduledDate}
+        dose={dose}
+        onTake={() => mark(dose, "taken")}
+        onSkip={(reason) => mark(dose, "skipped", reason)}
+        onSnooze={async (minutes) => {
+          await store.snoozeDose(dose, minutes);
+          showToast(
+            t("doseCard.snoozeConfirm", {
+              minutes: minutes ?? getDefaultSnoozeMinutes(),
+            }),
+            "info"
+          );
+        }}
+        onReschedule={() => openReschedule(dose)}
+        onRevert={
+          completed
+            ? async () => {
+                await store.revertDose(dose);
+                showToast(t("ux.undoDone"), "info");
+              }
+            : dose.snoozedUntil
+            ? async () => {
+                await store.revertSnooze(dose);
+                showToast(t("ux.snoozeUndone"), "info");
+              }
+            : undefined
+        }
+        onUpdateNote={
+          completed
+            ? async (note) => {
+                await store.updateDoseNote(
+                  dose.schedule.id,
+                  dose.scheduledDate,
+                  note
+                );
+                showToast(t("ux.noteSaved"), "success");
+              }
+            : undefined
+        }
+        onSetSite={() => openSite(dose)}
+      />
+    );
+  }
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      {/* Header */}
-      <View className="px-5 pt-4 pb-2 flex-row items-start justify-between">
-        <View>
-          <View className="flex-row items-center gap-2">
-            <BrandMark size={26} />
-            <Text className="text-2xl font-black text-text">{t('home.title')}</Text>
+    <SafeAreaView
+      className="flex-1 bg-background"
+      edges={["top", "left", "right"]}
+    >
+      <View className="px-5 pt-4 pb-2">
+        <View className="flex-row items-center justify-between gap-3">
+          <View className="flex-row gap-2 items-center flex-1">
+            <BrandMark size={30} />
+            <Text className="text-3xl font-bold text-text">
+              {t("home.title")}
+            </Text>
           </View>
-          <Text className="text-sm text-muted mt-0.5">{todayCap}</Text>
-          {/* Multi-profile switcher (F2) — renders only with >1 profile. */}
-          <View className="mt-2 self-start">
-            <ProfileChip />
-          </View>
-        </View>
-        {/* Labeled nav shortcuts. Calendar (dose calendar) & Appointments
-            have no tab — visible text labels make them discoverable (audit UX
-            I1). History is now a bottom tab (I12), so its old header shortcut
-            is repurposed to Appointments: a persistent entry point that does
-            not depend on there being upcoming appointments. */}
-        <View className="flex-row gap-3 items-start">
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('home.viewCalendar')}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/calendar"); }}
-            className="items-center"
+          <CopilotStep
+            text="tour.step1Title||tour.step1Desc"
+            order={1}
+            name="addMedication"
           >
-            <View className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm">
-              <Ionicons name="calendar-outline" size={20} color={theme.primary} />
-            </View>
-            <Text className="text-[10px] font-medium text-muted mt-1" numberOfLines={1}>{t('home.navCalendar')}</Text>
-          </TouchableOpacity>
+            <WalkthroughableView>
+              <AppPressable
+                onPress={() => router.push("/medication/new")}
+                accessibilityLabel={t("ux.addMedication")}
+                className="bg-action w-12 h-12 rounded-2xl items-center justify-center"
+              >
+                <Ionicons name="add" size={28} color="#fff" />
+              </AppPressable>
+            </WalkthroughableView>
+          </CopilotStep>
+        </View>
+        <Text className="text-base text-muted mt-1 capitalize">
+          {dateLabel}
+        </Text>
+        <View className="flex-row items-center justify-between gap-3 mt-2">
+          <Text className="text-base text-text font-semibold flex-1">
+            {profile?.name
+              ? t("ux.profile", { name: person })
+              : t("ux.personalAgenda")}
+          </Text>
+          <ProfileChip />
+        </View>
+        <View className="flex-row gap-3 border-b border-border pb-2 mt-1">
+          <AppPressable
+            onPress={() => router.push("/(tabs)/calendar")}
+            className="flex-row items-center gap-2 py-2 px-1"
+          >
+            <Ionicons name="calendar-outline" size={19} color={theme.primary} />
+            <Text className="text-primary text-base font-semibold">
+              {t("home.navCalendar")}
+            </Text>
+          </AppPressable>
           <CopilotStep
             text="tour.step4Title||tour.step4Desc"
             order={4}
             name="appointmentsShortcut"
           >
             <WalkthroughableView>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('tabs.appointments')}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/appointments"); }}
-                className="items-center"
+              <AppPressable
+                onPress={() => router.push("/(tabs)/appointments")}
+                className="flex-row items-center gap-2 py-2 px-1"
               >
-                <View className="bg-card border border-border w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm">
-                  <Ionicons name="medical-outline" size={20} color={theme.primary} />
-                </View>
-                <Text className="text-[10px] font-medium text-muted mt-1" numberOfLines={1}>{t('home.navAppointments')}</Text>
-              </TouchableOpacity>
-            </WalkthroughableView>
-          </CopilotStep>
-          <CopilotStep
-            text="tour.step1Title||tour.step1Desc"
-            order={1}
-            name="addButton"
-          >
-            <WalkthroughableView>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('form.addButton')}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/medication/new"); }}
-                className="items-center"
-              >
-                <View className="bg-primary w-[44px] h-[44px] rounded-full items-center justify-center shadow-sm">
-                  <Ionicons name="add" size={24} color="#fff" />
-                </View>
-                <Text className="text-[10px] font-medium text-primary mt-1" numberOfLines={1}>{t('home.navAdd')}</Text>
-              </TouchableOpacity>
+                <Ionicons
+                  name="medical-outline"
+                  size={19}
+                  color={theme.primary}
+                />
+                <Text className="text-primary text-base font-semibold">
+                  {t("tabs.appointments")}
+                </Text>
+              </AppPressable>
             </WalkthroughableView>
           </CopilotStep>
         </View>
       </View>
-
-      {/* Summary chips */}
-      <View className="px-5 py-3 flex-row gap-2 flex-wrap">
-        <View className="bg-amber-100 dark:bg-amber-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
-          <Ionicons name="time-outline" size={14} color={theme.amber} />
-          <Text className="text-amber-700 dark:text-amber-400 text-xs font-bold">{t('home.chipPending', { count: pending.length })}</Text>
-        </View>
-        <View className="bg-green-100 dark:bg-green-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
-          <Ionicons name="checkmark-circle-outline" size={14} color={theme.success} />
-          <Text className="text-green-700 dark:text-green-400 text-xs font-bold">{t('home.chipTaken', { count: done.filter(d => d.status === 'taken').length })}</Text>
-        </View>
-        {done.filter(d => d.status === "skipped").length > 0 && (
-          <View className="bg-red-100 dark:bg-red-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
-            <Ionicons name="close-circle-outline" size={14} color={theme.danger} />
-            <Text className="text-red-700 dark:text-red-400 text-xs font-bold">{t('home.chipSkipped', { count: done.filter(d => d.status === 'skipped').length })}</Text>
-          </View>
-        )}
-        {missed.length > 0 && (
-          <View className="bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-1.5 flex-row items-center gap-1">
-            <Ionicons name="alert-circle-outline" size={14} color={theme.muted} />
-            <Text className="text-muted text-xs font-bold">{t('home.chipMissed', { count: missed.length })}</Text>
-          </View>
-        )}
-        {streak >= 1 && (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('home.streak', { count: streak })}
-            accessibilityHint={t('home.streakInfo')}
-            onPress={() => Alert.alert(t('home.streakInfoTitle'), t('home.streakInfo'))}
-            className="bg-orange-100 dark:bg-orange-900/30 rounded-xl px-3 py-1.5 flex-row items-center gap-1"
-          >
-            <Text className="text-orange-700 dark:text-orange-400 text-xs font-bold">
-              {t('home.streak', { count: streak })}
-            </Text>
-            <Ionicons name="information-circle-outline" size={12} color={theme.warning} />
-          </TouchableOpacity>
-        )}
-      </View>
-
       <ScrollView
-        className="flex-1 px-5"
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#4f9cff" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            tintColor={theme.primary}
+          />
         }
-        showsVerticalScrollIndicator={false}
       >
-        {/* Check-in prompt */}
-        {showCheckinPrompt && (
-          <View className="flex-row items-center gap-3 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-2xl px-4 py-3 mt-1 mb-2">
-            <Text className="text-2xl">🌡</Text>
-            <View className="flex-1">
-              <Text className="text-sm font-bold text-teal-800 dark:text-teal-300">{t("checkin.homePromptTitle")}</Text>
-              <Text className="text-xs text-teal-600 dark:text-teal-400">{t("checkin.homePromptSubtitle")}</Text>
-            </View>
-            <View className="flex-row items-center gap-2">
-              <TouchableOpacity
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCheckinVisible(true); }}
-                className="bg-teal-500 rounded-xl px-3 py-2.5"
-              >
-                <Text className="text-white text-xs font-bold">{t("checkin.saveButton")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+        <CopilotStep
+          text="tour.step2Title||tour.step2Desc"
+          order={2}
+          name="todayPlan"
+        >
+          <WalkthroughableView>
+            {store.isLoading && doses.length === 0 ? (
+              <View className="py-12 items-center gap-3">
+                <ActivityIndicator color={theme.primary} />
+                <Text className="text-muted text-base">
+                  {t("ux.loadingTitle")}
+                </Text>
+              </View>
+            ) : (
+              <>
+                {doses.length > 0 && (
+                  <View className="py-3 mb-2">
+                    <Text
+                      accessibilityRole="header"
+                      className="text-xl text-text font-bold"
+                    >
+                      {t("ux.todayPlan")}
+                    </Text>
+                    <View className="flex-row flex-wrap gap-x-4 gap-y-1 mt-2">
+                      <Text className="text-base text-muted">
+                        {taken}/{doses.length} {t("ux.taken").toLowerCase()}
+                      </Text>
+                      {skipped > 0 && (
+                        <Text className="text-base text-muted">
+                          {skipped} {t("ux.skipped").toLowerCase()}
+                        </Text>
+                      )}
+                      <Text className="text-base text-muted">
+                        {t("ux.remaining", { count: outstanding.length })}
+                      </Text>
+                    </View>
+                    <View
+                      className="h-1.5 bg-card-alt rounded-full mt-3 overflow-hidden"
+                      accessible
+                      accessibilityRole="progressbar"
+                      accessibilityLabel={t("ux.taken")}
+                      accessibilityValue={{
+                        min: 0,
+                        max: doses.length,
+                        now: taken,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: `${(100 * taken) / doses.length}%`,
+                          backgroundColor: theme.success,
+                          height: "100%",
+                          borderRadius: 4,
+                        }}
+                      />
+                    </View>
+                  </View>
+                )}
+                {outstanding.length > 0 ? (
+                  <>
+                    <Text
+                      accessibilityRole="header"
+                      className="text-base font-semibold text-muted mb-2"
+                    >
+                      {outstanding[0].status === "missed"
+                        ? t("ux.unregistered")
+                        : t("ux.next")}
+                    </Text>
+                    {outstanding.map(renderDose)}
+                  </>
+                ) : doses.length > 0 ? (
+                  <View className="bg-card rounded-3xl border border-border p-5 mb-3 flex-row items-center gap-3">
+                    <Ionicons
+                      name={
+                        skipped
+                          ? "checkmark-circle-outline"
+                          : "checkmark-circle"
+                      }
+                      color={theme.success}
+                      size={30}
+                    />
+                    <Text className="text-text text-lg font-semibold flex-1">
+                      {t(skipped ? "ux.dayRecorded" : "ux.allTaken")}
+                    </Text>
+                  </View>
+                ) : (
+                  <EmptyState
+                    illustration="noMeds"
+                    title={t("ux.noDoses")}
+                    subtitle={
+                      prnMeds.length ? t("ux.emptyPRN") : t("ux.noDosesHint")
+                    }
+                    actionLabel={
+                      store.medications.length
+                        ? t("ux.manageMedication")
+                        : t("ux.addMedication")
+                    }
+                    onAction={() =>
+                      router.push(
+                        store.medications.length
+                          ? "/(tabs)/medications"
+                          : "/medication/new"
+                      )
+                    }
+                  />
+                )}
+                {done.length > 0 && (
+                  <View className="mb-4">
+                    <AppPressable
+                      accessibilityState={{ expanded: showDone }}
+                      onPress={() => setShowDone(!showDone)}
+                      className="flex-row items-center justify-between py-3 gap-2"
+                    >
+                      <Text className="text-base text-primary font-semibold flex-1">
+                        {t(showDone ? "ux.hideRecorded" : "ux.showRecorded")} (
+                        {done.length})
+                      </Text>
+                      <Ionicons
+                        name={showDone ? "chevron-up" : "chevron-down"}
+                        color={theme.primary}
+                        size={20}
+                      />
+                    </AppPressable>
+                    {showDone && done.map(renderDose)}
+                  </View>
+                )}
+              </>
+            )}
+          </WalkthroughableView>
+        </CopilotStep>
+        {prnMeds.length > 0 && (
+          <View className="mb-5">
+            <Text
+              accessibilityRole="header"
+              className="text-xl font-bold text-text mb-3"
+            >
+              {t("home.sectionPRN")}
+            </Text>
+            {prnMeds.map((med) => {
+              const count = store.todayLogs.filter(
+                (l) =>
+                  l.medicationId === med.id &&
+                  l.scheduledDate === todayKey &&
+                  l.status === "taken"
+              ).length;
+              return (
+                <View
+                  key={med.id}
+                  className="bg-card border border-border rounded-3xl p-4 mb-3"
+                >
+                  <AppPressable
+                    onPress={() =>
+                      router.push({
+                        pathname: "/medication/[id]",
+                        params: { id: med.id },
+                      })
+                    }
+                    style={{ minHeight: 0 }}
+                  >
+                    <Text className="text-xl font-bold text-text">
+                      {med.name}
+                    </Text>
+                  </AppPressable>
+                  <Text className="text-base text-muted mt-1">
+                    {getLocalizedDosage(med, t)}
+                    {count
+                      ? " · " + count + " " + t("ux.taken").toLowerCase()
+                      : ""}
+                  </Text>
+                  <AppPressable
+                    disabled={prnBusy !== null}
+                    onPress={() => confirmPRN(med)}
+                    className="border border-primary rounded-2xl px-4 py-3 mt-3 items-center"
+                  >
+                    <Text className="text-base font-semibold text-primary">
+                      {prnBusy === med.id
+                        ? t("common.loading")
+                        : t("home.prnLogDose")}
+                    </Text>
+                  </AppPressable>
+                </View>
+              );
+            })}
+          </View>
+        )}
+        {(upcoming.length > 0 || (!checkin && !checkinDismissed)) && (
+          <Text
+            accessibilityRole="header"
+            className="text-xl font-bold text-text mb-3"
+          >
+            {t("ux.care")}
+          </Text>
+        )}
+        {upcoming.map((appt) => (
+          <AppointmentMiniCard
+            key={appt.id}
+            appt={appt}
+            onPress={() => store.setSelectedAppointmentId(appt.id)}
+          />
+        ))}
+        {!checkin && !checkinDismissed && (
+          <View className="bg-card border border-border rounded-3xl p-4 mt-2">
+            <View className="flex-row items-center gap-3">
+              <Ionicons name="heart-outline" size={24} color={theme.primary} />
+              <View className="flex-1">
+                <Text className="text-lg font-semibold text-text">
+                  {t("checkin.homePromptTitle")}
+                </Text>
+                <Text className="text-base text-muted mt-1">
+                  {t("checkin.homePromptSubtitle")}
+                </Text>
+              </View>
+              <AppPressable
                 onPress={() => {
-                  const todayKey = format(new Date(), "yyyy-MM-dd");
                   storage.set(STORAGE_KEYS.CHECKIN_DISMISSED_DATE, todayKey);
                   setCheckinDismissed(true);
                 }}
-                className="p-2"
+                accessibilityLabel={t("ux.checkinLater")}
+                className="w-11 items-center justify-center"
               >
-                <Ionicons name="close" size={16} color="#5eead4" />
-              </TouchableOpacity>
+                <Ionicons name="close" size={21} color={theme.muted} />
+              </AppPressable>
             </View>
+            <AppPressable
+              onPress={() => setCheckinVisible(true)}
+              className="self-start py-2 mt-2"
+            >
+              <Text className="text-primary text-base font-semibold">
+                {t("checkin.saveButton")}
+              </Text>
+            </AppPressable>
           </View>
         )}
-
-        {/* Upcoming appointments */}
-        {upcomingAppointments.length > 0 && (
-          <>
-            <View className="flex-row items-center justify-between mt-2 mb-2">
-              <Text className="text-xs font-bold text-muted uppercase tracking-widest">
-                {t('home.upcomingAppointments')}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/(tabs)/appointments");
-                }}
-              >
-                <Text className="text-primary text-xs font-semibold">
-                  {t('home.viewAllAppointments')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {upcomingAppointments.map((appt) => (
-              <AppointmentMiniCard
-                key={appt.id}
-                appt={appt}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedAppointmentId(appt.id);
-                }}
-              />
-            ))}
-          </>
-        )}
-
-        {doses.length === 0 ? (
-          <EmptyState
-            illustration="noMeds"
-            title={t('home.noMeds')}
-            subtitle={t('home.noMedsSubtitle')}
-          />
-        ) : (
-          <>
-            {/* One-time reschedule tip */}
-            {!tipSeen && pending.length > 0 && (
-              <TouchableOpacity
-                onPress={dismissTip}
-                activeOpacity={0.8}
-                className="flex-row items-center gap-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl px-4 py-3 mb-3 mt-2"
-              >
-                <Ionicons name="information-circle-outline" size={20} color="#3b82f6" />
-                <Text className="text-sm text-blue-700 dark:text-blue-300 flex-1 leading-5">
-                  {t('home.tipReschedule')}
-                </Text>
-                <Ionicons name="close-outline" size={16} color="#93c5fd" />
-              </TouchableOpacity>
-            )}
-
-            {/* Pending */}
-            {pending.length > 0 && (
-              <>
-                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2 mt-2">
-                  {t('home.sectionPending')}
-                </Text>
-                {pending.map((dose) => (
-                  <DoseCard
-                    key={`${dose.schedule.id}-${dose.scheduledDate}`}
-                    dose={dose}
-                    onTake={() => handleMarkDose(dose, "taken")}
-                    onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
-                    onSnooze={(minutes) => handleSnooze(dose, minutes)}
-                    onReschedule={() => openReschedule(dose)}
-                    onRevert={dose.snoozedUntil ? () => handleRevertSnooze(dose) : undefined}
-                    onSetSite={() => openSitePicker(dose)}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* Separator missed */}
-            {pending.length > 0 && missed.length > 0 && (
-              <View className="h-px bg-border my-3" />
-            )}
-
-            {/* Missed */}
-            {missed.length > 0 && (
-              <>
-                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
-                  {t('home.sectionMissed')}
-                </Text>
-                {missed.map((dose) => (
-                  <DoseCard
-                    key={`${dose.schedule.id}-${dose.scheduledDate}`}
-                    dose={dose}
-                    onTake={() => handleMarkDose(dose, "taken")}
-                    onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
-                    onSnooze={(minutes) => handleSnooze(dose, minutes)}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* Separator done */}
-            {(pending.length > 0 || missed.length > 0) && done.length > 0 && (
-              <View className="h-px bg-border my-3" />
-            )}
-
-            {/* Done */}
-            {done.length > 0 && (
-              <>
-                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
-                  {t('home.sectionDone')}
-                </Text>
-                {done.map((dose) => (
-                  <DoseCard
-                    key={`${dose.schedule.id}-${dose.scheduledDate}`}
-                    dose={dose}
-                    onTake={() => handleMarkDose(dose, "taken")}
-                    onSkip={(reason) => handleMarkDose(dose, "skipped", reason)}
-                    onSnooze={(minutes) => handleSnooze(dose, minutes)}
-                    onRevert={() => handleRevert(dose)}
-                    onUpdateNote={(note) => handleUpdateNote(dose, note)}
-                    onSetSite={() => openSitePicker(dose)}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* PRN (on-demand) medications */}
-            {prnMeds.length > 0 && (
-              <>
-                {(pending.length > 0 || missed.length > 0 || done.length > 0) && (
-                  <View className="h-px bg-border my-3" />
-                )}
-                <Text className="text-xs font-bold text-muted uppercase tracking-widest mb-2">
-                  {t('home.sectionPRN')}
-                </Text>
-                {prnMeds.map((med) => {
-                  const colors = getColorConfig(med.color);
-                  const todayDoseCount = todayLogs.filter(
-                    (l) => l.medicationId === med.id && l.scheduledDate === todayStr && l.status === "taken"
-                  ).length;
-                  return (
-                    <View
-                      key={med.id}
-                      style={{ borderLeftColor: colors.bg }}
-                      className="flex-row items-center bg-card rounded-2xl border border-border border-l-4 px-4 py-3 mb-2 shadow-sm"
-                    >
-                      <View
-                        style={{ backgroundColor: colors.light }}
-                        className="w-9 h-9 rounded-full items-center justify-center mr-3"
-                      >
-                        <Ionicons name="medical" size={18} color={colors.bg} />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-sm font-bold text-text">{med.name}</Text>
-                        <Text className="text-xs text-muted">{getLocalizedDosage(med, t)}</Text>
-                        {todayDoseCount > 0 && (
-                          <Text className="text-xs text-green-600 dark:text-green-400 mt-0.5 font-medium">
-                            ×{todayDoseCount} {t('status.taken').toLowerCase()}
-                          </Text>
-                        )}
-                      </View>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel={t('home.prnLogDose')}
-                        onPress={() => {
-                          // Confirm so an accidental tap can't record a phantom
-                          // dose (permanent + decrements stock) — audit UX I2.
-                          Alert.alert(
-                            t('medicationCard.logPRNTitle'),
-                            t('medicationCard.logPRNConfirm', { name: med.name }),
-                            [
-                              { text: t('common.cancel'), style: "cancel" },
-                              {
-                                text: t('medicationCard.logPRNConfirmBtn'),
-                                onPress: async () => {
-                                  const check = await logPRNDose(med);
-                                  if (check?.blocked) {
-                                    // PRN safety limit hit — warn, allow explicit override (F2).
-                                    Alert.alert(
-                                      t('prn.limitTitle'),
-                                      prnWarningMessage(t, med, check),
-                                      [
-                                        { text: t('common.cancel'), style: "cancel" },
-                                        {
-                                          text: t('prn.logAnyway'),
-                                          style: "destructive",
-                                          onPress: () => { logPRNDose(med, { force: true }); },
-                                        },
-                                      ]
-                                    );
-                                    return;
-                                  }
-                                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                },
-                              },
-                            ]
-                          );
-                        }}
-                        style={{ backgroundColor: colors.bg }}
-                        className="rounded-xl px-3 py-2 min-h-[44px] justify-center"
-                      >
-                        <Text className="text-white text-xs font-bold">{t('home.prnLogDose')}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </>
-            )}
-            <View className="h-6" />
-          </>
-        )}
+        <AppPressable
+          onPress={() => {
+            copilot.start();
+          }}
+          className="self-start flex-row items-center gap-2 py-3 mt-5"
+        >
+          <Ionicons name="help-circle-outline" size={19} color={theme.muted} />
+          <Text className="text-muted text-base">{t("ux.tour")}</Text>
+        </AppPressable>
       </ScrollView>
-
-      {/* Reschedule: modal sheet on iOS for full context; native picker on Android */}
       {rescheduleTarget && Platform.OS === "ios" && (
-        <Modal transparent animationType="fade" visible>
-          <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setRescheduleTarget(null)}>
-            <Pressable onPress={() => {}} className="bg-background rounded-t-3xl px-6 pt-5 pb-10">
-              {/* Handle + context header */}
-              <View className="items-center mb-1" {...reschedulePan.panHandlers}>
-                <View className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full mb-5" />
-                <Text className="text-sm text-muted">{t('doseCard.rescheduleTitle')}</Text>
-                <Text className="text-xl font-bold text-text mt-1">
-                  {rescheduleTarget.medication.name}
-                </Text>
-                <Text className="text-sm text-muted mt-0.5">
-                  {t('doseCard.rescheduleOriginal', { time: formatTimeForDisplay(rescheduleTarget.scheduledTime) })}
-                </Text>
-              </View>
-
-              {/* Spinner */}
+        <Modal
+          transparent
+          visible
+          animationType="slide"
+          onRequestClose={() => !rescheduleBusy && setRescheduleTarget(null)}
+        >
+          <Pressable
+            onPress={() => !rescheduleBusy && setRescheduleTarget(null)}
+            className="flex-1 justify-end bg-black/50"
+          >
+            <Pressable
+              onPress={() => {}}
+              className="bg-card rounded-t-3xl p-5 pb-10"
+            >
+              <Text className="text-xl font-bold text-text">
+                {t("doseCard.rescheduleTitle")}
+              </Text>
+              <Text className="text-base text-muted mt-2">
+                {rescheduleTarget.medication.name}
+              </Text>
               <DateTimePicker
                 value={pickerDraft}
                 mode="time"
                 display="spinner"
-                onChange={handlePickerDraftChange}
+                onChange={(_, date) => date && setPickerDraft(date)}
               />
-
-              {/* Actions */}
-              <View className="flex-row gap-3 mt-2">
-                <TouchableOpacity
-                  onPress={() => setRescheduleTarget(null)}
-                  className="flex-1 py-3.5 border border-border rounded-2xl items-center"
-                >
-                  <Text className="font-semibold text-muted">{t('common.cancel')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleConfirmReschedule}
-                  className="flex-1 py-3.5 bg-primary rounded-2xl items-center"
-                >
-                  <Text className="font-bold text-white">{t('common.confirm')}</Text>
-                </TouchableOpacity>
-              </View>
+              <AppPressable
+                disabled={rescheduleBusy}
+                onPress={() => confirmReschedule(pickerDraft)}
+                className="bg-action rounded-2xl py-3.5 items-center"
+              >
+                <Text className="text-white text-base font-bold">
+                  {t("common.confirm")}
+                </Text>
+              </AppPressable>
+              <AppPressable
+                disabled={rescheduleBusy}
+                onPress={() => setRescheduleTarget(null)}
+                className="py-3 items-center"
+              >
+                <Text className="text-muted text-base">
+                  {t("common.cancel")}
+                </Text>
+              </AppPressable>
             </Pressable>
           </Pressable>
         </Modal>
@@ -658,21 +691,19 @@ export default function HomeScreen() {
           value={pickerDraft}
           mode="time"
           display="default"
-          onChange={handleRescheduleChange}
+          onChange={onNativeTime}
         />
       )}
-
       <CheckinModal
         visible={checkinVisible}
         onClose={() => setCheckinVisible(false)}
       />
-      {/* Injection-site picker (F3) */}
       <SitePickerModal
         visible={siteDose !== null}
         suggested={siteSuggestion}
         current={siteDose?.injectionSite}
-        onPick={handlePickSite}
-        onClose={() => setSiteDose(null)}
+        onPick={saveSite}
+        onClose={() => !siteBusy && setSiteDose(null)}
       />
     </SafeAreaView>
   );

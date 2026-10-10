@@ -1,13 +1,14 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   Platform,
+  AppState,
+  Linking,
+  ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,367 +16,285 @@ import Illustration, { IllustrationName } from "../components/Illustration";
 import { useRouter } from "expo-router";
 import { storage } from "../src/storage";
 import { STORAGE_KEYS } from "../src/config";
-import * as IntentLauncher from "expo-intent-launcher";
 import { useTranslation } from "../src/i18n";
 import { useAppTheme } from "../src/hooks/useAppTheme";
-import { setupNotifications, openExactAlarmSettings } from "../src/services/notifications";
-import { checkFullScreenIntentPermission, stopSoundPreview } from "expo-alarm";
-import * as Haptics from "expo-haptics";
+import {
+  setupNotifications,
+  openExactAlarmSettings,
+} from "../src/services/notifications";
+import { registerBackgroundFetch } from "../src/services/backgroundTask";
+import { requestFullScreenIntentPermission } from "expo-alarm";
+import {
+  getReminderReadiness,
+  type ReminderReadiness,
+} from "../src/services/reminderReadiness";
 
 export const ONBOARDING_DONE_KEY = STORAGE_KEYS.ONBOARDING_DONE;
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-// ─── Slide data ────────────────────────────────────────────────────────────
-
-type SlideConfig = {
-  art: IllustrationName;
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  titleKey: string;
-  subKey?: string;
-  descKey: string;
-};
-
-const SLIDES: SlideConfig[] = [
+const SLIDES: { art: IllustrationName; title: string; desc: string }[] = [
   {
     art: "obMeds",
-    icon: "medical",
-    titleKey: "onboarding.slide1Title",
-    subKey: "onboarding.slide1Sub",
-    descKey: "onboarding.slide1Desc",
+    title: "onboarding.slide1Title",
+    desc: "onboarding.slide1Desc",
   },
   {
     art: "obAlarm",
-    icon: "notifications",
-    titleKey: "onboarding.slide2Title",
-    descKey: "onboarding.slide2Desc",
+    title: "onboarding.slide2Title",
+    desc: "onboarding.slide2Desc",
   },
   {
     art: "obAppointments",
-    icon: "calendar",
-    titleKey: "onboarding.slide3Title",
-    descKey: "onboarding.slide3Desc",
+    title: "onboarding.slide3Title",
+    desc: "onboarding.slide3Desc",
   },
   {
     art: "obHealth",
-    icon: "fitness",
-    titleKey: "onboarding.slide4Title",
-    descKey: "onboarding.slide4Desc",
+    title: "onboarding.slide4Title",
+    desc: "onboarding.slide4Desc",
   },
   {
     art: "obPrivacy",
-    icon: "shield-checkmark",
-    titleKey: "onboarding.slide6Title",
-    descKey: "onboarding.slide6Desc",
+    title: "onboarding.slide6Title",
+    desc: "onboarding.slide6Desc",
   },
 ];
-
-const LAST = SLIDES.length - 1;
-
-// ─── Screen ────────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
-  const [requestingPermission, setRequestingPermission] = useState(false);
-  const [needsExactAlarm, setNeedsExactAlarm] = useState(false);
-  const [needsFullScreen, setNeedsFullScreen] = useState(false);
-
-  // Alarm-sound selection was removed from onboarding (it forced a cryptic
-  // 15-item ringtone choice before the user had done anything — audit UX I3);
-  // it now lives only in Settings. -1 disables the old sound-slide logic.
-  const SOUND_SLIDE_INDEX = -1;
-
-  // ── Navigation ──────────────────────────────────────────────────────────
-
-  function scrollTo(index: number) {
-    // Stop sound preview when leaving the sound slide
-    if (currentIndex === SOUND_SLIDE_INDEX && index !== SOUND_SLIDE_INDEX && Platform.OS === "android") {
-      stopSoundPreview().catch(() => {});
-    }
-    scrollRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
-    setCurrentIndex(index);
-  }
-
-  function handleNext() {
-    if (currentIndex < LAST) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      scrollTo(currentIndex + 1);
-    }
-  }
-
-  function handleScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    // Stop sound preview when swiping away from the sound slide
-    if (currentIndex === SOUND_SLIDE_INDEX && index !== SOUND_SLIDE_INDEX && Platform.OS === "android") {
-      stopSoundPreview().catch(() => {});
-    }
-    setCurrentIndex(index);
-  }
-
-  async function handleRequestPermission() {
-    setRequestingPermission(true);
+  const { height } = useWindowDimensions();
+  const [step, setStep] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState(false);
+  const [readiness, setReadiness] = useState<ReminderReadiness | null>(null);
+  const refresh = useCallback(
+    async () => setReadiness(await getReminderReadiness()),
+    []
+  );
+  useEffect(() => {
+    void refresh();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refresh();
+    });
+    return () => sub.remove();
+  }, [refresh]);
+  const last = step === SLIDES.length - 1;
+  const slide = SLIDES[step];
+  // Completion never triggers permissions: only the explicit enable action does.
+  const start = () => {
+    if (starting) return;
+    setStarting(true);
+    storage.set(ONBOARDING_DONE_KEY, "1");
+    // The root layout skipped this setup on first launch: create the channels,
+    // handler and background task now, still without asking for permission.
+    void setupNotifications({ requestPermissions: false })
+      .then(() => registerBackgroundFetch())
+      .catch(() => {});
+    router.replace("/(tabs)");
+  };
+  const enable = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(false);
     try {
-      const result = await setupNotifications();
-      setPermissionGranted(result.granted);
-      if (result.granted && Platform.OS === "android") {
-        setNeedsExactAlarm(result.needsExactAlarmPermission);
-        const hasFS = await checkFullScreenIntentPermission();
-        setNeedsFullScreen(!hasFS);
-      }
+      await setupNotifications();
+      await refresh();
     } catch {
-      setPermissionGranted(false);
+      setError(true);
     } finally {
-      setRequestingPermission(false);
+      setBusy(false);
     }
-  }
-
-  async function handleOpenFullScreen() {
+  };
+  const open = async (work: () => Promise<unknown>) => {
     try {
-      await IntentLauncher.startActivityAsync(
-        "android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT",
-        { data: "package:com.pilloclock.app" }
-      );
+      await work();
     } catch {
-      await IntentLauncher.startActivityAsync(
-        IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS,
-        { data: "package:com.pilloclock.app" }
-      );
+      setError(true);
     }
-  }
-
-  async function handleStart() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Stop any sound preview that may be playing
-    if (Platform.OS === "android") stopSoundPreview().catch(() => {});
-    // Request permissions if not yet asked
-    if (permissionGranted === null) {
-      await handleRequestPermission();
-    }
-    storage.set(ONBOARDING_DONE_KEY, "1");
-    router.replace("/(tabs)");
-  }
-
-  async function handleSkip() {
-    // Stop any sound preview that may be playing
-    if (Platform.OS === "android") stopSoundPreview().catch(() => {});
-    // Request notification permission even when the user skips the onboarding
-    // flow — otherwise alarms will never show without an explicit re-prompt.
-    await setupNotifications().catch(() => {});
-    storage.set(ONBOARDING_DONE_KEY, "1");
-    router.replace("/(tabs)");
-  }
-
-  // ── Render ──────────────────────────────────────────────────────────────
-
-  const isLast = currentIndex === LAST;
-
+  };
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* Skip button */}
-      {!isLast && (
-        <View className="absolute top-12 right-5 z-10">
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t("onboarding.skip")}
-            onPress={handleSkip}
-            className="min-h-[44px] px-3 justify-center"
-          >
-            <Text className="text-sm font-semibold text-muted">{t("onboarding.skip")}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Slide carousel */}
+      <View className="px-5 flex-row items-center justify-between">
+        <Text className="text-sm text-muted" accessibilityLiveRegion="polite">
+          {t("uxSettings.onboardingProgress", {
+            step: step + 1,
+            total: SLIDES.length,
+          })}
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={start}
+          disabled={starting}
+          className="min-h-[48px] justify-center px-3"
+        >
+          <Text className="text-primary font-semibold">
+            {t("onboarding.skip")}
+          </Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onMomentumScrollEnd={handleScroll}
-        className="flex-1"
+        key={step}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          paddingHorizontal: 28,
+          paddingVertical: 24,
+        }}
+        showsVerticalScrollIndicator
       >
-        {SLIDES.map((slide, i) => (
-          <View key={i} style={{ width: SCREEN_WIDTH }} className="flex-1 items-center justify-center px-8">
-            {/* Icon bubble */}
-            <View
-              className="w-36 h-36 rounded-3xl items-center justify-center mb-8"
-              // Un solo tono derivado del tema: los iconBg por slide eran seis
-              // pasteles claros que en modo oscuro quedaban como bloques brillantes.
-              style={{ backgroundColor: theme.isDark ? "#16233a" : "#e4edfa" }}
-            >
-              <Illustration name={slide.art} width={130} />
-            </View>
-
-            {/* Title */}
-            <Text className="text-3xl font-bold text-text text-center mb-2">
-              {t(slide.titleKey)}
+        <View
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          className="rounded-3xl bg-card-alt items-center justify-center mb-6"
+          style={{
+            width: Math.min(156, height * 0.23),
+            height: Math.min(156, height * 0.23),
+          }}
+        >
+          <Illustration name={slide.art} width={Math.min(132, height * 0.2)} />
+        </View>
+        <Text
+          accessibilityRole="header"
+          className="text-3xl font-bold text-text text-center mb-4"
+        >
+          {t(slide.title)}
+        </Text>
+        <Text className="text-base text-muted text-center leading-7">
+          {t(slide.desc)}
+        </Text>
+        {last && (
+          <View className="mt-6 w-full gap-3">
+            <Text className="text-sm text-muted leading-6">
+              {t("uxSettings.onboardingReminder")}
             </Text>
-
-            {/* Subtitle (optional) */}
-            {slide.subKey && (
-              <Text className="text-base font-semibold text-primary text-center mb-3">
-                {t(slide.subKey)}
-              </Text>
-            )}
-
-            {/* Description */}
-            <Text className="text-base text-muted text-center leading-6">
-              {t(slide.descKey)}
-            </Text>
-
-            {/* Feature chips (slide 1 only) */}
-            {i === 0 && (
-              <View className="mt-7 w-full gap-2.5">
-                <View className="flex-row gap-2.5">
-                  <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-primary/20 bg-primary/10">
-                    <Ionicons name="medkit-outline" size={15} color={theme.primary} />
-                    <Text className="text-xs font-semibold text-primary">{t("onboarding.chip1")}</Text>
-                  </View>
-                  <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
-                    <Ionicons name="notifications-outline" size={15} color={theme.amber} />
-                    <Text className="text-xs font-semibold text-amber-700 dark:text-amber-300">{t("onboarding.chip2")}</Text>
-                  </View>
-                </View>
-                <View className="flex-row gap-2.5">
-                  <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800">
-                    <Ionicons name="calendar-outline" size={15} color={theme.success} />
-                    <Text className="text-xs font-semibold text-green-700 dark:text-green-300">{t("onboarding.chip3")}</Text>
-                  </View>
-                  <View className="flex-1 flex-row items-center gap-2 rounded-2xl px-3 py-3 border border-rose-200 bg-rose-50 dark:bg-rose-950/30 dark:border-rose-800">
-                    <Ionicons name="fitness-outline" size={15} color={theme.isDark ? "#fda4af" : "#e11d48"} />
-                    <Text className="text-xs font-semibold text-rose-700 dark:text-rose-300">{t("onboarding.chip4")}</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-
-            {/* Permission button on last slide */}
-            {i === LAST && (
-              <View className="mt-8 w-full gap-3">
-                {/* Notifications */}
-                {permissionGranted === null ? (
+            {Platform.OS !== "web" && (
+              <>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={{ busy, disabled: busy }}
+                  disabled={busy}
+                  onPress={() => {
+                    void enable();
+                  }}
+                  className="bg-action rounded-2xl min-h-[52px] justify-center items-center px-4 py-3"
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text className="text-white font-bold text-base text-center">
+                      {readiness?.notifications === "granted"
+                        ? t("onboarding.notificationsGranted")
+                        : t("onboarding.enableNotifications")}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                {readiness?.notifications === "denied" && (
                   <TouchableOpacity
-                    className="bg-primary rounded-2xl py-4 items-center"
-                    onPress={handleRequestPermission}
-                    disabled={requestingPermission}
-                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      void open(Linking.openSettings);
+                    }}
+                    className="min-h-[48px] justify-center"
                   >
-                    <Text className="text-white font-bold text-base">
-                      {t("onboarding.enableNotifications")}
+                    <Text className="text-primary font-semibold">
+                      {t("uxSettings.notifications")} · {t("uxSettings.denied")}
                     </Text>
                   </TouchableOpacity>
-                ) : permissionGranted ? (
-                  <View className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-2xl py-4 items-center">
-                    <Text className="text-green-700 dark:text-green-400 font-bold text-base">
-                      {t("onboarding.notificationsGranted")}
-                    </Text>
-                  </View>
-                ) : (
-                  <View className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-2xl py-4 px-4 items-center">
-                    <Text className="text-amber-700 dark:text-amber-400 text-sm text-center">
-                      {t("onboarding.notificationsDenied")}
-                    </Text>
-                  </View>
                 )}
-
-                {/* Exact alarm permission — Android 12/12L only */}
-                {needsExactAlarm && (
+                {Platform.OS === "android" && readiness?.exact === "denied" && (
                   <TouchableOpacity
-                    className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-2xl py-3 px-4 flex-row items-center"
-                    onPress={openExactAlarmSettings}
-                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      void open(openExactAlarmSettings);
+                    }}
+                    className="min-h-[48px] justify-center"
                   >
-                    <Ionicons name="alarm-outline" size={22} color={theme.amber} />
-                    <View className="flex-1 mx-3">
-                      <Text className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                        {t("onboarding.exactAlarmBtn")}
-                      </Text>
-                      <Text className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                        {t("onboarding.exactAlarmHint")}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={theme.amber} />
+                    <Text className="text-primary font-semibold">
+                      {t("onboarding.exactAlarmBtn")}
+                    </Text>
                   </TouchableOpacity>
                 )}
-
-                {/* Full-screen intent permission — Android 14+ */}
-                {needsFullScreen && (
-                  <TouchableOpacity
-                    className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-2xl py-3 px-4 flex-row items-center"
-                    onPress={handleOpenFullScreen}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="phone-portrait-outline" size={22} color={theme.amber} />
-                    <View className="flex-1 mx-3">
-                      <Text className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                {Platform.OS === "android" &&
+                  readiness?.fullScreen === "denied" && (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      onPress={() => {
+                        void open(requestFullScreenIntentPermission);
+                      }}
+                      className="min-h-[48px] justify-center"
+                    >
+                      <Text className="text-primary font-semibold">
                         {t("onboarding.fullScreenBtn")}
                       </Text>
-                      <Text className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                        {t("onboarding.fullScreenHint")}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={theme.amber} />
-                  </TouchableOpacity>
-                )}
-              </View>
+                    </TouchableOpacity>
+                  )}
+              </>
+            )}
+            {(error || readiness?.notifications === "error") && (
+              <Text
+                accessibilityLiveRegion="polite"
+                className="text-danger text-sm"
+              >
+                {t("uxSettings.error")}
+              </Text>
             )}
           </View>
-        ))}
+        )}
       </ScrollView>
-
-      {/* Bottom bar: dots + button */}
-      <View className="px-6 pb-8 pt-4">
-        {/* Dots — each touchable is a real 44x44 target (dot stays visually
-            small, centered) so it passes automated a11y target-size checks
-            instead of relying on hitSlop, which layout-based scanners ignore. */}
-        <View className="flex-row justify-center mb-2">
-          {SLIDES.map((_, i) => (
+      <View className="px-5 pb-4">
+        <View className="flex-row justify-center">
+          {SLIDES.map((_, index) => (
             <TouchableOpacity
-              key={i}
+              key={index}
               accessibilityRole="button"
-              accessibilityLabel={t("onboarding.goToSlide", { number: i + 1 })}
-              accessibilityState={{ selected: i === currentIndex }}
-              onPress={() => scrollTo(i)}
-              className="items-center justify-center"
-              style={{ minWidth: 44, minHeight: 44 }}
+              accessibilityLabel={t("onboarding.goToSlide", {
+                number: index + 1,
+              })}
+              accessibilityState={{ selected: step === index }}
+              onPress={() => setStep(index)}
+              style={{
+                minWidth: 48,
+                minHeight: 48,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
               <View
-                className="rounded-full"
                 style={{
-                  width: i === currentIndex ? 24 : 10,
-                  height: 10,
-                  backgroundColor: i === currentIndex ? theme.primary : theme.muted,
+                  width: step === index ? 24 : 8,
+                  height: 8,
+                  borderRadius: 8,
+                  backgroundColor: step === index ? theme.primary : theme.muted,
                 }}
               />
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* CTA button */}
-        {isLast ? (
+        <View className="flex-row gap-3">
+          {step > 0 && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("common.back")}
+              onPress={() => setStep(step - 1)}
+              className="bg-card border border-border rounded-2xl min-h-[52px] min-w-[52px] items-center justify-center"
+            >
+              <Ionicons name="arrow-back" size={24} color={theme.primary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            className="bg-primary rounded-2xl py-4 items-center"
-            onPress={handleStart}
-            activeOpacity={0.85}
+            accessibilityRole="button"
+            disabled={starting}
+            accessibilityState={{ disabled: starting }}
+            onPress={last ? start : () => setStep(step + 1)}
+            className="flex-1 rounded-2xl bg-action min-h-[52px] px-4 py-3 items-center justify-center"
           >
-            <Text className="text-white font-bold text-lg">{t("onboarding.start")}</Text>
+            <Text className="font-bold text-white text-base text-center">
+              {last ? t("uxSettings.onboardingLater") : t("onboarding.next")}
+            </Text>
           </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            className="bg-primary rounded-2xl py-4 items-center"
-            onPress={handleNext}
-            activeOpacity={0.85}
-          >
-            <Text className="text-white font-bold text-lg">{t("onboarding.next")}</Text>
-          </TouchableOpacity>
-        )}
+        </View>
       </View>
     </SafeAreaView>
   );

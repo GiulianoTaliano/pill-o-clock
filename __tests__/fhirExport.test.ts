@@ -3,6 +3,7 @@
  */
 import { buildFhirBundle } from "../src/services/fhirExport";
 import { makeMedication, makeSchedule } from "./factories";
+import { formatTimeForDisplay } from "../src/utils";
 
 jest.mock("../src/db/database", () => ({
   getActiveMedications: jest.fn(),
@@ -53,7 +54,8 @@ describe("buildFhirBundle", () => {
       subject: { reference: string };
     };
     expect(stmt.medicationCodeableConcept.coding[0]).toEqual({ system: RXNORM, code: "500" });
-    expect(stmt.dosage[0].text).toContain("08:00");
+    expect(stmt.dosage[0].text).toContain(formatTimeForDisplay("08:00"));
+    expect(stmt.dosage[0].text).toContain("400 mg");
     expect(stmt.subject.reference).toBe("Patient/patient-1");
 
     const allergy = bundle.entry[2].resource as never as {

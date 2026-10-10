@@ -11,7 +11,10 @@ import type { AlarmParams, AlarmSound } from "./ExpoAlarm.types";
 interface ExpoAlarmNativeModule {
   scheduleAlarm(params: AlarmParams): Promise<void>;
   cancelAlarm(scheduleId: string, scheduledDate: string): Promise<void>;
+  cancelAllAlarms(): Promise<void>;
   stopAlarm(): Promise<void>;
+  dismissAlarm(): Promise<void>;
+  checkExactAlarmPermission(): Promise<boolean>;
   checkFullScreenIntentPermission(): Promise<boolean>;
   requestFullScreenIntentPermission(): Promise<void>;
   setAlarmWindowFlags(): Promise<void>;

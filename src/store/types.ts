@@ -1,4 +1,16 @@
-import type { Medication, Schedule, DoseLog, TodayDose, Appointment, AppointmentDocument, HealthMeasurement, MeasurementType, DailyCheckin, SkipReason, Profile } from "../types";
+import type {
+  Medication,
+  Schedule,
+  DoseLog,
+  TodayDose,
+  Appointment,
+  AppointmentDocument,
+  HealthMeasurement,
+  MeasurementType,
+  DailyCheckin,
+  SkipReason,
+  Profile,
+} from "../types";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 
@@ -19,7 +31,9 @@ export interface MedicationsSlice {
     med: Medication,
     // `id` is optional: existing schedules carry their DB id so their identity
     // (and attached dose_logs) is preserved; new schedules omit it (audit H17).
-    scheduleInputs: (Omit<Schedule, "id" | "medicationId" | "isActive"> & { id?: string })[]
+    scheduleInputs: (Omit<Schedule, "id" | "medicationId" | "isActive"> & {
+      id?: string;
+    })[]
   ) => Promise<void>;
 
   deleteMedication: (id: string) => Promise<void>;
@@ -35,7 +49,11 @@ export interface MedicationsSlice {
     skipReason?: SkipReason
   ) => Promise<void>;
 
-  updateDoseNote: (scheduleId: string, scheduledDate: string, notes: string) => Promise<void>;
+  updateDoseNote: (
+    scheduleId: string,
+    scheduledDate: string,
+    notes: string
+  ) => Promise<void>;
   snoozeDose: (dose: TodayDose, minutes?: number) => Promise<void>;
   rescheduleOnce: (dose: TodayDose, newTime: string) => Promise<void>;
   revertDose: (dose: TodayDose) => Promise<void>;
@@ -57,23 +75,34 @@ export interface AppointmentsSlice {
   appointments: Appointment[];
   appointmentDocuments: AppointmentDocument[];
   loadAppointments: () => Promise<void>;
-  addAppointment: (data: Omit<Appointment, "id" | "createdAt" | "notificationId">) => Promise<void>;
-  updateAppointment: (appt: Omit<Appointment, "notificationId">) => Promise<void>;
+  addAppointment: (
+    data: Omit<Appointment, "id" | "createdAt" | "notificationId">
+  ) => Promise<void>;
+  updateAppointment: (
+    appt: Omit<Appointment, "notificationId">
+  ) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
   loadAppointmentDocuments: (appointmentId: string) => Promise<void>;
-  addAppointmentDocument: (appointmentId: string, pickerAsset: { uri: string; name: string; mimeType?: string; size?: number }) => Promise<void>;
+  addAppointmentDocument: (
+    appointmentId: string,
+    pickerAsset: { uri: string; name: string; mimeType?: string; size?: number }
+  ) => Promise<void>;
   removeAppointmentDocument: (docId: string) => Promise<void>;
 }
 
 export interface HealthSlice {
   healthMeasurements: HealthMeasurement[];
   loadHealthMeasurements: (type?: MeasurementType) => Promise<void>;
-  addHealthMeasurement: (data: Omit<HealthMeasurement, "id" | "createdAt">) => Promise<void>;
+  addHealthMeasurement: (
+    data: Omit<HealthMeasurement, "id" | "createdAt">
+  ) => Promise<void>;
   deleteHealthMeasurement: (id: string) => Promise<void>;
 
   dailyCheckins: DailyCheckin[];
   loadDailyCheckins: () => Promise<void>;
-  saveDailyCheckin: (data: Omit<DailyCheckin, "id" | "createdAt">) => Promise<void>;
+  saveDailyCheckin: (
+    data: Omit<DailyCheckin, "id" | "createdAt">
+  ) => Promise<void>;
 }
 
 export interface UISlice {
@@ -89,7 +118,11 @@ export interface ProfilesSlice {
   /** Scopes UI lists only — alarms always cover every profile. */
   activeProfileId: string;
   loadProfiles: () => Promise<void>;
-  addProfile: (name: string, color: string) => Promise<Profile>;
+  addProfile: (
+    name: string,
+    color: string,
+    contact?: { name: string; phone: string }
+  ) => Promise<Profile>;
   renameProfile: (
     id: string,
     name: string,
@@ -117,4 +150,9 @@ export interface CoreSlice {
 
 // ─── Combined state ────────────────────────────────────────────────────────
 
-export type AppState = MedicationsSlice & AppointmentsSlice & HealthSlice & UISlice & ProfilesSlice & CoreSlice;
+export type AppState = MedicationsSlice &
+  AppointmentsSlice &
+  HealthSlice &
+  UISlice &
+  ProfilesSlice &
+  CoreSlice;

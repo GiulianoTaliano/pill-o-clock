@@ -1,4 +1,9 @@
-import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  type PressableProps,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import React from "react";
 
 const RIPPLE_COLOR = "rgba(79, 156, 255, 0.13)";
@@ -16,14 +21,25 @@ export function AppPressable({
   pressedOpacity = 0.7,
   style,
   android_ripple,
+  disabled,
+  accessibilityRole = "button",
+  accessibilityState,
   ...rest
 }: AppPressableProps) {
   return (
     <Pressable
+      disabled={disabled}
+      accessibilityRole={accessibilityRole}
+      accessibilityState={{ ...accessibilityState, disabled: !!disabled }}
       android_ripple={android_ripple ?? { color: RIPPLE_COLOR }}
       style={(state) => {
         const base = typeof style === "function" ? style(state) : style;
-        return [base as StyleProp<ViewStyle>, state.pressed && { opacity: pressedOpacity }];
+        return [
+          { minHeight: 44 },
+          base as StyleProp<ViewStyle>,
+          disabled && accessibilityRole !== "text" && { opacity: 0.5 },
+          state.pressed && { opacity: pressedOpacity },
+        ];
       }}
       {...rest}
     />

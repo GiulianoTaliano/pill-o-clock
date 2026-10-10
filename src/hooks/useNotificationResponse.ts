@@ -1,113 +1,131 @@
 import { useEffect, useRef } from "react";
-import { Platform } from "react-native";
+import { Alert, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
-import { addMinutes, format } from "date-fns";
+import * as Sentry from "@sentry/react-native";
 import { useAppStore } from "../store";
 import {
   ACTION_TAKEN,
   ACTION_SNOOZE,
   ACTION_SKIP,
   getNotifMapEntry,
-  snoozeDose as snoozeDoseService,
 } from "../services/notifications";
-import { getDefaultSnoozeMinutes } from "../services/snoozeSettings";
-import { TodayDose } from "../types";
+import { getMedicationById, getSchedulesByMedication } from "../db/database";
+import { withEffectiveDose } from "../services/regimen";
+import { SavedDoseError } from "../store/slices/medications";
+import i18n from "../i18n";
+import type { TodayDose } from "../types";
 
-/**
- * Registers a notification response listener.
- * Handles TAKEN, SNOOZE, SKIP actions globally (for dose reminders) and
- * DEFAULT_ACTION_IDENTIFIER for appointment reminders (opens detail modal).
- *
- * Uses useAppStore.getState() inside the callback so it always reads the
- * freshest store data — avoids stale-closure issues when the effect runs
- * once at mount while the store is still loading.
- */
-export function useNotificationResponseHandler() {
-  const listenerRef = useRef<Notifications.Subscription | null>(null);
-
+/** Register only after database bootstrap; recover the response that launched the app. */
+export function useNotificationResponseHandler(enabled = true) {
+  const handled = useRef(new Set<string>());
   useEffect(() => {
-    if (Platform.OS === "web") return;
-    listenerRef.current = Notifications.addNotificationResponseReceivedListener(
-      async (response) => {
-        const actionId = response.actionIdentifier;
-        const notifId = response.notification.request.identifier;
-        const notifData = response.notification.request.content.data as Record<string, unknown>;
-
-        // ── Appointment notification tap ─────────────────────────────────
-        // Appointment notifications use type = "appointment" or "appointment_headsup".
-        // They are NOT stored in the NotificationMap, so handle them first.
+    if (!enabled || Platform.OS === "web") return;
+    let live = true;
+    const handle = async (response: Notifications.NotificationResponse) => {
+      if (!live) return;
+      const actionId = response.actionIdentifier;
+      const request = response.notification.request;
+      const key = `${request.identifier}:${actionId}`;
+      if (handled.current.has(key)) return;
+      handled.current.add(key);
+      try {
+        const data = request.content.data;
         if (
-          notifData?.type === "appointment" ||
-          notifData?.type === "appointment_headsup"
+          data?.type === "appointment" ||
+          data?.type === "appointment_headsup"
         ) {
-          const appointmentId = notifData.appointmentId as string | undefined;
-          if (appointmentId) {
-            // Dismiss the notification from the tray, then open the detail modal.
-            await Notifications.dismissNotificationAsync(notifId).catch(() => {});
-            useAppStore.getState().setSelectedAppointmentId(appointmentId);
-          }
-          return;
-        }
-
-        const entry = await getNotifMapEntry(notifId);
-        if (!entry) return;
-
-        const { scheduleId, medicationId, scheduledDate, scheduledTime } = entry;
-
-        // Always read fresh state — never rely on closure-captured values.
-        const { medications, schedules, markDose, loadTodayLogs } = useAppStore.getState();
-        const med = medications.find((m) => m.id === medicationId);
-        const schedule = schedules.find((s) => s.id === scheduleId);
-
-        // Dismiss the delivered notification from the tray.
-        // cancelScheduledNotificationAsync only cancels future ones; this removes
-        // the notification that the user just interacted with.
-        await Notifications.dismissNotificationAsync(notifId).catch(() => {});
-
-        if (actionId === ACTION_TAKEN) {
-          // Route through the store action so stock is decremented correctly.
-          if (!med || !schedule) return;
+          if (typeof data.appointmentId === "string")
+            useAppStore.getState().setSelectedAppointmentId(data.appointmentId);
+        } else if (
+          [ACTION_TAKEN, ACTION_SKIP, ACTION_SNOOZE].includes(actionId)
+        ) {
+          const entry = await getNotifMapEntry(request.identifier);
+          if (!entry || !live) return;
+          const { scheduleId, medicationId, scheduledDate, scheduledTime } =
+            entry;
+          const state = useAppStore.getState();
+          const medication =
+            state.medications.find((item) => item.id === medicationId) ??
+            (await getMedicationById(medicationId));
+          const schedule =
+            state.schedules.find((item) => item.id === scheduleId) ??
+            (await getSchedulesByMedication(medicationId)).find(
+              (item) => item.id === scheduleId
+            );
+          if (!live) return;
+          if (!medication || !schedule)
+            throw new Error("Notification treatment missing");
           const dose: TodayDose = {
-            medication: med,
-            schedule,
-            scheduledDate,
-            // scheduledTime here comes from the notif-map entry, which reflects
-            // the actual snooze time after the snoozeDose service fix.
-            scheduledTime,
-            status: "pending",
-          };
-          await markDose(dose, "taken");
-        } else if (actionId === ACTION_SNOOZE) {
-          // Snooze needs the full medication/schedule objects.
-          if (!med || !schedule) return;
-          const snoozeDate = addMinutes(new Date(), getDefaultSnoozeMinutes());
-          await snoozeDoseService(med, schedule, scheduledDate);
-          // Update the in-memory snoozedTimes so the Home screen shows the new time.
-          const snoozeHHmm = format(snoozeDate, "HH:mm");
-          const doseKey = `${scheduleId}-${scheduledDate}`;
-          useAppStore.setState((s) => ({
-            snoozedTimes: { ...s.snoozedTimes, [doseKey]: snoozeHHmm },
-          }));
-          await loadTodayLogs();
-        } else if (actionId === ACTION_SKIP) {
-          // Route through the store action for consistency.
-          if (!med || !schedule) return;
-          const dose: TodayDose = {
-            medication: med,
+            medication: withEffectiveDose(medication, scheduledDate),
             schedule,
             scheduledDate,
             scheduledTime,
             status: "pending",
+            snoozedUntil: state.snoozedTimes[`${scheduleId}-${scheduledDate}`],
           };
-          await markDose(dose, "skipped");
+          if (actionId === ACTION_SNOOZE) {
+            if (
+              !medication.isActive ||
+              !schedule.isActive ||
+              medication.archivedAt
+            )
+              return;
+            await state.snoozeDose(dose);
+          } else
+            await state.markDose(
+              dose,
+              actionId === ACTION_TAKEN ? "taken" : "skipped"
+            );
         }
-        // DEFAULT_ACTION_IDENTIFIER (tap on banner without choosing an action):
-        // simply open the app without modifying any dose log.
+        await Notifications.dismissNotificationAsync(request.identifier).catch(
+          () => {}
+        );
+        await Notifications.clearLastNotificationResponseAsync().catch(
+          () => {}
+        );
+      } catch (error) {
+        Sentry.captureException(error, {
+          tags: {
+            action: "notification_response",
+            saved: error instanceof SavedDoseError ? "true" : "false",
+          },
+        });
+        // A failed stored action must not silently replay on every launch.
+        await Notifications.clearLastNotificationResponseAsync().catch(
+          () => {}
+        );
+        if (live)
+          Alert.alert(
+            i18n.t(
+              error instanceof SavedDoseError
+                ? "uxMedication.registered"
+                : "common.error"
+            ),
+            i18n.t(
+              error instanceof SavedDoseError
+                ? "uxMedication.registeredWarning"
+                : "uxMedication.operationError"
+            )
+          );
+      }
+    };
+    const listener = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        void handle(response);
       }
     );
-
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) return handle(response);
+      })
+      .catch((error) => {
+        Sentry.captureException(error, {
+          tags: { action: "notification_response_recovery" },
+        });
+      });
     return () => {
-      listenerRef.current?.remove();
+      live = false;
+      listener.remove();
     };
-  }, []); // stable: reads live state via getState()
+  }, [enabled]);
 }
