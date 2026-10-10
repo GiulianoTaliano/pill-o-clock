@@ -8,6 +8,10 @@ del producto — verificado en vivo antes de moverlos.
 `docs/` es el sitio público (landing + política de privacidad). Cualquier
 documento nuevo de trabajo va acá.
 
+## Publicación en iOS
+
+[Checklist para el App Store](ios-app-store-checklist.md) (octubre de 2026): cuenta de Apple, decisiones pendientes, hallazgos en el repo, metadatos de App Store Connect y pruebas. El estado del port y el simulador está en [ios-port.md](ios-port.md).
+
 ## Auditoría UI/UX de octubre de 2026
 
 [Informe integral y prioridades](uiux-audit-2026-10-09.md), con inventarios de acciones por pantalla, evidencia de código, propuestas, criterios de aceptación y [dirección visual](uiux-audit-2026-10-09-visual.md). La [lámina conceptual](uiux-audit-2026-10-09-concept.png) ilustra cuatro pantallas propuestas con datos ficticios.
