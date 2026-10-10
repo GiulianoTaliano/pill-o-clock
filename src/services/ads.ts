@@ -39,13 +39,21 @@ const REAL_BANNER_HEALTH = "ca-app-pub-6639820412660854/4331400319";
 
 export type BannerScreen = "history" | "health";
 
+/**
+ * Android only. iOS v1 ships WITHOUT ads (decision 2026-10-10, see
+ * docs-internal/ios-app-store-checklist.md D2): no AdMob iOS app, no ATT,
+ * no SKAdNetwork, no UMP yet — and the published privacy policy states the
+ * iPhone version does not start the ads SDK. Turning iOS on requires all of
+ * that plus a policy + App Privacy label update first.
+ */
 export function adsEnabled(): boolean {
-  return ADS_ENABLED && Platform.OS !== "web";
+  return ADS_ENABLED && Platform.OS === "android";
 }
 
 export function getBannerUnitId(screen: BannerScreen = "history"): string {
   if (__DEV__ || Platform.OS === "ios") {
-    // No iOS app registered in AdMob yet — test id keeps iOS dev builds safe.
+    // Unreachable on iOS while adsEnabled() is Android-only; kept as a safe
+    // fallback (Google's test ids) in case a banner is ever mounted there.
     return Platform.OS === "ios" ? TEST_BANNER_IOS : TEST_BANNER_ANDROID;
   }
   return screen === "health" ? REAL_BANNER_HEALTH : REAL_BANNER_HISTORY;

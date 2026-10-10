@@ -94,10 +94,10 @@ Everyone
 recordatorio de medicamentos, pastillero, alarma de pastillas, rastreador de salud, control de medicación, presión arterial, glucemia, diario de síntomas, rastreador de humor, diario de salud, historial de medicamentos, recordatorio de dosis, agenda médica, citas médicas, adherencia, seguimiento de salud, recordatorio de píldoras, medicación diaria, pastilla, alarma médica, informe médico PDF, medication reminder, pill reminder, health tracker, dose tracker
 
 ── CORREO DE CONTACTO ───────────────────────────────────
-privacy@pilloclock.app
+giuliano.taliano1@gmail.com
 
 ── POLÍTICA DE PRIVACIDAD (URL) ─────────────────────────
-https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html
+https://estudiotaliano.com/pill-o-clock/privacy-policy.html
 
 ── DATA SAFETY (respuestas para el formulario) ──────────
 (corregido y enviado a Play el 2026-07-22 — ver auditoría C6/H14/H15)

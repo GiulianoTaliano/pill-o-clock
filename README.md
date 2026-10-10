@@ -187,16 +187,17 @@ This link is used internally by notification actions to open the fullscreen alar
 
 ## Privacy
 
-Your medical data — medications, schedules, dose history, health measurements, and the wellbeing diary — is stored exclusively in a private SQLite database on your device and is never uploaded to any server.
+Your medical data — medications, schedules, dose history, health measurements, allergies, appointments and the wellbeing diary — is stored exclusively in an encrypted database on your device and is never uploaded to any server.
 
-Two features involve a third party, in limited ways:
+Three features involve a third party, in limited ways:
 
-- **Crash reporting (Sentry).** Production builds send crash and error diagnostics (exception details and a React component stack) to [Sentry](https://sentry.io) to help fix bugs. Your medication, health, and diary data are **not** included. This is only active in production builds that have a Sentry DSN configured.
-- **Appointment location (Google Maps / Places).** When you add a location to a medical appointment, the address you type and your current coordinates are sent to Google Maps/Places to render the map and suggest places. This happens **only** while you use the location picker — if you never add appointment locations, no location data leaves your device.
+- **Crash and performance diagnostics (Sentry).** Production builds send crash and error diagnostics (exception details, stack trace, basic device/app info) and a sample of performance traces to [Sentry](https://sentry.io) to help fix bugs. Your medication, health, and diary data are **not** included. This is only active in production builds that have a Sentry DSN configured.
+- **Appointment location (maps and address search).** When you add a location to a medical appointment, the address you type and the pin/current coordinates are sent to Google Places for suggestions, and to the platform's map and geocoder (Apple Maps on iOS, Google Maps on Android). This happens **only** while you use the location picker — if you never add appointment locations, no location data leaves your device.
+- **Ads (Google AdMob, Android only).** Non-personalized banners on the History and Health screens only — never on the alarm, today's list or the medication form. No health data is passed to the ad SDK. The iOS build does not show ads or initialize the SDK.
 
-The app has **no accounts, no ads, and no product/usage analytics.**
+The app has **no accounts and no product/usage analytics.**
 
-Full privacy policy: [giulianotaliano.github.io/pill-o-clock/privacy-policy.html](https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html)
+Full privacy policy: [estudiotaliano.com/pill-o-clock/privacy-policy.html](https://estudiotaliano.com/pill-o-clock/privacy-policy.html)
 
 ---
 

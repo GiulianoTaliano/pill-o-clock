@@ -62,10 +62,10 @@ Health & Fitness
 lembrete de remédio, alarme de remédio, hora do remédio, controle de medicação, lembrete de medicamento, pressão arterial, glicemia, diário de sintomas, saúde da família, cuidador, adesão ao tratamento, porta comprimidos, remédio diário, alarme de comprimido, relatório médico PDF, medication reminder, pill reminder
 
 ── CORREO DE CONTACTO ───────────────────────────────────
-privacy@pilloclock.app
+giuliano.taliano1@gmail.com
 
 ── POLÍTICA DE PRIVACIDAD (URL) ─────────────────────────
-https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html
+https://estudiotaliano.com/pill-o-clock/privacy-policy.html
 
 ── NOTA ─────────────────────────────────────────────────
 La sección "sin anuncios" NO se menciona en esta ficha (a diferencia
