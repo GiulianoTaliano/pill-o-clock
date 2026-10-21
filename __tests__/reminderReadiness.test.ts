@@ -2,7 +2,10 @@ import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Alarm from "expo-alarm";
 import { getReminderReadiness, scheduleReminderTest } from "../src/services/reminderReadiness";
-jest.mock("../src/services/notifications", () => ({ NOTIFICATION_CHANNEL_ID: "pill-reminders-v2" }));
+jest.mock("../src/services/notifications", () => ({
+  NOTIFICATION_CHANNEL_ID: "pill-reminders-v2",
+  hasCriticalAlerts: jest.fn(() => false),
+}));
 jest.mock("expo-notifications", () => ({
   ...jest.requireActual("expo-notifications"),
   IosAuthorizationStatus: { PROVISIONAL: 3 },
@@ -42,6 +45,13 @@ it("test schedules no medication identifiers and cannot create a dose record", a
   expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
     content: expect.objectContaining({ data: { type: "reminder_test" } }),
     trigger: expect.objectContaining({ seconds: 5, channelId: "pill-reminders-v2" }),
+  }));
+});
+it("on iOS the test uses the same interruption level as a real dose (not a plain notification)", async () => {
+  Object.defineProperty(Platform, "OS", { configurable: true, value: "ios" });
+  await scheduleReminderTest();
+  expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
+    content: expect.objectContaining({ interruptionLevel: "timeSensitive" }),
   }));
 });
 it("refuses tests without notification permission and reports web as unsupported", async () => {

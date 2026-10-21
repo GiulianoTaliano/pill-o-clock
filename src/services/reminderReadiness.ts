@@ -6,7 +6,7 @@ import {
   isAvailable,
 } from "expo-alarm";
 import i18n from "../i18n";
-import { NOTIFICATION_CHANNEL_ID } from "./notifications";
+import { NOTIFICATION_CHANNEL_ID, hasCriticalAlerts } from "./notifications";
 import { resolveNotificationSound } from "./iosAlarmSound";
 
 export type PermissionState =
@@ -72,6 +72,16 @@ export async function scheduleReminderTest(): Promise<string> {
       body: i18n.t("uxSettings.testBody"),
       sound: Platform.OS === "ios" ? resolveNotificationSound() : "alarm.wav",
       data: { type: "reminder_test" },
+      // iOS: same interruption level as a real dose reminder. A plain
+      // notification is held back by Focus modes (Sleep, Do Not Disturb), so
+      // the test would fail where a real dose gets through — or vice versa.
+      ...(Platform.OS === "ios"
+        ? {
+            interruptionLevel: hasCriticalAlerts()
+              ? ("critical" as const)
+              : ("timeSensitive" as const),
+          }
+        : {}),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,

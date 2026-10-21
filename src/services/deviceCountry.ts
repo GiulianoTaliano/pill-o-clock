@@ -27,10 +27,21 @@ export type CountryCode = string;
 // it (module var, hydrated from storage so it survives the sync boundary and
 // restarts). Reading the SIM country ISO needs no runtime permission on Android.
 
+/**
+ * Only real ISO 3166-1 alpha-2 codes count as a signal. iOS 16.4+ deprecated
+ * CTCarrier without a replacement and now reports "--" as the SIM country;
+ * taking that at face value pinned every iPhone to a region that matches no
+ * catalog (no ANMAT autocomplete, no barcode scanner) and shadowed the locale
+ * and timezone fallbacks.
+ */
+function normalizeCountry(code: string | null | undefined): CountryCode | null {
+  const c = code?.trim().toUpperCase();
+  return c && /^[A-Z]{2}$/.test(c) ? c : null;
+}
+
 let cachedSimCountry: CountryCode | null = (() => {
   try {
-    const c = storage.getString(STORAGE_KEYS.SIM_COUNTRY);
-    return c ? c.toUpperCase() : null;
+    return normalizeCountry(storage.getString(STORAGE_KEYS.SIM_COUNTRY));
   } catch {
     return null;
   }
@@ -39,10 +50,16 @@ let cachedSimCountry: CountryCode | null = (() => {
 /** Refreshes the cached SIM country. Call once at app startup. */
 export async function refreshSimCountry(): Promise<void> {
   try {
-    const iso = await Cellular.getIsoCountryCodeAsync();
+    const raw = await Cellular.getIsoCountryCodeAsync();
+    const iso = normalizeCountry(raw);
     if (iso) {
-      cachedSimCountry = iso.toUpperCase();
-      storage.set(STORAGE_KEYS.SIM_COUNTRY, cachedSimCountry);
+      cachedSimCountry = iso;
+      storage.set(STORAGE_KEYS.SIM_COUNTRY, iso);
+    } else if (raw) {
+      // A placeholder such as iOS's "--": the SIM country is unknowable on
+      // this device, so drop any stale cache and let locale/timezone decide.
+      cachedSimCountry = null;
+      storage.remove(STORAGE_KEYS.SIM_COUNTRY);
     }
   } catch {
     /* no SIM / not permitted / wifi-only device — keep the previous cache */
@@ -54,8 +71,7 @@ export async function refreshSimCountry(): Promise<void> {
  *  timezone fallback below closes. */
 function localeRegion(): CountryCode | null {
   try {
-    const region = Localization.getLocales()[0]?.regionCode;
-    return region ? region.toUpperCase() : null;
+    return normalizeCountry(Localization.getLocales()[0]?.regionCode);
   } catch {
     return null;
   }
