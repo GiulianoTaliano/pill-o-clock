@@ -10,10 +10,12 @@ import {
 import {
   AccessibilityInfo,
   Animated,
+  Platform,
   Text,
   StyleSheet,
   View,
 } from "react-native";
+import { FullWindowOverlay } from "react-native-screens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -127,14 +129,32 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     });
   }, []);
   const dismiss = useCallback(() => setQueue((prev) => prev.slice(1)), []);
+  const layer = (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      {queue[0] && (
+        <ToastItem key={queue[0].id} entry={queue[0]} onDone={dismiss} />
+      )}
+    </View>
+  );
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        {queue[0] && (
-          <ToastItem key={queue[0].id} entry={queue[0]} onDone={dismiss} />
-        )}
-      </View>
+      {/* iOS presents `presentation: "modal"` routes (medication form) as
+          native view controllers ABOVE the root view, so a root-level toast
+          ended up hidden behind them. FullWindowOverlay renders in its own
+          window on top of every modal. Mounted only while a toast is visible,
+          and not as an accessibility-modal container, so VoiceOver can still
+          reach the screen underneath. Android modals are plain screens, so
+          the regular overlay already sits on top there. */}
+      {Platform.OS === "ios" ? (
+        queue[0] ? (
+          <FullWindowOverlay unstable_accessibilityContainerViewIsModal={false}>
+            {layer}
+          </FullWindowOverlay>
+        ) : null
+      ) : (
+        layer
+      )}
     </ToastContext.Provider>
   );
 }

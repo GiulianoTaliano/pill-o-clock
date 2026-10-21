@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { useTranslation, changeLanguage } from "../../src/i18n";
 import { useAppStore, type ThemeMode } from "../../src/store";
@@ -315,6 +315,16 @@ export default function SettingsScreen() {
     });
     return () => sub.remove();
   }, [category]);
+  // Tapping the Settings tab always lands on the category list, both when
+  // coming from another tab and when it is already selected (the platform
+  // "tap the tab to go to its top" convention). Without this, a user who left
+  // a category open came back to it and could not find the other sections.
+  const navigation = useNavigation();
+  useEffect(
+    () =>
+      navigation.addListener("tabPress" as never, () => setCategory(null)),
+    [navigation]
+  );
   useEffect(
     () => () => {
       pendingPass.current?.({ kind: "cancel" });
