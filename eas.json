@@ -22,7 +22,8 @@
         "ascApiKeyPath": "./credentials/AuthKey_9J5H6J9AAD.p8",
         "ascApiKeyId": "9J5H6J9AAD",
         "ascApiKeyIssuerId": "215f6671-92cd-41fd-a214-55afc82e1cd5",
-        "appleTeamId": "99V27N2S75"
+        "appleTeamId": "99V27N2S75",
+        "ascAppId": "6825550720"
       }
     }
   }
