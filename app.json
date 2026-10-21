@@ -16,8 +16,8 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pilloclock.app",
-      "buildNumber": "1",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "UIUserInterfaceStyle": "Automatic",
         "UIBackgroundModes": [
           "fetch"

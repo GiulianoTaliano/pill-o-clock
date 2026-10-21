@@ -12,8 +12,14 @@
 > - **Cuenta:** inscripción individual en Apple Developer **en curso** (D1).
 > - **Decisiones tomadas:** D2 sin anuncios en iOS v1 · D4 `supportsTablet: false` ·
 >   D5 UE excluida en v1 (además falta soporte de catálogo por país) · D8 EAS Build.
->   Siguen abiertas, con recomendación: D3 (pedir critical alerts), D6 (cifrado) y D7
->   (categoría). Se resuelven al cargar App Store Connect.
+>   Siguen abiertas, con recomendación: D3 (pedir critical alerts) y D7 (categoría). Se
+>   resuelven al cargar App Store Connect.
+> - **D6 decidida (2026-10-21): cifrado exento.** `ITSAppUsesNonExemptEncryption: false`
+>   en `app.json`. Los algoritmos son estándar (SQLCipher y XChaCha20) y solo protegen
+>   los datos del propio usuario, en una app cuya función principal no es la seguridad
+>   informática. Aplica la nota 4 de la categoría 5, parte 2 de la EAR, que excluye
+>   expresamente el "medical records management". Si Apple pidiera documentación, se
+>   revisa.
 > - **Rama `fix/privacy-policy-ads`:** resuelve R3 y R12, y hace que `adsEnabled()` sea
 >   solo Android (D2). Fichas de tienda y README con contacto real.
 > - **Rama `chore/ios-release-readiness`:** resuelve R1, R2, R4, R5, R7, R8, R9, R10 y R11
