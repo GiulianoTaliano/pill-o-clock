@@ -1,5 +1,7 @@
 # Pill O-Clock — Port a iOS (estado y pendientes)
 
+> **Para publicar en el App Store**, ver [ios-app-store-checklist.md](ios-app-store-checklist.md) (2026-10-10).
+
 > **Fecha:** 2026-07-24 · **Rama:** `main` · **Versión:** 1.7.0 (buildNumber iOS `"1"`)
 > **Contexto:** Android va por 1.7.0 / versionCode 30, live en Google Play *internal testing*.
 > **iOS nunca se compiló hasta ahora — este documento cubre el primer intento en un simulador de Mac** (sin cuenta paga de Apple Developer: el simulador no la requiere; la cuota de USD 99 es solo para dispositivo físico, TestFlight y App Store).

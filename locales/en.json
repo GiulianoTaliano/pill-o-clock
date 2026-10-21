@@ -1,0 +1,9 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Pill O-Clock",
+    "NSCameraUsageDescription": "Pill O-Clock uses the camera to scan the barcode on a medication package and fill in the medication details.",
+    "NSPhotoLibraryUsageDescription": "Pill O-Clock uses your photos so you can attach a picture of the package to each medication.",
+    "NSLocationWhenInUseUsageDescription": "Pill O-Clock uses your location to pin the exact place of your medical appointments on the map.",
+    "NSFaceIDUsageDescription": "Pill O-Clock uses Face ID to unlock the app when app lock is turned on."
+  }
+}
