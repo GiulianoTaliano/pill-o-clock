@@ -26,7 +26,25 @@
 >   (§4). **Falta validarla con un prebuild real**: Expo no genera el proyecto iOS en
 >   Windows. Se valida en la Mac (`npx expo prebuild -p ios --clean`) o con el primer
 >   build en EAS.
-> - **Pendientes:** R6 (UMP para Android en EEE/UK), R13, R14 (fichas iOS) y todo §5–§6.
+> - **Pendientes:** R6 (UMP para Android en EEE/UK), R13 y todo §5–§6. R14 resuelto:
+>   `store/app-store-*.txt` y `store/app-store-connect.txt`.
+>
+> ### Estado al 2026-10-21: primer build en TestFlight
+> - Cuenta individual aprobada, Team `99V27N2S75`. App `6825550720` creada en App Store
+>   Connect (es-MX).
+> - **1.8.0 (4) está en TestFlight interno**, en el grupo "Team (Expo)", y el owner quedó
+>   invitado. El build se compiló en EAS con la configuración de §4, lo que de paso valida
+>   el prebuild de iOS que no se pudo hacer en Windows.
+> - **Cómo compilar de ahora en más:** variables `EXPO_ASC_*` (API key `9J5H6J9AAD`) +
+>   `EXPO_APPLE_TEAM_ID` + `EXPO_APPLE_TEAM_TYPE=INDIVIDUAL` + `EXPO_NO_CAPABILITY_SYNC=1`,
+>   y después `eas build -p ios --profile production --non-interactive --auto-submit`.
+>   El certificado y el perfil de distribución vencen el 21-10-2027.
+> - **Trampas ya resueltas:**
+>   - eas-cli no puede escribir en la config porque su cargador falla con `app.config.ts`.
+>   - La capability Time Sensitive no existe en la API de App Store Connect: se activa a mano
+>     en el portal.
+>   - En modo interactivo, contestar "Yes" a la pregunta de push pide el Apple ID. No hace
+>     falta.
 
 ---
 
@@ -315,8 +333,8 @@ Quedaron pendientes en [ios-port.md](ios-port.md) §7 y no se pueden hacer en el
 | 3. ✅ Decidir D2, D4, D5 y D8 (D3, D6 y D7 se resuelven en App Store Connect) | Vos | — |
 | 4. ✅ PR `chore/ios-release-readiness` (§4) · ⬜ fichas `store/app-store-*.txt` | Claude | 3 |
 | 4b. Cargar en EAS (environment `production`) las variables `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` y `SENTRY_AUTH_TOKEN` (`eas env:create`). Sin el token, la subida de símbolos de Sentry rompe el build de release | Claude, con tu OK (manda secretos a Expo) | — |
-| 5. Bundle ID + registro de la app (reserva el nombre) + API key + pedido de critical alerts | Vos, con guía | 2 |
-| 6. `eas build -p ios --profile production` → `eas submit -p ios` → TestFlight interno | Claude/vos | 4, 4b, 5 |
+| 5. ✅ Bundle ID + registro de la app (id `6825550720`, nombre reservado) + API key · ⬜ pedido de critical alerts | Vos, con guía | 2 |
+| 6. ✅ `eas build -p ios --profile production --non-interactive --auto-submit` → **1.8.0 (4) en TestFlight interno** (2026-10-21, `IN_BETA_TESTING`) | Claude/vos | 4, 4b, 5 |
 | 7. Pruebas en iPhone real (§6) | Vos | 6 |
 | 8. Capturas 6.9" y 6.3" en el simulador de la Mac | Claude/vos | 4 |
 | 9. Completar App Store Connect (§5) y enviar a revisión | Vos, con guía | 7, 8 |
