@@ -38,128 +38,154 @@
   <!-- ─── ENGLISH ─────────────────────────────────────────────── -->
   <div id="en">
     <h1>Pill O-Clock</h1>
-    <p class="subtitle">Privacy Policy · Last updated: July 2026</p>
-    <span class="badge">🔒 Your medical data stays on your device</span>
+    <p class="subtitle">Privacy Policy · Last updated: October 10, 2026</p>
+    <span class="badge">🔒 Your health data stays on your device</span>
 
     <h2>1. Overview</h2>
-    <p>Pill O-Clock (“the App”) is a personal medication reminder app developed by an independent developer. We are strongly committed to your privacy. <strong>Your medical data — medications, schedules, dose history, health measurements, and the wellbeing diary — is stored exclusively on your device and is never uploaded.</strong> Two features use third-party services in limited ways (crash reporting and the appointment map); these are described in Section 4.</p>
+    <p>Pill O-Clock (“the App”) is a medication reminder and personal health log developed by Giuliano Dolce Taliano Santoro (Estudio Taliano), an independent developer based in Buenos Aires, Argentina (“we”), who is responsible for the processing described in this policy. <strong>Your health data — medications, schedules, dose history, measurements, allergies, appointments and the wellbeing diary — is stored only on your device and is never uploaded to us.</strong> We run no servers and have no access to it. A few features use third-party services in limited ways — crash diagnostics, the appointment map and, in the Android version, advertising. Section 4 describes each one.</p>
 
-    <h2>2. Information We Collect</h2>
-    <p>The App stores the following data <strong>locally on your device</strong>, in a private SQLite database that is never accessible to other apps:</p>
+    <h2>2. Information Stored on Your Device</h2>
+    <p>The App stores the following data <strong>locally on your device</strong>, in private app storage that other apps cannot access. The main database is encrypted.</p>
     <ul>
-      <li>Medication names, dosages, categories, instructions, and notes you enter</li>
-      <li>Alarm schedules (times and days of the week) and treatment periods</li>
-      <li>Dose log records (whether a dose was taken, skipped, or missed) and per-dose notes</li>
+      <li>Profiles, if you manage medication for more than one person</li>
+      <li>Medication names, dosages, categories, instructions, notes, stock and an optional photo of the package</li>
+      <li>Schedules, treatment periods and reminder settings</li>
+      <li>Dose records (taken, skipped or missed) and per-dose notes</li>
       <li>Health measurements you record (blood pressure, blood glucose, weight, SpO₂, heart rate)</li>
-      <li>Daily wellbeing diary entries (mood level and symptoms)</li>
-      <li>Medical appointment details (title, doctor, location, date/time, notes)</li>
-      <li>App preferences (language, theme, notification permission flags)</li>
+      <li>Wellbeing diary entries (mood and symptoms)</li>
+      <li>Allergies and the emergency card details you enter</li>
+      <li>Medical appointments (title, doctor, location, date/time, notes and attached documents)</li>
+      <li>App preferences (language, theme, reminder and app-lock settings)</li>
     </ul>
-    <p>We do <strong>not</strong> require an account and do not collect your name, email address, or phone number. This data stays in the local database; the only limited exceptions — crash diagnostics and appointment-map lookups — are described in Section 4.</p>
+    <p>We do <strong>not</strong> require an account and do not collect your name, email address or phone number. The camera is used only to read the barcode on a medication package, and the image is processed on your device. The medication catalog and the allergy check work offline, on your device. Biometric unlock (Face ID or fingerprint) is handled entirely by your device's operating system; the App never receives your biometric data.</p>
 
     <h2>3. How Your Data Is Used</h2>
     <p>Your data is used solely to:</p>
     <ul>
-      <li>Display your medication schedule and send local push notifications as reminders</li>
-      <li>Show your adherence history, health trend charts, and diary entries within the App</li>
-      <li>Generate a local PDF health report you can share with your doctor</li>
-      <li>Allow you to export a backup file to a location of your choice</li>
+      <li>Show your medication schedule and remind you of each dose (local notifications, and system alarms on Android)</li>
+      <li>Show your adherence history, health charts, insights and diary within the App</li>
+      <li>Generate the PDF reports, the caregiver summary and the health-record export (FHIR) that you choose to share</li>
+      <li>Let you export a backup and restore it</li>
+      <li>On Android, if you turn on Health Connect sync, write the measurements you record to Health Connect on your device. The App only writes to Health Connect; it does not read from it.</li>
     </ul>
+    <p>When you share a report, a summary or a backup, you choose the destination through your device's share sheet. We do not receive a copy.</p>
 
     <h2>4. Third-Party Services and Data Sharing</h2>
-    <p>We do not sell, rent, or trade your data, and the App contains <strong>no advertising SDK and no product- or usage-analytics SDK</strong>. Two features rely on third-party services, in limited ways:</p>
+    <p>We do not sell, rent or trade your data. <strong>We never send your medications, measurements, allergies, appointments or diary to any third party</strong>, including the services listed below. The App contains no product- or usage-analytics SDK. Three features rely on third parties:</p>
     <ul>
-      <li><strong>Crash reporting (Sentry).</strong> Production builds of the App send crash and error diagnostics — exception details, a technical stack trace, and basic device/app state — to <a href="https://sentry.io">Sentry</a> so we can find and fix bugs. These reports do <strong>not</strong> include your medication, health, or diary data. This processing is governed by Sentry's privacy policy.</li>
-      <li><strong>Appointment location (Google Maps / Places).</strong> If you add a location to a medical appointment, the address text you type and your device's current coordinates are sent to Google Maps/Places to display the map and suggest nearby places. This happens only while you use the location picker; if you never add appointment locations, no location data leaves your device. This processing is governed by Google's privacy policy.</li>
+      <li><strong>Crash and performance diagnostics (Sentry).</strong> Production builds send crash and error reports to <a href="https://sentry.io/privacy/">Sentry</a> so we can find and fix problems. A report contains exception details, a technical stack trace, basic device and app information (model, operating-system version, app version) and a sample of performance measurements, such as how long a screen takes to load. Reports do <strong>not</strong> include your health data and are not linked to your identity.</li>
+      <li><strong>Appointment location (maps and address search).</strong> This happens only if you use the location picker of an appointment. The address you type and the coordinates of the pin, or of your current location, are sent to <a href="https://policies.google.com/privacy">Google</a> (Places) to suggest and resolve addresses. They are also sent to your device's built-in map and geocoding service — Apple Maps on iPhone, Google Maps on Android — to show the map and convert addresses into coordinates. If you never add a location, no location data leaves your device. We do not store your current location; it is used only while the picker is open.</li>
+      <li><strong>Advertising (Google AdMob) — Android version only.</strong> The Android version shows small banners only on the History and Health screens. Banners never appear on the alarm, the list of today's doses or the medication form. We request <strong>non-personalized ads only</strong>, and we never pass health data to the ad service. To serve those ads, measure them and prevent fraud, Google's AdMob SDK collects your IP address (from which an approximate location can be derived), device identifiers including the Android advertising ID, and your interactions with the ads. Google handles this data under its <a href="https://policies.google.com/privacy">privacy policy</a> and its <a href="https://policies.google.com/technologies/partner-sites">rules for partner apps</a>. You can reset or delete your advertising ID in your Android settings. <strong>The iPhone version currently shows no ads and does not start the ads service.</strong></li>
+    </ul>
+    <p>We only work with providers whose own privacy terms require them to protect this data at least as well as described in this policy.</p>
+
+    <h2>5. Data Retention</h2>
+    <ul>
+      <li><strong>On your device:</strong> data remains until you delete it or uninstall the App. We cannot access or recover it.</li>
+      <li><strong>Crash and performance reports:</strong> Sentry deletes them automatically when its retention period ends (90 days at most).</li>
+      <li><strong>Google:</strong> Google keeps the data it receives for maps, address search and ads under its own policies.</li>
     </ul>
 
-    <h2>5. Export and Deletion</h2>
-    <p>You are in full control of your data at all times:</p>
+    <h2>6. Your Choices and Rights</h2>
     <ul>
-      <li><strong>Export:</strong> Settings → Export data → saves a JSON file to any location you choose (your device, cloud storage, email, etc.)</li>
-      <li><strong>Delete:</strong> Settings → Delete all data → permanently removes every medication, schedule, and log from the local database</li>
-      <li><strong>Uninstall:</strong> Uninstalling the App removes all data from your device</li>
+      <li><strong>Export:</strong> Settings → Export data saves a backup file wherever you choose. You can protect the file with a passphrase.</li>
+      <li><strong>Delete:</strong> Settings → Delete all data permanently removes everything from your device. Uninstalling the App does the same.</li>
+      <li><strong>Permissions:</strong> you can grant or revoke notifications, camera, photos, location and biometric unlock at any time in your device settings. Without a permission, the App keeps working; only the related feature stops.</li>
+      <li><strong>Requests:</strong> we hold no copy of your health data, so you control it directly on your device. For questions about diagnostic reports or any other privacy matter, write to us (Section 11). You may also contact your local data-protection authority — in Argentina, the Agencia de Acceso a la Información Pública.</li>
     </ul>
 
-    <h2>6. Notifications</h2>
-    <p>The App uses local push notifications only. No notification content is routed through our servers. Notification permission may be granted or revoked at any time through your device's Settings.</p>
+    <h2>7. Notifications</h2>
+    <p>The App uses local notifications only. Reminders are scheduled on your device, and no notification content goes through any server. You can grant or revoke notification permission at any time in your device settings.</p>
 
-    <h2>7. Children's Privacy</h2>
+    <h2>8. Children's Privacy</h2>
     <p>The App is not directed at children under 13. We do not knowingly collect data from children.</p>
 
-    <h2>8. Health Disclaimer</h2>
+    <h2>9. Health Disclaimer</h2>
     <p>Pill O-Clock is a reminder and tracking tool. It is <strong>not</strong> a medical device, does not provide medical advice, and is not a substitute for the guidance of a qualified healthcare professional. Always consult your doctor or pharmacist before changing your medication regimen.</p>
 
-    <h2>9. Changes to This Policy</h2>
-    <p>We may update this policy if the App's functionality changes in ways that affect data handling. The current version will always be accessible at the URL linked from the App's Play Store listing.</p>
+    <h2>10. Changes to This Policy</h2>
+    <p>We may update this policy if the App's functionality changes in ways that affect data handling. The current version is always available at this address, which is linked from the App's store listings and from Settings → Privacy policy in the App.</p>
 
-    <h2>10. Contact</h2>
-    <p>Questions or concerns? Reach us at: <a href="mailto:privacy@pilloclock.app">privacy@pilloclock.app</a></p>
+    <h2>11. Contact</h2>
+    <p>Giuliano Dolce Taliano Santoro (Estudio Taliano) · Buenos Aires, Argentina<br />Email: <a href="mailto:giuliano.taliano1@gmail.com">giuliano.taliano1@gmail.com</a></p>
   </div>
 
   <!-- ─── ESPAÑOL ─────────────────────────────────────────────── -->
   <div id="es">
     <h1>Pill O-Clock</h1>
-    <p class="subtitle">Política de Privacidad · Última actualización: julio 2026</p>
-    <span class="badge">🔒 Tus datos médicos quedan en tu dispositivo</span>
+    <p class="subtitle">Política de Privacidad · Última actualización: 10 de octubre de 2026</p>
+    <span class="badge">🔒 Tus datos de salud quedan en tu dispositivo</span>
 
     <h2>1. Introducción</h2>
-    <p>Pill O-Clock (“la App”) es una aplicación de recordatorio de medicamentos desarrollada por un desarrollador independiente. Estamos firmemente comprometidos con tu privacidad. <strong>Tus datos médicos — medicamentos, horarios, historial de tomas, mediciones de salud y diario — se almacenan exclusivamente en tu dispositivo y nunca se suben a la nube.</strong> Dos funciones usan servicios de terceros de forma limitada (reportes de errores y el mapa de citas); se describen en la Sección 4.</p>
+    <p>Pill O-Clock (“la App”) es una aplicación de recordatorio de medicamentos y registro personal de salud. La desarrolla Giuliano Dolce Taliano Santoro (Estudio Taliano), desarrollador independiente con domicilio en Buenos Aires, Argentina (“nosotros”), responsable del tratamiento descrito en esta política. <strong>Tus datos de salud — medicamentos, horarios, historial de tomas, mediciones, alergias, citas y diario — se guardan solo en tu dispositivo y nunca se nos envían.</strong> No tenemos servidores ni acceso a esos datos. Algunas funciones usan servicios de terceros de forma limitada: diagnósticos de errores, el mapa de citas y, en la versión de Android, publicidad. Cada uno se describe en la Sección 4.</p>
 
-    <h2>2. Información que almacenamos</h2>
-    <p>La App guarda los siguientes datos <strong>localmente en tu dispositivo</strong>, en una base de datos SQLite privada que no es accesible por otras aplicaciones:</p>
+    <h2>2. Información guardada en tu dispositivo</h2>
+    <p>La App guarda los siguientes datos <strong>localmente en tu dispositivo</strong>, en un almacenamiento privado al que otras aplicaciones no pueden acceder. La base de datos principal está cifrada.</p>
     <ul>
-      <li>Nombres de medicamentos, dosis, categorías, instrucciones y notas que ingresás</li>
-      <li>Horarios de alarmas (horas y días de la semana) y períodos de tratamiento</li>
-      <li>Registros de tomas (si una dosis fue tomada, omitida o no tomada) y notas por dosis</li>
+      <li>Perfiles, si administrás la medicación de más de una persona</li>
+      <li>Nombres de medicamentos, dosis, categorías, instrucciones, notas, stock y una foto opcional del envase</li>
+      <li>Horarios, períodos de tratamiento y configuración de recordatorios</li>
+      <li>Registros de tomas (tomada, omitida o no tomada) y notas por dosis</li>
       <li>Mediciones de salud que registrás (presión arterial, glucemia, peso, SpO₂, frecuencia cardíaca)</li>
-      <li>Entradas del diario de bienestar diario (nivel de ánimo y síntomas)</li>
-      <li>Detalles de citas médicas (título, médico, ubicación, fecha/hora, notas)</li>
-      <li>Preferencias de la app (idioma, tema, flags de permisos de notificaciones)</li>
+      <li>Entradas del diario de bienestar (ánimo y síntomas)</li>
+      <li>Alergias y los datos de la tarjeta de emergencia que ingresás</li>
+      <li>Citas médicas (título, médico, ubicación, fecha/hora, notas y documentos adjuntos)</li>
+      <li>Preferencias de la app (idioma, tema, configuración de recordatorios y del bloqueo de la app)</li>
     </ul>
-    <p>No requerimos una cuenta y no recopilamos tu nombre, correo electrónico ni número de teléfono. Estos datos permanecen en la base de datos local; las únicas excepciones limitadas — diagnósticos de errores y búsquedas del mapa de citas — se describen en la Sección 4.</p>
+    <p><strong>No</strong> requerimos una cuenta y no recopilamos tu nombre, correo electrónico ni número de teléfono. La cámara se usa solo para leer el código de barras de un envase, y la imagen se procesa en tu dispositivo. El catálogo de medicamentos y el chequeo de alergias funcionan sin conexión, en tu dispositivo. El desbloqueo biométrico (Face ID o huella) lo maneja por completo el sistema operativo; la App nunca recibe tus datos biométricos.</p>
 
     <h2>3. Cómo usamos tu información</h2>
     <p>Tus datos se usan únicamente para:</p>
     <ul>
-      <li>Mostrar tu calendario de medicamentos y enviar notificaciones locales como recordatorios</li>
-      <li>Mostrar tu historial de adherencia, gráficos de tendencia de salud y entradas del diario dentro de la app</li>
-      <li>Generar un informe PDF local que podés compartir con tu médico</li>
-      <li>Permitirte exportar una copia de seguridad a la ubicación que elijas</li>
+      <li>Mostrar tu calendario de medicamentos y recordarte cada dosis (notificaciones locales, y alarmas del sistema en Android)</li>
+      <li>Mostrar tu historial de adherencia, gráficos de salud, observaciones y diario dentro de la App</li>
+      <li>Generar los informes PDF, el resumen para cuidadores y la exportación de historia clínica (FHIR) que vos elijas compartir</li>
+      <li>Permitirte exportar una copia de seguridad y restaurarla</li>
+      <li>En Android, si activás la sincronización con Health Connect, escribir allí las mediciones que registrás, dentro de tu dispositivo. La App solo escribe en Health Connect; no lee datos de ahí.</li>
     </ul>
+    <p>Cuando compartís un informe, un resumen o una copia de seguridad, elegís el destino con el menú para compartir de tu dispositivo. Nosotros no recibimos una copia.</p>
 
-    <h2>4. Servicios de terceros y compartir datos</h2>
-    <p>No vendemos, alquilamos ni intercambiamos tus datos, y la app <strong>no incluye ningún SDK de publicidad ni de analíticas de uso</strong>. Dos funciones dependen de servicios de terceros, de forma limitada:</p>
+    <h2>4. Servicios de terceros y datos compartidos</h2>
+    <p>No vendemos, alquilamos ni intercambiamos tus datos. <strong>Nunca enviamos tus medicamentos, mediciones, alergias, citas ni diario a terceros</strong>, incluidos los servicios que se listan abajo. La App no incluye ningún SDK de analíticas de uso. Tres funciones dependen de terceros:</p>
     <ul>
-      <li><strong>Reportes de errores (Sentry).</strong> Las versiones de producción de la app envían diagnósticos de errores — detalles de la excepción, un stack trace técnico y estado básico del dispositivo/app — a <a href="https://sentry.io">Sentry</a> para poder detectar y corregir fallas. Estos reportes <strong>no</strong> incluyen tus datos de medicamentos, salud ni diario. Este tratamiento se rige por la política de privacidad de Sentry.</li>
-      <li><strong>Ubicación de citas (Google Maps / Places).</strong> Si agregás una ubicación a una cita médica, el texto de la dirección que escribís y las coordenadas actuales de tu dispositivo se envían a Google Maps/Places para mostrar el mapa y sugerir lugares cercanos. Esto ocurre solo mientras usás el selector de ubicación; si nunca agregás ubicaciones de citas, ningún dato de ubicación sale de tu dispositivo. Este tratamiento se rige por la política de privacidad de Google.</li>
+      <li><strong>Diagnósticos de errores y rendimiento (Sentry).</strong> Las versiones de producción envían reportes de fallas y errores a <a href="https://sentry.io/privacy/">Sentry</a> para que podamos detectar y corregir problemas. Un reporte contiene detalles de la excepción, un stack trace técnico, información básica del dispositivo y de la app (modelo, versión del sistema operativo, versión de la app) y una muestra de mediciones de rendimiento, como cuánto tarda en cargar una pantalla. Los reportes <strong>no</strong> incluyen tus datos de salud y no se vinculan con tu identidad.</li>
+      <li><strong>Ubicación de citas (mapas y búsqueda de direcciones).</strong> Solo ocurre si usás el selector de ubicación de una cita. La dirección que escribís y las coordenadas del pin, o de tu ubicación actual, se envían a <a href="https://policies.google.com/privacy">Google</a> (Places) para sugerir y resolver direcciones. También se envían al servicio de mapas y geocodificación de tu dispositivo — Apple Maps en iPhone, Google Maps en Android — para mostrar el mapa y convertir direcciones en coordenadas. Si nunca agregás una ubicación, ningún dato de ubicación sale de tu dispositivo. No guardamos tu ubicación actual; se usa solo mientras el selector está abierto.</li>
+      <li><strong>Publicidad (Google AdMob) — solo en la versión de Android.</strong> La versión de Android muestra banners chicos únicamente en las pantallas de Historial y Salud. Nunca aparecen en la alarma, en la lista de tomas del día ni en el formulario de medicamentos. Pedimos <strong>solo anuncios no personalizados</strong> y nunca le pasamos datos de salud al servicio de anuncios. Para mostrar esos anuncios, medirlos y prevenir fraudes, el SDK de AdMob de Google recopila tu dirección IP (de la que puede deducirse una ubicación aproximada), identificadores del dispositivo como el ID de publicidad de Android, y tus interacciones con los anuncios. Google trata esos datos según su <a href="https://policies.google.com/privacy">política de privacidad</a> y sus <a href="https://policies.google.com/technologies/partner-sites">reglas para apps asociadas</a>. Podés restablecer o borrar tu ID de publicidad desde los ajustes de Android. <strong>La versión para iPhone hoy no muestra anuncios ni inicia el servicio de publicidad.</strong></li>
     </ul>
+    <p>Solo trabajamos con proveedores cuyas condiciones de privacidad los obligan a proteger estos datos al menos como se describe en esta política.</p>
 
-    <h2>5. Exportación y eliminación</h2>
-    <p>Tenés el control total sobre tus datos en todo momento:</p>
+    <h2>5. Conservación de los datos</h2>
     <ul>
-      <li><strong>Exportar:</strong> Ajustes → Exportar datos → guarda un archivo JSON en el lugar que elijas (dispositivo, almacenamiento en la nube, email, etc.)</li>
-      <li><strong>Eliminar:</strong> Ajustes → Borrar todos los datos → elimina permanentemente todos los medicamentos, alarmas e historial de la base de datos local</li>
-      <li><strong>Desinstalar:</strong> Desinstalar la app elimina todos los datos de tu dispositivo</li>
+      <li><strong>En tu dispositivo:</strong> los datos quedan hasta que los borres o desinstales la App. Nosotros no podemos acceder a ellos ni recuperarlos.</li>
+      <li><strong>Reportes de errores y rendimiento:</strong> Sentry los borra automáticamente cuando vence su período de conservación (90 días como máximo).</li>
+      <li><strong>Google:</strong> Google conserva los datos que recibe por los mapas, la búsqueda de direcciones y los anuncios según sus propias políticas.</li>
     </ul>
 
-    <h2>6. Notificaciones</h2>
-    <p>La app usa únicamente notificaciones push locales. El contenido de las notificaciones no es enrutado a través de nuestros servidores. El permiso de notificaciones puede ser otorgado o revocado en cualquier momento desde los Ajustes del dispositivo.</p>
+    <h2>6. Tus opciones y derechos</h2>
+    <ul>
+      <li><strong>Exportar:</strong> Ajustes → Exportar datos guarda una copia de seguridad donde elijas. Podés proteger el archivo con una frase de contraseña.</li>
+      <li><strong>Eliminar:</strong> Ajustes → Borrar todos los datos elimina todo de tu dispositivo de forma permanente. Desinstalar la App tiene el mismo efecto.</li>
+      <li><strong>Permisos:</strong> podés otorgar o revocar en cualquier momento, desde los ajustes del dispositivo, las notificaciones, la cámara, las fotos, la ubicación y el desbloqueo biométrico. Sin un permiso la App sigue funcionando; solo deja de andar la función correspondiente.</li>
+      <li><strong>Consultas:</strong> no tenemos ninguna copia de tus datos de salud, así que los controlás directamente en tu dispositivo. Para consultas sobre los reportes de diagnóstico o cualquier otro tema de privacidad, escribinos (Sección 11). También podés recurrir a la autoridad de protección de datos de tu país; en Argentina, la Agencia de Acceso a la Información Pública.</li>
+    </ul>
 
-    <h2>7. Privacidad de menores</h2>
-    <p>La app no está destinada a menores de 13 años. No recopilamos datos de niños de forma intencional.</p>
+    <h2>7. Notificaciones</h2>
+    <p>La App usa únicamente notificaciones locales. Los recordatorios se programan en tu dispositivo, y el contenido de las notificaciones no pasa por ningún servidor. Podés otorgar o revocar el permiso de notificaciones en cualquier momento desde los ajustes del dispositivo.</p>
 
-    <h2>8. Descargo de responsabilidad médica</h2>
+    <h2>8. Privacidad de menores</h2>
+    <p>La App no está destinada a menores de 13 años. No recopilamos datos de niños de forma intencional.</p>
+
+    <h2>9. Descargo de responsabilidad médica</h2>
     <p>Pill O-Clock es una herramienta de recordatorio y seguimiento. <strong>No es</strong> un dispositivo médico, no brinda asesoramiento médico y no reemplaza la guía de un profesional de la salud calificado. Siempre consultá a tu médico o farmacéutico antes de realizar cambios en tu tratamiento.</p>
 
-    <h2>9. Cambios en esta política</h2>
-    <p>Podemos actualizar esta política si la funcionalidad de la app cambia de formas que afecten el manejo de datos. La versión actualizada siempre estará disponible en la URL enlazada desde la ficha de la app en Play Store.</p>
+    <h2>10. Cambios en esta política</h2>
+    <p>Podemos actualizar esta política si la funcionalidad de la App cambia de formas que afecten el manejo de datos. La versión vigente siempre está disponible en esta dirección, que se enlaza desde las fichas de la App en las tiendas y desde Ajustes → Política de privacidad dentro de la App.</p>
 
-    <h2>10. Contacto</h2>
-    <p>¿Preguntas o inquietudes? Escribinos a: <a href="mailto:privacy@pilloclock.app">privacy@pilloclock.app</a></p>
+    <h2>11. Contacto</h2>
+    <p>Giuliano Dolce Taliano Santoro (Estudio Taliano) · Buenos Aires, Argentina<br />Email: <a href="mailto:giuliano.taliano1@gmail.com">giuliano.taliano1@gmail.com</a></p>
   </div>
 
-  <footer>© 2026 Giuliano Taliano · Pill O-Clock</footer>
+  <footer>© 2026 Giuliano Dolce Taliano Santoro · Estudio Taliano · Pill O-Clock</footer>
 </div>
 
 <script>

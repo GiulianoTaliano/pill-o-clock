@@ -921,7 +921,7 @@ export default function SettingsScreen() {
               onPress={() => {
                 void run("privacy", () =>
                   Linking.openURL(
-                    "https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html"
+                    "https://estudiotaliano.com/pill-o-clock/privacy-policy.html"
                   )
                 );
               }}

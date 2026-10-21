@@ -94,10 +94,10 @@ Everyone
 medication reminder, pill reminder, medicine alarm, medication tracker, pill alarm, dose reminder, health tracker, blood pressure tracker, glucose tracker, symptom diary, mood tracker, medication diary, adherence tracker, health journal, medication log, pill counter, medicine tracker, drug reminder, prescription reminder, health app, medical appointments, pill organizer, daily medication, medication schedule, medication management, diabetes tracker, blood pressure log
 
 ── CONTACT EMAIL ────────────────────────────────────────
-privacy@pilloclock.app
+giuliano.taliano1@gmail.com
 
 ── PRIVACY POLICY URL ───────────────────────────────────
-https://giulianotaliano.github.io/pill-o-clock/privacy-policy.html
+https://estudiotaliano.com/pill-o-clock/privacy-policy.html
 
 ── DATA SAFETY FORM (answers) ───────────────────────────
 (corrected & submitted to Play 2026-07-22 — see audit C6/H14/H15)
