@@ -1,0 +1,76 @@
+══════════════════════════════════════════════════════
+ PILL O-CLOCK — FICHA DE APP STORE (ESPAÑOL · es-MX)
+ Copiar en App Store Connect → Spanish (Mexico), el idioma principal
+ Redactada para iOS 1.8.0. NO copiar la ficha de Play: en iOS no hay
+ widget, no hay Health Connect, la alarma no suena en modo silencio y
+ la guía 2.3.10 prohíbe mencionar Android.
+══════════════════════════════════════════════════════
+
+── NOMBRE (máx. 30) ────────────────────────────────────
+Pill O-Clock: Pastillero
+
+── SUBTÍTULO (máx. 30) ─────────────────────────────────
+Recordatorio de medicamentos
+
+── TEXTO PROMOCIONAL (máx. 170, se cambia sin revisión) ─
+Recordatorios que insisten hasta que respondés, perfiles para toda la familia y tus datos de salud guardados solo en tu iPhone. Sin cuenta.
+
+── PALABRAS CLAVE (máx. 100 bytes, sin espacios tras la coma) ─
+alarma,pastillas,remedios,dosis,medicación,presión,glucemia,receta,diario,cuidador,familia
+
+── DESCRIPCIÓN (máx. 4000, texto plano) ────────────────
+
+Pill O-Clock es tu pastillero en el iPhone: te recuerda cada dosis, registra lo que tomaste (o no) y lleva tus mediciones de salud. Todo se guarda de forma privada en tu teléfono. Sin cuenta. Sin suscripción.
+
+RECORDATORIOS QUE NO SE PIERDEN
+Cada dosis llega como una notificación con sonido de alarma, marcada como urgente para que aparezca aunque tengas activado un modo de concentración. Si no respondés, vuelve a avisarte cada 5 minutos, hasta dos veces. Confirmá, posponé u omití la dosis directamente desde la notificación.
+
+PARA VOS Y PARA QUIENES CUIDÁS
+Perfiles múltiples en el mismo teléfono: administrá tus medicamentos, los de tu mamá y los de tus hijos sin crear ninguna cuenta. Cada recordatorio dice de quién es la dosis.
+
+ESQUEMAS COMPLEJOS, SIN COMPLICACIONES
+Ciclos (21 días sí, 7 no), descenso gradual de dosis, días alternos, tomas a demanda e inyectables semanales con rotación del sitio de aplicación. El recordatorio muestra la dosis correcta de cada día.
+
+GESTIÓN COMPLETA DE MEDICAMENTOS
+Cargá cada medicamento con su dosis, categoría, instrucciones, foto del envase y período de tratamiento. El nombre se autocompleta con el catálogo de medicamentos de Argentina (ANMAT) o de Estados Unidos, y en esos dos países también podés escanear el código de barras del envase. Controlá el stock con avisos antes de quedarte sin dosis, recibí un recordatorio para renovar la receta y archivá los tratamientos terminados sin perder el historial.
+
+AVISOS DE ALERGIAS Y DUPLICADOS
+Registrá tus alergias y Pill O-Clock te avisa si un medicamento contiene un ingrediente al que sos alérgico o si duplica otro tratamiento. Son avisos informativos: siempre confirmalo con tu médico o farmacéutico.
+
+TARJETA DE EMERGENCIA
+Una pantalla con letra grande muestra alergias, medicación actual y contacto de emergencia, pensada para primeros auxilios.
+
+MEDICIONES Y DIARIO DE BIENESTAR
+Presión arterial, glucemia, peso, SpO₂ y frecuencia cardíaca, con gráficos de tendencia. Anotá tu ánimo y tus síntomas cada día y comparalos con tu historial de tomas.
+
+INFORMES PARA TU MÉDICO
+Generá un PDF completo para la consulta, un resumen para quien te cuide unos días o una exportación en formato HL7 FHIR. Vos elegís con quién compartirlo.
+
+HISTORIAL Y TURNOS
+Racha de adherencia, porcentaje de tomas y mapa de calor mensual. Organizá tus turnos médicos con ubicación en el mapa y un recordatorio antes de cada uno.
+
+TUS DATOS SON TUYOS
+Todo vive en una base de datos cifrada en tu iPhone y no se envía a ningún servidor nuestro. Las únicas excepciones son los diagnósticos técnicos de fallas, que nunca incluyen tus datos de salud, y la búsqueda en el mapa si agregás la ubicación de un turno. Podés proteger la app con Face ID y hacer una copia de seguridad completa, con contraseña si querés, para restaurarla al cambiar de teléfono.
+
+EN ESPAÑOL, INGLÉS Y PORTUGUÉS
+La app usa el idioma de tu iPhone y podés cambiarlo en Ajustes. Modo oscuro automático y opción de letra grande.
+
+Aviso: Pill O-Clock es una herramienta de recordatorio y seguimiento. No es un dispositivo médico, no da consejos médicos y no reemplaza la indicación de un profesional de la salud. Consultá siempre a tu médico o farmacéutico antes de cambiar tu tratamiento.
+
+── URLS ────────────────────────────────────────────────
+Soporte:     https://estudiotaliano.com/pill-o-clock/
+Marketing:   https://estudiotaliano.com/pill-o-clock/
+Privacidad:  https://estudiotaliano.com/pill-o-clock/privacy-policy.html
+
+── COPYRIGHT ───────────────────────────────────────────
+2026 Giuliano Dolce Taliano Santoro
+
+── CAPTURAS (6.9" 1320×2868 y 6.3" 1206×2622, sin Android) ─
+1. Hoy                — "Tus dosis del día de un vistazo"
+2. Notificación       — "Confirmá o posponé sin abrir la app"
+3. Perfiles           — "Toda la familia en un solo teléfono"
+4. Esquema complejo   — "Ciclos, descensos e inyectables"
+5. Salud              — "Presión, glucemia y más, con gráficos"
+6. Historial          — "Tu adherencia mes a mes"
+7. Tarjeta emergencia — "Lo importante, a mano en una urgencia"
+8. Informe PDF        — "Todo listo para tu próxima consulta"

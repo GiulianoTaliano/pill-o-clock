@@ -1,0 +1,63 @@
+══════════════════════════════════════════════════════
+ PILL O-CLOCK — FICHA DA APP STORE (PORTUGUÊS · pt-BR)
+ Colar em App Store Connect → Portuguese (Brazil)
+ Escrita para iOS 1.8.0. NÃO reutilizar a ficha do Play: no iOS não há
+ widget nem Health Connect, o lembrete não toca no modo silencioso e
+ a diretriz 2.3.10 proíbe mencionar o Android.
+══════════════════════════════════════════════════════
+
+── NOME (máx. 30) ──────────────────────────────────────
+Pill O-Clock: Remédios
+
+── SUBTÍTULO (máx. 30) ─────────────────────────────────
+Lembrete de remédios e saúde
+
+── TEXTO PROMOCIONAL (máx. 170, muda sem revisão) ──────
+Lembretes que insistem até você responder, perfis para toda a família e seus dados de saúde guardados só no seu iPhone. Sem conta.
+
+── PALAVRAS-CHAVE (máx. 100 bytes, sem espaço após a vírgula) ─
+alarme,remédio,medicamento,dose,pressão,glicemia,receita,diário,cuidador,família,comprimido
+
+── DESCRIÇÃO (máx. 4000, texto simples) ────────────────
+
+O Pill O-Clock é o seu porta-comprimidos no iPhone: lembra cada dose, registra o que você tomou (ou não) e acompanha suas medições de saúde. Tudo fica guardado de forma privada no seu telefone. Sem conta. Sem assinatura.
+
+LEMBRETES QUE VOCÊ NÃO PERDE
+Cada dose chega como uma notificação com som de alarme, marcada como urgente para aparecer mesmo com um modo de foco ativado. Se você não responder, ela avisa de novo a cada 5 minutos, até duas vezes. Confirme, adie ou pule a dose direto na notificação.
+
+PARA VOCÊ E PARA QUEM VOCÊ CUIDA
+Perfis múltiplos no mesmo telefone: gerencie seus remédios, os da sua mãe e os dos seus filhos sem criar nenhuma conta. Cada lembrete diz de quem é a dose.
+
+ESQUEMAS COMPLEXOS, SEM COMPLICAÇÃO
+Ciclos (21 dias sim, 7 não), desmame com doses decrescentes, dia sim dia não, doses quando necessário e injetáveis semanais com rodízio do local de aplicação. O lembrete mostra a dose certa de cada dia.
+
+GESTÃO COMPLETA DE REMÉDIOS
+Cadastre cada remédio com dose, categoria, instruções, foto da caixa e período de tratamento. Controle o estoque com alertas antes de acabar, receba um lembrete para renovar a receita e arquive tratamentos encerrados sem perder o histórico.
+
+AVISOS DE ALERGIAS E DUPLICIDADE
+Registre suas alergias e o Pill O-Clock avisa se um remédio contém um ingrediente ao qual você é alérgico ou se duplica outro tratamento. São avisos informativos: confirme sempre com seu médico ou farmacêutico.
+
+FICHA DE EMERGÊNCIA
+Uma tela com letras grandes mostra alergias, remédios em uso e contato de emergência, pensada para primeiros socorros.
+
+MEDIÇÕES E DIÁRIO DE BEM-ESTAR
+Pressão arterial, glicemia, peso, SpO₂ e frequência cardíaca, com gráficos de tendência. Registre humor e sintomas todos os dias e compare com seu histórico de doses.
+
+RELATÓRIOS PARA O MÉDICO
+Gere um PDF completo para a consulta, um resumo para quem vai cuidar de você por alguns dias ou uma exportação no padrão HL7 FHIR. Você escolhe com quem compartilhar.
+
+HISTÓRICO E CONSULTAS
+Sequência de adesão, porcentagem de doses e mapa de calor mensal. Organize suas consultas médicas com localização no mapa e um lembrete antes de cada uma.
+
+SEUS DADOS SÃO SEUS
+Tudo fica em um banco de dados criptografado no seu iPhone e não é enviado a nenhum servidor nosso. As únicas exceções são os diagnósticos técnicos de falhas, que nunca incluem seus dados de saúde, e a busca no mapa se você adicionar o local de uma consulta. Proteja o app com Face ID e faça um backup completo, com senha se quiser, para restaurar ao trocar de telefone.
+
+EM PORTUGUÊS, ESPANHOL E INGLÊS
+O app segue o idioma do seu iPhone e você pode trocar nos Ajustes. Modo escuro automático e opção de letras grandes.
+
+Aviso: o Pill O-Clock é uma ferramenta de lembrete e acompanhamento. Não é um dispositivo médico, não dá conselhos médicos e não substitui a orientação de um profissional de saúde. Sempre consulte seu médico ou farmacêutico antes de mudar seu tratamento.
+
+── URLS ────────────────────────────────────────────────
+Suporte:     https://estudiotaliano.com/pill-o-clock/
+Marketing:   https://estudiotaliano.com/pill-o-clock/
+Privacidade: https://estudiotaliano.com/pill-o-clock/privacy-policy.html

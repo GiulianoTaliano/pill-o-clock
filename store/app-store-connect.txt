@@ -1,0 +1,78 @@
+══════════════════════════════════════════════════════
+ PILL O-CLOCK — RESPUESTAS PARA APP STORE CONNECT (iOS 1.8.0)
+ App: id 6825550720 · bundle com.pilloclock.app · SKU pilloclock-ios
+ Fichas por idioma: store/app-store-{es,en,pt}.txt
+ Contexto y fuentes: docs-internal/ios-app-store-checklist.md
+══════════════════════════════════════════════════════
+
+── APP INFORMATION ─────────────────────────────────────
+Idioma principal:     Spanish (Mexico)
+Localizaciones extra: English (U.S.), Portuguese (Brazil)
+Categoría primaria:   Health & Fitness
+Categoría secundaria: Medical
+Content Rights:       "Sí, contiene contenido de terceros y tengo los derechos
+                      necesarios". Muestra catálogos públicos de medicamentos:
+                      RxTerms/NLM, de dominio público en EE. UU., y el
+                      Vademécum de ANMAT, información pública del Estado
+                      argentino. Las dos fuentes se citan en la app.
+                      ⚠ Confirmalo vos: es una declaración legal.
+
+── REGULATED MEDICAL DEVICE (App Store Regulations & Permits) ─
+¿Es un dispositivo médico regulado?  → No
+(Recordatorio y registro personal. No diagnostica, no calcula dosis y no
+interpreta mediciones.)
+
+── CLASIFICACIÓN POR EDAD (cuestionario 2025) ──────────
+Medical or Treatment Information     → Infrequent   (catálogo y avisos de alergia)
+Health or Wellness Topics            → None
+Advertising                          → No           (iOS v1 sin anuncios)
+User-generated content / social      → No
+Web access sin restricciones         → No
+Mensajería / chat                    → No
+Contests / gambling / violencia / etc. → None
+Resultado esperado: 13+ (coincide con el público 13+ declarado en Play)
+
+── APP PRIVACY (etiquetas de privacidad) ───────────────
+¿Recopila datos?  → Sí
+  Ubicación → Ubicación precisa
+    Uso: App Functionality · Vinculado al usuario: No · Tracking: No
+    (coordenadas que se mandan a Google Places en el selector de turnos, opcional)
+  Diagnósticos → Crash Data
+    Uso: App Functionality · Vinculado: No · Tracking: No   (Sentry)
+  Diagnósticos → Performance Data
+    Uso: App Functionality · Vinculado: No · Tracking: No   (Sentry, muestreo 20%)
+NO declarar: datos de salud, fotos, contactos ni identificadores. Nunca
+salen del dispositivo y el backup lo exporta el propio usuario.
+Si algún día se prenden anuncios en iOS: sumar Device ID, Advertising Data,
+Product Interaction y Coarse Location (Third-Party Advertising) y actualizar
+la política de privacidad ANTES.
+
+── EXPORT COMPLIANCE ───────────────────────────────────
+Resuelto en el build: ITSAppUsesNonExemptEncryption = false (decisión D6).
+App Store Connect no debería volver a preguntar.
+
+── PRECIO Y DISPONIBILIDAD ─────────────────────────────
+Precio: Gratis (no hace falta Paid Apps Agreement ni datos bancarios).
+Disponibilidad: todos los países MENOS los 27 de la Unión Europea (D5):
+  Alemania, Austria, Bélgica, Bulgaria, Chipre, Croacia, Dinamarca,
+  Eslovaquia, Eslovenia, España, Estonia, Finlandia, Francia, Grecia,
+  Hungría, Irlanda, Italia, Letonia, Lituania, Luxemburgo, Malta,
+  Países Bajos, Polonia, Portugal, República Checa, Rumania, Suecia.
+DSA (Business → Digital Services Act): si lo pide aunque la UE esté
+excluida, declarar "not a trader" NO es correcto para una app de un
+monotributista. Preferible dejarlo pendiente: sin declaración, la app
+simplemente no se publica en la UE, que es lo que buscamos.
+
+── APP REVIEW INFORMATION ──────────────────────────────
+Sign-in required: No
+Contacto: Giuliano Dolce Taliano Santoro · giuliano.taliano1@gmail.com ·
+          (teléfono en formato +54 …)
+Notas (inglés, máx. 4000 bytes):
+
+Pill O-Clock is a local-first medication reminder. There is no account or login: every feature is available right after onboarding. Medications, dose history, measurements and diary are stored only on the device (encrypted SQLite); we operate no backend.
+
+To test a reminder: add a medication with a time 2 minutes ahead. A Time Sensitive notification with Take / Snooze / Skip actions fires and repeats every 5 minutes up to 2 times.
+
+Permissions: camera is used only to scan medication barcodes (Argentina and US packages); photo library only to attach a picture of the medication box; location (optional) only to pin appointment places; Face ID only for the optional app lock.
+
+The app does not diagnose, calculate doses or give medical advice. Allergy and duplicate-therapy notices are informational and tell users to consult their doctor or pharmacist. Crash diagnostics (Sentry) contain no health data. The iOS version shows no ads.

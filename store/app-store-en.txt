@@ -1,0 +1,63 @@
+══════════════════════════════════════════════════════
+ PILL O-CLOCK — APP STORE LISTING (ENGLISH · en-US)
+ Paste into App Store Connect → English (U.S.)
+ Written for iOS 1.8.0. Do NOT reuse the Play listing: iOS has no
+ widget and no Health Connect, reminders do not ring in silent mode,
+ and guideline 2.3.10 forbids mentioning Android.
+══════════════════════════════════════════════════════
+
+── NAME (max 30) ───────────────────────────────────────
+Pill O-Clock: Pill Reminder
+
+── SUBTITLE (max 30) ───────────────────────────────────
+Medication tracker & log
+
+── PROMOTIONAL TEXT (max 170, editable without review) ─
+Reminders that follow up until you answer, profiles for the whole family, and your health data kept only on your iPhone. No account needed.
+
+── KEYWORDS (max 100 bytes, no spaces after commas) ────
+medicine,medication,dose,alarm,blood pressure,glucose,refill,caregiver,family,health,diary
+
+── DESCRIPTION (max 4000, plain text) ──────────────────
+
+Pill O-Clock is your pill organizer on iPhone: it reminds you of every dose, logs what you took (or didn't), and keeps track of your health readings. Everything is stored privately on your phone. No account. No subscription.
+
+REMINDERS YOU WON'T MISS
+Each dose arrives as a notification with an alarm sound, marked as time-sensitive so it gets through even when a Focus mode is on. If you don't respond, it reminds you again every 5 minutes, up to twice. Take, snooze or skip the dose right from the notification.
+
+FOR YOU AND THE PEOPLE YOU CARE FOR
+Multiple profiles on one phone: manage your own medication, your mom's and your kids' without creating any account. Every reminder says whose dose it is.
+
+COMPLEX SCHEDULES MADE SIMPLE
+Cycles (21 days on, 7 off), tapering doses, every other day, as-needed doses and weekly injections with injection-site rotation. Each reminder shows the right dose for that day.
+
+COMPLETE MEDICATION MANAGEMENT
+Add each medication with its dose, category, instructions, a photo of the package and the treatment period. Names autocomplete from the US medication catalog (and Argentina's ANMAT catalog), and in those two countries you can also scan the package barcode. Track your supply with alerts before you run out, get a reminder to renew your prescription, and archive finished treatments without losing their history.
+
+ALLERGY AND DUPLICATE ALERTS
+Record your allergies and Pill O-Clock warns you if a medication contains an ingredient you're allergic to or duplicates another treatment. These alerts are informational: always confirm with your doctor or pharmacist.
+
+EMERGENCY CARD
+A large-print screen shows allergies, current medication and an emergency contact, designed for first responders.
+
+HEALTH READINGS AND WELLBEING DIARY
+Blood pressure, blood glucose, weight, SpO₂ and heart rate, with trend charts. Log your mood and symptoms every day and compare them with your dose history.
+
+REPORTS FOR YOUR DOCTOR
+Create a full PDF for your appointment, a short summary for someone covering your care for a few days, or an HL7 FHIR export. You choose who to share it with.
+
+HISTORY AND APPOINTMENTS
+Adherence streak, dose percentage and a monthly heat map. Keep your medical appointments organized, with the location on a map and a reminder before each one.
+
+YOUR DATA IS YOURS
+Everything lives in an encrypted database on your iPhone and is never sent to any server of ours. The only exceptions are technical crash diagnostics, which never include your health data, and the map search if you add an appointment location. Lock the app with Face ID and make a full backup, password-protected if you like, to restore when you change phones.
+
+IN ENGLISH, SPANISH AND PORTUGUESE
+The app follows your iPhone's language, and you can change it in Settings. Automatic dark mode and a large-text option.
+
+Disclaimer: Pill O-Clock is a reminder and tracking tool. It is not a medical device, does not give medical advice and does not replace the guidance of a healthcare professional. Always consult your doctor or pharmacist before changing your treatment.
+
+── URLS ────────────────────────────────────────────────
+Support:     https://estudiotaliano.com/pill-o-clock/
+Marketing:   https://estudiotaliano.com/pill-o-clock/
+Privacy:     https://estudiotaliano.com/pill-o-clock/privacy-policy.html
