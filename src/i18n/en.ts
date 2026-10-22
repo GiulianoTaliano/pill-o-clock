@@ -330,6 +330,17 @@ const en: TranslationShape = {
   },
 
   // ─── Notifications ────────────────────────────────────────────────────────
+  alarmKit: {
+    title: "💊 {{name}} · {{dose}}",
+    stop: "Stop",
+    settingTitle: "Alarm that rings on silent",
+    settingSubtitle: "On iOS 26 or later, every dose rings like the Clock alarm even when your iPhone is on silent or in a Focus mode.",
+    authorized: "On",
+    denied: "Not allowed",
+    notDetermined: "Off",
+    unsupported: "Requires iOS 26",
+    deniedHint: "Turn it on in iPhone Settings → Pill O-Clock → Alarms.",
+  },
   notifications: {
     reminderTitle: "💊 Time to take {{name}}",
     repeatTitle: "⏰ Reminder: {{name}}",

@@ -1,6 +1,7 @@
 import * as Notifications from "expo-notifications";
 import * as IntentLauncher from "expo-intent-launcher";
 import * as ExpoAlarm from "expo-alarm";
+import * as AlarmKit from "expo-alarmkit";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { addDays, addMinutes, format, startOfDay } from "date-fns";
@@ -12,11 +13,16 @@ import {
   toDateString,
   getLocalizedDosage,
   getProfileLabel,
+  generateId,
 } from "../utils";
 import i18n from "../i18n";
 import { STORAGE_KEYS } from "../config";
 import { getDefaultSnoozeMinutes as getSnoozeMin } from "./snoozeSettings";
-import { resolveNotificationSound } from "./iosAlarmSound";
+import {
+  resolveNotificationSound,
+  getIosAlarmSound,
+  BUNDLED_SOUND_FILE,
+} from "./iosAlarmSound";
 import { withEffectiveDose } from "./regimen";
 import { loadSnoozedDoses } from "./snoozedDoses";
 import { effectiveDoseDateTime } from "./doseTime";
@@ -179,6 +185,115 @@ export async function refreshCriticalAlertsStatus(): Promise<boolean> {
   return criticalAlertsGranted;
 }
 
+// ─── iOS 26+ AlarmKit layer ────────────────────────────────────────────────
+//
+// Neither timeSensitive nor (unapproved) critical notifications can sound
+// while the iPhone is on silent — the core promise of the app. On iOS 26+,
+// AlarmKit schedules real system alarms (like the Clock app's) that ring
+// through the silent switch and Focus modes, with no Apple entitlement: only
+// the user's authorization.
+//
+// Each dose gets ONE AlarmKit alarm at its time IN ADDITION to the usual
+// notification chain. The alarm is the audible layer; the notifications keep
+// the Take / Snooze / Skip actions and the follow-up repeats. Alarms live in
+// notification_map as "alarmkit:<uuid>" rows, so every existing cancel path
+// (dose taken/skipped, snooze, schedule edit/delete, timezone change) also
+// cancels the alarm. Below iOS 26 or without authorization nothing changes.
+
+const ALARMKIT_PREFIX = "alarmkit:";
+let alarmKitAuthorized = false;
+
+/** Whether dose alarms currently go through AlarmKit (iOS 26+, authorized). */
+export function isAlarmKitActive(): boolean {
+  return Platform.OS === "ios" && alarmKitAuthorized;
+}
+
+/** Re-reads the AlarmKit authorization (the user can change it in Settings). */
+export async function refreshAlarmKitStatus(): Promise<AlarmKit.AlarmKitAuthorization> {
+  let status: AlarmKit.AlarmKitAuthorization = "unsupported";
+  try {
+    status = await AlarmKit.getAlarmKitAuthorization();
+  } catch {
+    status = "unsupported";
+  }
+  alarmKitAuthorized = status === "authorized";
+  return status;
+}
+
+/**
+ * Asks for AlarmKit authorization (system prompt only the first time). When
+ * it is newly granted, a reschedule adds the alarm to doses that were already
+ * queued as notifications (see reconcileAlarmKitAlarms).
+ */
+export async function requestAlarmKitPermission(): Promise<AlarmKit.AlarmKitAuthorization> {
+  const before = alarmKitAuthorized;
+  let status: AlarmKit.AlarmKitAuthorization = "unsupported";
+  try {
+    status = await AlarmKit.requestAlarmKitAuthorization();
+  } catch {
+    status = "unsupported";
+  }
+  alarmKitAuthorized = status === "authorized";
+  if (alarmKitAuthorized && !before) await rescheduleAllNotifications();
+  return status;
+}
+
+/**
+ * Schedules the AlarmKit alarm for one dose. Returns the notification_map
+ * entry to record, or null when AlarmKit is inactive or refused the alarm —
+ * the notification chain still covers the dose in that case.
+ */
+async function scheduleDoseAlarm(
+  medication: Medication,
+  scheduledDate: string,
+  fireDate: Date,
+  data: NotificationMap[string]
+): Promise<{ notifId: string; data: NotificationMap[string] } | null> {
+  if (!isAlarmKitActive() || fireDate <= new Date()) return null;
+  const id = generateId();
+  try {
+    const dose = getLocalizedDosage(
+      withEffectiveDose(medication, scheduledDate),
+      i18n.t.bind(i18n)
+    );
+    await AlarmKit.scheduleAlarmKitAlarm({
+      id,
+      fireTimestamp: fireDate.getTime(),
+      title: i18n.t("alarmKit.title", {
+        name: await medDisplayName(medication),
+        dose,
+      }),
+      stopLabel: i18n.t("alarmKit.stop"),
+      tintColor: "#2f7de1",
+      soundName:
+        getIosAlarmSound() === "bundled" ? BUNDLED_SOUND_FILE : undefined,
+    });
+    return { notifId: ALARMKIT_PREFIX + id, data };
+  } catch {
+    // e.g. authorization revoked in Settings: degrade to notifications only.
+    alarmKitAuthorized = false;
+    return null;
+  }
+}
+
+/** Shows the AlarmKit prompt only if the user was never asked. */
+async function askAlarmKitIfUndetermined(): Promise<void> {
+  if ((await refreshAlarmKitStatus()) === "notDetermined") {
+    await requestAlarmKitPermission();
+  }
+}
+
+/** Cancels one notification_map entry, whether notification or alarm. */
+async function cancelMappedId(notifId: string): Promise<void> {
+  if (notifId.startsWith(ALARMKIT_PREFIX)) {
+    await AlarmKit.cancelAlarmKitAlarm(
+      notifId.slice(ALARMKIT_PREFIX.length)
+    ).catch(() => {});
+    return;
+  }
+  await Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
+}
+
 // ─── Notification Actions ──────────────────────────────────────────────────
 
 export const ACTION_TAKEN = "TAKEN";
@@ -317,11 +432,14 @@ export async function setupNotifications(
 
   if (existingStatus === "granted") {
     await refreshCriticalAlertsStatus();
+    await refreshAlarmKitStatus();
+    if (options.requestPermissions === true) await askAlarmKitIfUndetermined();
     return { granted: true, needsExactAlarmPermission };
   }
 
   if (options.requestPermissions === false) {
     await refreshCriticalAlertsStatus();
+    await refreshAlarmKitStatus();
     return { granted: false, needsExactAlarmPermission };
   }
 
@@ -335,6 +453,10 @@ export async function setupNotifications(
   });
 
   await refreshCriticalAlertsStatus();
+  // iOS 26+: right after the notification prompt, offer real alarms — the
+  // only way a dose rings while the iPhone is on silent.
+  if (status === "granted") await askAlarmKitIfUndetermined();
+  else await refreshAlarmKitStatus();
 
   return { granted: status === "granted", needsExactAlarmPermission };
 }
@@ -451,9 +573,7 @@ export async function removeNotifMapEntriesByDose(
     [scheduleId, scheduledDate]
   );
   for (const row of rows) {
-    await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(
-      () => {}
-    );
+    await cancelMappedId(row.notif_id);
   }
   await db.runAsync(
     "DELETE FROM notification_map WHERE schedule_id = ? AND scheduled_date = ?",
@@ -612,6 +732,15 @@ export async function scheduleDoseChain(
     scheduledTime: schedule.time,
   };
 
+  // iOS 26+: the real alarm (rings on silent), when authorized.
+  const alarm = await scheduleDoseAlarm(
+    medication,
+    scheduledDate,
+    baseDate,
+    baseData
+  );
+  if (alarm) entries.push(alarm);
+
   // Initial notification
   const id0 = await scheduleOneNotification(
     medication,
@@ -724,20 +853,26 @@ export async function snoozeDose(
     },
   });
 
+  const snoozeData: NotificationMap[string] = {
+    doseLogId: `${schedule.id}-${scheduledDate}`,
+    medicationId: medication.id,
+    scheduleId: schedule.id,
+    scheduledDate,
+    // Store the actual snooze fire-time so that when the user marks it
+    // "taken" from the notification, the log records the snoozed time
+    // rather than the original schedule time.
+    scheduledTime: format(snoozeDate, "HH:mm"),
+  };
+  // iOS 26+: the snoozed dose rings again as a real alarm, too.
+  const alarm = await scheduleDoseAlarm(
+    medication,
+    scheduledDate,
+    snoozeDate,
+    snoozeData
+  );
   await addNotifMapEntries([
-    {
-      notifId: id,
-      data: {
-        doseLogId: `${schedule.id}-${scheduledDate}`,
-        medicationId: medication.id,
-        scheduleId: schedule.id,
-        scheduledDate,
-        // Store the actual snooze fire-time so that when the user marks it
-        // "taken" from the notification, the log records the snoozed time
-        // rather than the original schedule time.
-        scheduledTime: format(snoozeDate, "HH:mm"),
-      },
-    },
+    { notifId: id, data: snoozeData },
+    ...(alarm ? [alarm] : []),
   ]);
 }
 
@@ -791,6 +926,9 @@ export async function scheduleAllUpcoming(
 
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
+  if (Platform.OS === "ios") {
+    await AlarmKit.cancelAllAlarmKitAlarms().catch(() => {});
+  }
   const db = await getDb();
   if (Platform.OS === "android") {
     await ExpoAlarm.cancelAllAlarms();
@@ -1112,9 +1250,7 @@ export async function cancelScheduleNotifications(
   }
 
   for (const row of rows) {
-    await Notifications.cancelScheduledNotificationAsync(row.notif_id).catch(
-      () => {}
-    );
+    await cancelMappedId(row.notif_id);
   }
   await db.runAsync("DELETE FROM notification_map WHERE schedule_id = ?", [
     scheduleId,
@@ -1285,5 +1421,70 @@ export async function rescheduleAllNotifications(): Promise<void> {
 
       await scheduleDoseChain(med, sched, scheduledDate, plan.maxRepeats);
     }
+  }
+
+  if (isAlarmKitActive()) await reconcileAlarmKitAlarms(medications, resolvedKeys);
+}
+
+/**
+ * Every future, unresolved dose tracked in notification_map should have a
+ * live AlarmKit alarm. Recreates the missing ones: doses queued before the
+ * user granted AlarmKit, and alarms the system dropped (reported after iOS
+ * upgrades). Runs on every reschedule, i.e. every time the app comes to the
+ * foreground.
+ */
+async function reconcileAlarmKitAlarms(
+  medications: Medication[],
+  resolvedKeys: Set<string>
+): Promise<void> {
+  let alive: Set<string>;
+  try {
+    alive = new Set(
+      (await AlarmKit.getScheduledAlarmKitIds()).map((id) => id.toLowerCase())
+    );
+  } catch {
+    return;
+  }
+  const db = await getDb();
+  const rows = await db.getAllAsync<NotifMapRow>(
+    "SELECT * FROM notification_map"
+  );
+  const byDose = new Map<string, NotifMapRow[]>();
+  for (const row of rows) {
+    const key = `${row.schedule_id}:${row.scheduled_date}`;
+    byDose.set(key, [...(byDose.get(key) ?? []), row]);
+  }
+  const now = new Date();
+  for (const [key, group] of byDose) {
+    if (resolvedKeys.has(key)) continue;
+    const alarmRows = group.filter((r) => r.notif_id.startsWith(ALARMKIT_PREFIX));
+    const hasLiveAlarm = alarmRows.some((r) =>
+      alive.has(r.notif_id.slice(ALARMKIT_PREFIX.length).toLowerCase())
+    );
+    if (hasLiveAlarm) continue;
+
+    const first = group[0];
+    const [y, mo, d] = first.scheduled_date.split("-").map(Number);
+    const { hours, minutes } = parseTime(first.scheduled_time);
+    const fireDate = new Date(y, mo - 1, d, hours, minutes, 0, 0);
+    if (fireDate <= now) continue;
+    const med = medications.find((m) => m.id === first.medication_id);
+    if (!med || !med.isActive) continue;
+
+    for (const r of alarmRows) {
+      await db.runAsync("DELETE FROM notification_map WHERE notif_id = ?", [
+        r.notif_id,
+      ]);
+    }
+    const entry = await scheduleDoseAlarm(med, first.scheduled_date, fireDate, {
+      doseLogId: first.dose_log_id,
+      medicationId: first.medication_id,
+      scheduleId: first.schedule_id,
+      scheduledDate: first.scheduled_date,
+      scheduledTime: first.scheduled_time,
+    });
+    // AlarmKit refused (e.g. authorization revoked): stop for this round.
+    if (!entry) return;
+    await addNotifMapEntries([entry]);
   }
 }

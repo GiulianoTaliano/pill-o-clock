@@ -328,6 +328,17 @@ const es = {
   },
 
   // ─── Notifications ────────────────────────────────────────────────────────
+  alarmKit: {
+    title: "💊 {{name}} · {{dose}}",
+    stop: "Detener",
+    settingTitle: "Alarma que suena en silencio",
+    settingSubtitle: "En iOS 26 o posterior, cada dosis suena como el despertador aunque el iPhone esté en silencio o en un modo de concentración.",
+    authorized: "Activada",
+    denied: "No permitida",
+    notDetermined: "Sin activar",
+    unsupported: "Requiere iOS 26",
+    deniedHint: "Activala en Ajustes del iPhone → Pill O-Clock → Alarmas.",
+  },
   notifications: {
     reminderTitle: "💊 Hora de tomar {{name}}",
     repeatTitle: "⏰ Recordatorio: {{name}}",

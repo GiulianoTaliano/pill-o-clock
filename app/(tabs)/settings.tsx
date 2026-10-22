@@ -53,7 +53,10 @@ import {
   openExactAlarmSettings,
   refreshDoseReminderCategory,
   rebuildDoseNotifications,
+  refreshAlarmKitStatus,
+  requestAlarmKitPermission,
 } from "../../src/services/notifications";
+import type { AlarmKitAuthorization } from "expo-alarmkit";
 import {
   SNOOZE_OPTIONS,
   getDefaultSnoozeMinutes,
@@ -280,11 +283,14 @@ export default function SettingsScreen() {
   const [healthStatus, setHealthStatus] = useState("off");
   const [ttsOn, setTtsOn] = useState(isTtsEnabled);
   const [region, setRegion] = useState<string | null>(getDrugRegionOverride);
+  const [alarmKit, setAlarmKit] =
+    useState<AlarmKitAuthorization>("unsupported");
   const active = store.profiles.find((p) => p.id === store.activeProfileId);
   const person = active?.name || t("profiles.me");
   const unavailable = busy !== null;
   const refresh = useCallback(async () => {
     setReadiness(await getReminderReadiness());
+    if (Platform.OS === "ios") setAlarmKit(await refreshAlarmKitStatus());
     setHealthOn(isHealthSyncEnabled());
     setHealthStatus(await getHealthSyncPermissionStatus());
     if (isAppLockSupported()) {
@@ -570,6 +576,31 @@ export default function SettingsScreen() {
                   }}
                 />
               ))}
+            {Platform.OS === "ios" && (
+              <>
+                <Row
+                  title={t("alarmKit.settingTitle")}
+                  subtitle={t("alarmKit.settingSubtitle")}
+                  value={t("alarmKit." + alarmKit)}
+                  icon="alarm-outline"
+                  loading={busy === "alarmKit"}
+                  disabled={unavailable || alarmKit === "unsupported"}
+                  onPress={() => {
+                    void run("alarmKit", async () => {
+                      // First time: system prompt. Afterwards iOS only lets
+                      // the user change it in the iPhone's Settings.
+                      if (alarmKit === "notDetermined")
+                        await requestAlarmKitPermission();
+                      else await Linking.openSettings();
+                      await refresh();
+                    });
+                  }}
+                />
+                {alarmKit === "denied" && (
+                  <Note>{t("alarmKit.deniedHint")}</Note>
+                )}
+              </>
+            )}
             <Row
               title={t("uxSettings.checkAgain")}
               icon="refresh-outline"

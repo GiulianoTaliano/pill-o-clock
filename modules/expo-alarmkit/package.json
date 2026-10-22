@@ -1,0 +1,15 @@
+{
+  "name": "expo-alarmkit",
+  "version": "1.0.0",
+  "description": "Native iOS 26+ AlarmKit module for Pill O-Clock. Schedules system alarms for medication doses that ring through the silent switch and Focus modes. No-op on Android, web and iOS < 26.",
+  "main": "src/index",
+  "types": "src/index",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react-native": "*"
+  }
+}
