@@ -66,11 +66,12 @@ Privacidad:  https://estudiotaliano.com/pill-o-clock/privacy-policy.html
 2026 Giuliano Dolce Taliano Santoro
 
 ── CAPTURAS (6.9" 1320×2868 y 6.3" 1206×2622, sin Android) ─
+Guía de captura: docs-internal/ios-screenshots.md
 1. Hoy                — "Tus dosis del día de un vistazo"
-2. Alarma bloqueada   — "Suena aunque el iPhone esté en silencio"
-3. Perfiles           — "Toda la familia en un solo teléfono"
-4. Esquema complejo   — "Ciclos, descensos e inyectables"
+2. Medicamentos       — "Toda tu medicación, ordenada"
+3. Esquema            — "Ciclos, descensos e inyectables"
+4. Historial          — "Tu adherencia mes a mes"
 5. Salud              — "Presión, glucemia y más, con gráficos"
-6. Historial          — "Tu adherencia mes a mes"
-7. Tarjeta emergencia — "Lo importante, a mano en una urgencia"
-8. Informe PDF        — "Todo listo para tu próxima consulta"
+6. Medición           — "Detectá tendencias a tiempo"
+7. Turnos             — "Tus consultas, con recordatorio"
+8. Tarjeta emergencia — "Lo importante, a mano en una urgencia"
