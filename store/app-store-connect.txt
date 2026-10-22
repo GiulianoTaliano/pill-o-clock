@@ -71,7 +71,7 @@ Notas (inglés, máx. 4000 bytes):
 
 Pill O-Clock is a local-first medication reminder. There is no account or login: every feature is available right after onboarding. Medications, dose history, measurements and diary are stored only on the device (encrypted SQLite); we operate no backend.
 
-To test a reminder: add a medication with a time 2 minutes ahead. A Time Sensitive notification with Take / Snooze / Skip actions fires and repeats every 5 minutes up to 2 times.
+To test a reminder: add a medication with a time 2 minutes ahead. On iOS 26+, after allowing alarms (prompted after notifications, or Settings > Reminders > "Alarm that rings on silent"), the dose rings as an AlarmKit alarm even on silent or in a Focus mode. A Time Sensitive notification with Take / Snooze / Skip actions also fires and repeats every 5 minutes up to 2 times. AlarmKit is used only for scheduled medication doses chosen by the user.
 
 Permissions: camera is used only to scan medication barcodes (Argentina and US packages); photo library only to attach a picture of the medication box; location (optional) only to pin appointment places; Face ID only for the optional app lock.
 

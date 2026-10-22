@@ -39,6 +39,16 @@
 >   `EXPO_APPLE_TEAM_ID` + `EXPO_APPLE_TEAM_TYPE=INDIVIDUAL` + `EXPO_NO_CAPABILITY_SYNC=1`,
 >   y después `eas build -p ios --profile production --non-interactive --auto-submit`.
 >   El certificado y el perfil de distribución vencen el 21-10-2027.
+> - **Ronda de pruebas en iPhone (builds 4→7), resuelta:**
+>   - **Región:** iOS 16.4+ devuelve "--" como país de la SIM, así que no aparecía el
+>     escáner y el catálogo no era ANMAT.
+>   - **Toasts** escondidos detrás de los modales nativos.
+>   - **Pestaña Ajustes** que no volvía a la lista de secciones.
+>   - **Prueba de recordatorio** que no era Time Sensitive.
+>   - **No sonaba en silencio:** era un límite de iOS. Se resolvió con **AlarmKit**
+>     (`modules/expo-alarmkit`, iOS 26+). **Validado en el dispositivo el 2026-10-21 con el
+>     build 7:** suena bloqueado, en silencio y con el modo Sueño. En el binario, AlarmKit y
+>     ActivityKit quedaron con linking débil, así que no crashea en iOS anterior a 26.
 > - **Trampas ya resueltas:**
 >   - eas-cli no puede escribir en la config porque su cargador falla con `app.config.ts`.
 >   - La capability Time Sensitive no existe en la API de App Store Connect: se activa a mano

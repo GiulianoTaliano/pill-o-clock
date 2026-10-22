@@ -2,18 +2,18 @@
  PILL O-CLOCK — APP STORE LISTING (ENGLISH · en-US)
  Paste into App Store Connect → English (U.S.)
  Written for iOS 1.8.0. Do NOT reuse the Play listing: iOS has no
- widget and no Health Connect, reminders do not ring in silent mode,
- and guideline 2.3.10 forbids mentioning Android.
+ widget and no Health Connect, ringing on silent needs iOS 26
+ (AlarmKit), and guideline 2.3.10 forbids mentioning Android.
 ══════════════════════════════════════════════════════
 
 ── NAME (max 30) ───────────────────────────────────────
 Pill O-Clock: Pill Reminder
 
 ── SUBTITLE (max 30) ───────────────────────────────────
-Medication tracker & log
+Medication alarm & tracker
 
 ── PROMOTIONAL TEXT (max 170, editable without review) ─
-Reminders that follow up until you answer, profiles for the whole family, and your health data kept only on your iPhone. No account needed.
+An alarm that rings even when your iPhone is on silent, profiles for the whole family, and your health data kept only on your phone. No account.
 
 ── KEYWORDS (max 100 bytes, no spaces after commas) ────
 medicine,medication,dose,alarm,blood pressure,glucose,refill,caregiver,family,health,diary
@@ -22,8 +22,8 @@ medicine,medication,dose,alarm,blood pressure,glucose,refill,caregiver,family,he
 
 Pill O-Clock is your pill organizer on iPhone: it reminds you of every dose, logs what you took (or didn't), and keeps track of your health readings. Everything is stored privately on your phone. No account. No subscription.
 
-REMINDERS YOU WON'T MISS
-Each dose arrives as a notification with an alarm sound, marked as time-sensitive so it gets through even when a Focus mode is on. If you don't respond, it reminds you again every 5 minutes, up to twice. Take, snooze or skip the dose right from the notification.
+AN ALARM THAT ACTUALLY RINGS
+On iOS 26 or later, every dose rings like your iPhone's Clock alarm, even when it is on silent or in a Focus mode. You also get a notification to take, snooze or skip the dose, which reminds you again every 5 minutes, up to twice. On earlier iOS versions, the reminder arrives as a time-sensitive notification.
 
 FOR YOU AND THE PEOPLE YOU CARE FOR
 Multiple profiles on one phone: manage your own medication, your mom's and your kids' without creating any account. Every reminder says whose dose it is.

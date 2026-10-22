@@ -2,18 +2,18 @@
  PILL O-CLOCK — FICHA DA APP STORE (PORTUGUÊS · pt-BR)
  Colar em App Store Connect → Portuguese (Brazil)
  Escrita para iOS 1.8.0. NÃO reutilizar a ficha do Play: no iOS não há
- widget nem Health Connect, o lembrete não toca no modo silencioso e
- a diretriz 2.3.10 proíbe mencionar o Android.
+ widget nem Health Connect, tocar no silencioso requer iOS 26
+ (AlarmKit) e a diretriz 2.3.10 proíbe mencionar o Android.
 ══════════════════════════════════════════════════════
 
 ── NOME (máx. 30) ──────────────────────────────────────
 Pill O-Clock: Remédios
 
 ── SUBTÍTULO (máx. 30) ─────────────────────────────────
-Lembrete de remédios e saúde
+Alarme de remédios e saúde
 
 ── TEXTO PROMOCIONAL (máx. 170, muda sem revisão) ──────
-Lembretes que insistem até você responder, perfis para toda a família e seus dados de saúde guardados só no seu iPhone. Sem conta.
+Um alarme que toca mesmo com o iPhone no silencioso, perfis para toda a família e seus dados de saúde guardados só no seu telefone. Sem conta.
 
 ── PALAVRAS-CHAVE (máx. 100 bytes, sem espaço após a vírgula) ─
 alarme,remédio,medicamento,dose,pressão,glicemia,receita,diário,cuidador,família,comprimido
@@ -22,8 +22,8 @@ alarme,remédio,medicamento,dose,pressão,glicemia,receita,diário,cuidador,fam�
 
 O Pill O-Clock é o seu porta-comprimidos no iPhone: lembra cada dose, registra o que você tomou (ou não) e acompanha suas medições de saúde. Tudo fica guardado de forma privada no seu telefone. Sem conta. Sem assinatura.
 
-LEMBRETES QUE VOCÊ NÃO PERDE
-Cada dose chega como uma notificação com som de alarme, marcada como urgente para aparecer mesmo com um modo de foco ativado. Se você não responder, ela avisa de novo a cada 5 minutos, até duas vezes. Confirme, adie ou pule a dose direto na notificação.
+UM ALARME QUE TOCA DE VERDADE
+No iOS 26 ou posterior, cada dose toca como o despertador do iPhone, mesmo no silencioso ou em um modo de foco. Você também recebe uma notificação para confirmar, adiar ou pular a dose, que avisa de novo a cada 5 minutos, até duas vezes. Em versões anteriores do iOS, o lembrete chega como notificação urgente.
 
 PARA VOCÊ E PARA QUEM VOCÊ CUIDA
 Perfis múltiplos no mesmo telefone: gerencie seus remédios, os da sua mãe e os dos seus filhos sem criar nenhuma conta. Cada lembrete diz de quem é a dose.
